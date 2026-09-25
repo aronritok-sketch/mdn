@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viszonteladóknak – Mandala</title>
+  <meta name="description" content="Nagykereskedelmi együttműködés jógastúdióknak, ajándékboltoknak és terapeutáknak – közvetlen import Nepálból és Indiából.">
+  <meta name="theme-color" content="#1A1512">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body data-active="b2b">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <section class="page-hero">
+      <img src="assets/img/fustolok-csakra-1600.webp" srcset="assets/img/fustolok-csakra-800.webp 800w, assets/img/fustolok-csakra-1600.webp 1600w" sizes="100vw" alt="" fetchpriority="high">
+      <div class="container">
+        <p class="eyebrow">Viszonteladóknak</p>
+        <h1>Közvetlen import, nagykereskedelmi áron</h1>
+        <p>Jógastúdióknak, ajándék- és lakberendezési üzleteknek, masszőröknek és hangterapeutáknak. Regisztrálj, és jóváhagyás után a webshopban azonnal a viszonteladói árakat látod.</p>
+      </div>
+    </section>
+    <section class="section"><div class="container">
+      <ol class="steps">
+        <li class="reveal"><h3>Jelentkezés</h3><p>Töltsd ki az alábbi űrlapot a céges adataiddal.</p></li>
+        <li class="reveal"><h3>Jóváhagyás</h3><p>1–2 munkanapon belül visszajelzünk, és aktiváljuk a viszonteladói fiókodat.</p></li>
+        <li class="reveal"><h3>Rendelés</h3><p>Belépés után minden terméknél a nagykereskedelmi ár látszik, a szokásos kosárral rendelhetsz.</p></li>
+        <li class="reveal"><h3>Utánrendelés</h3><p>Új érkezésekről elsőként értesítünk – a keresett tételeket félre is tesszük.</p></li>
+      </ol>
+    </div></section>
+    <section class="section section-alt"><div class="container split" style="align-items:start">
+      <div>
+        <p class="eyebrow">Jelentkezés</p>
+        <h2>Legyünk partnerek</h2>
+        <p class="lead">Minimális rendelési érték és a pontos kedvezménysávok a jóváhagyás után, a fiókodban jelennek meg.</p>
+        <ul class="perks">
+          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Hangtálak mért frekvencia- és súlyadatokkal</li>
+          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Termékfotók és leírások a saját felületeidre</li>
+          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Számla, személyes átvétel vagy futár</li>
+        </ul>
+      </div>
+      <form class="panel" novalidate data-validate data-success="Köszönjük a jelentkezést! 1–2 munkanapon belül jelentkezünk.">
+        <div class="form-grid">
+          <div class="field full"><label for="f-company">Cégnév</label><input class="input" id="f-company" name="company" type="text" autocomplete="organization" required><span class="field-err"></span></div>
+          <div class="field"><label for="f-taxno">Adószám</label><input class="input" id="f-taxno" name="taxno" type="text" required data-rule="taxno" placeholder="12345678-1-12"><span class="field-err"></span></div>
+          <div class="field"><label for="f-type">Üzlet típusa <span class="muted">(nem kötelező)</span></label><input class="input" id="f-type" name="type" type="text" placeholder="pl. jógastúdió, ajándékbolt"><span class="field-err"></span></div>
+          <div class="field"><label for="f-name">Kapcsolattartó neve</label><input class="input" id="f-name" name="name" type="text" autocomplete="name" required><span class="field-err"></span></div>
+          <div class="field"><label for="f-phone">Telefonszám</label><input class="input" id="f-phone" name="phone" type="tel" autocomplete="tel" required><span class="field-err"></span></div>
+          <div class="field full"><label for="f-email">E-mail-cím</label><input class="input" id="f-email" name="email" type="email" autocomplete="email" required><span class="field-err"></span></div>
+          <div class="field full"><label for="f-web">Weboldal vagy közösségi oldal <span class="muted">(nem kötelező)</span></label><input class="input" id="f-web" name="web" type="text"><span class="field-err"></span></div>
+          <div class="field full"><label for="f-msg">Mely termékek érdekelnek? <span class="muted">(nem kötelező)</span></label><textarea class="input" id="f-msg" name="msg"></textarea><span class="field-err"></span></div>
+          <label class="check full"><input type="checkbox" name="consent"> <span>Elfogadom az <a href="informaciok.html#adatvedelem">adatkezelési tájékoztatót</a>.</span></label>
+          <div class="full"><button class="btn btn-primary" type="submit">Jelentkezés elküldése</button><p class="form-msg" role="status"></p></div>
+        </div>
+      </form>
+    </div></section>
+  </main>
+
+  <footer id="site-footer"></footer>
+  <script type="module" src="assets/js/pages/forms.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kapcsolat – Mandala</title>
+  <meta name="description" content="Írj nekünk, segítünk kiválasztani a hozzád illő hangtálat, szobrot vagy ajándékot.">
+  <meta name="theme-color" content="#1A1512">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body data-active="contact">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <div class="page-head"><div class="container">
+      <nav class="crumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li aria-current="page">Kapcsolat</li></ol></nav>
+      <h1>Kapcsolat</h1>
+      <p>Kérdésed van egy termékről, vagy nem tudod, melyik hangtál illik hozzád? Írj nekünk – általában egy munkanapon belül válaszolunk.</p>
+    </div></div>
+    <section class="section-tight"><div class="container split" style="align-items:start">
+      <div>
+        <ul class="contact-list" style="list-style:none;padding:0;display:grid;gap:1.1rem;font-size:1.05rem" data-contact></ul>
+        <p class="note" style="margin-top:2rem">Személyes átvétel és bemutató csak előzetes időpont-egyeztetéssel.</p>
+      </div>
+      <form class="panel" novalidate data-validate data-success="Köszönjük! Hamarosan válaszolunk.">
+        <div class="form-grid">
+          <div class="field"><label for="f-name">Név</label><input class="input" id="f-name" name="name" type="text" autocomplete="name" required><span class="field-err"></span></div>
+          <div class="field"><label for="f-email">E-mail-cím</label><input class="input" id="f-email" name="email" type="email" autocomplete="email" required><span class="field-err"></span></div>
+          <div class="field full"><label for="f-subject">Tárgy <span class="muted">(nem kötelező)</span></label><input class="input" id="f-subject" name="subject" type="text"><span class="field-err"></span></div>
+          <div class="field full"><label for="f-msg">Üzenet</label><textarea class="input" id="f-msg" name="msg" required></textarea><span class="field-err"></span></div>
+          <label class="check full"><input type="checkbox" name="consent"> <span>Elfogadom az <a href="informaciok.html#adatvedelem">adatkezelési tájékoztatót</a>.</span></label>
+          <div class="full"><button class="btn btn-primary" type="submit">Üzenet küldése</button><p class="form-msg" role="status"></p></div>
+        </div>
+      </form>
+    </div></section>
+  </main>
+
+  <footer id="site-footer"></footer>
+  <script type="module" src="assets/js/pages/forms.js"></script>
+</body>
+</html>
