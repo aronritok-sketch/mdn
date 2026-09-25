@@ -13,6 +13,14 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
+### Egyfájlos előnézet
+
+`dist/mandala-elonezet.html` – az egész oldal egyetlen fájlban (CSS, JS és képek beágyazva). Dupla kattintással megnyitható, e-mailben elküldhető. Újragenerálás a forrás módosítása után:
+
+```bash
+python3 tools/build-single.py
+```
+
 ## Oldalak
 
 | Fájl | Tartalom |
