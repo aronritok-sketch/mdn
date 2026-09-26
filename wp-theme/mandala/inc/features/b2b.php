@@ -136,7 +136,7 @@ add_action('admin_post_mandala_b2b_pricelist', function () {
     header('Content-Disposition: attachment; filename=mandala-arlista-' . wp_date('Y-m-d') . '.csv');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM: az Excel így ismeri fel az ékezeteket
-    fputcsv($out, ['Cikkszám', 'Termék', 'Kategória', 'Alkategória', 'Bolti ár (bruttó, Ft)', 'Nagyker ár (Ft)', 'Készlet', 'Eredet', 'Termékoldal', 'Kép'], ';');
+    fputcsv($out, ['Cikkszám', 'Termék', 'Kategória', 'Alkategória', 'Bolti ár (bruttó, Ft)', 'Nagyker ár (Ft)', 'Készlet', 'Eredet', 'Termékoldal', 'Kép'], ';', '"', '');
     foreach (mandala_product_index() as $row) {
         $product = wc_get_product($row['id']);
         if (!$product || !empty($row['voucher'])) {
@@ -144,7 +144,7 @@ add_action('admin_post_mandala_b2b_pricelist', function () {
         }
         $wholesale = mandala_wholesale_price($product);
         $image = $product->get_image_id() ? wp_get_attachment_image_url($product->get_image_id(), 'full') : '';
-        fputcsv($out, [$row['sku'], $row['name'], $row['catLabel'] ?? $row['cat'], $row['sub'] ? mandala_term_name($row['sub']) : '', (int) $row['price'], $wholesale !== null ? (int) $wholesale : '', $product->managing_stock() ? (int) $product->get_stock_quantity() : ($product->is_in_stock() ? 'van' : 'nincs'), $row['originLabel'] ?? '', $row['url'], $image], ';');
+        fputcsv($out, [$row['sku'], $row['name'], $row['catLabel'] ?? $row['cat'], $row['sub'] ? mandala_term_name($row['sub']) : '', (int) $row['price'], $wholesale !== null ? (int) $wholesale : '', $product->managing_stock() ? (int) $product->get_stock_quantity() : ($product->is_in_stock() ? 'van' : 'nincs'), $row['originLabel'] ?? '', $row['url'], $image], ';', '"', '');
     }
     exit;
 });

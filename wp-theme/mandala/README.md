@@ -44,6 +44,9 @@ cd /tmp && wp --path=/var/www/html mandala demo           # bemutató tartalom
 cd /tmp && wp --path=/var/www/html mandala status
 cd /tmp && wp --path=/var/www/html mandala reindex        # szűrő termékindex újraépítése
 cd /tmp && wp --path=/var/www/html mandala eu-shipping    # szállítás az EU-ba (--off: vissza csak belföld)
+cd /tmp && wp --path=/var/www/html mandala ai-migrate --dry-run --limit=20   # Claude próbafuttatás
+cd /tmp && wp --path=/var/www/html mandala ai-migrate     # teljes migráció (a háttérfeladatok nélkül)
+cd /tmp && wp --path=/var/www/html mandala ai-undo <futtatás>
 ```
 
 (Semleges mappából: az iu_theme relatív `require_once` hibája miatt.)
@@ -109,6 +112,9 @@ nyelvenként) eltérő URL-ek mellett is jók.
 | `eu.php` | Szállítás az EU-ba, országfüggő pénztári ellenőrzés, közösségi adószám | `wp mandala eu-shipping` |
 | `seo.php` | GYIK (FAQPage) az oldalak harmonika blokkjaiból, szűrt kínálat-URL-ek `noindex, follow`, egy BreadcrumbList a Yoast mellett, `countryOfOrigin` | – |
 | `analytics.php` | Consent Mode v2 alapállapot, GA4 események a saját felületekhez, Meta Conversions API | WooCommerce → Mandala mérés |
+| `onboarding.php` | Új termékek jóváhagyási sora: az importból (JUTA) érkező termék piszkozat, ellenőrzőlista (kategória, kép, leírás, ár, cikkszám, kötelező szűrők), élesítés csak teljes adatokkal; értesítő és napi emlékeztető levél, jelvény | Termékek → Új termékek (Beállítások fül) |
+| `catalog-schema.php` | A szűrők adatleírása (mely szűrő hol kötelező) – az ellenőrzőlista és a Claude közös forrása | `mandala_filter_schema` szűrő |
+| `ai-catalog.php` | Claude-alapú kategorizálás: a meglévő termékek migrálása az új kategóriafára és szűrőkre (próbafuttatás, becslés, visszavonás), javaslat az új termékekhez | Termékek → Új termékek → Claude migráció; `wp mandala ai-migrate` |
 | `a11y.php` | Címke–mező összekapcsolás az iu/form mezőkön, fókuszálható táblázatok; az akadálymentességi nyilatkozat oldal a telepítőből | – |
 
 ### Ajándékutalvány és ÁFA
@@ -178,6 +184,24 @@ könyvelővel egyeztetve a tesztszerveren ellenőrizni kell. Lemondáskor az egy
 - Ajándékutalvány számlázása (fent), EU-s szállításnál az OSS ÁFA-kulcsok – könyvelővel egyeztetve.
 - GTM: a fenti események címkéi (GA4, Google Ads, Meta) és a Consent Mode beállítás a GTM-ben.
 
+### Új termékek (JUTA) és Claude migráció
+
+Részletes munkafolyamat a webért felelős munkatársnak: [`docs/UJ-TERMEKEK.md`](../../docs/UJ-TERMEKEK.md).
+
+- **Érkezés:** ami nem a termékszerkesztőből jön létre (JUTA REST, CSV import, WP-CLI), az piszkozat és „új” lesz;
+  ha a JUTA közvetlenül az adatbázisba írna, az óránkénti ellenőrzés akkor is sorba teszi. A JUTA ár- és
+  készletfrissítése nem élesít. Élesítés: a sorban (egyenként vagy csoportosan) vagy a szerkesztőben közzététellel –
+  mindkettő csak teljes ellenőrzőlistával.
+- **Claude:** API-kulcs a `wp-config.php`-ban (`MANDALA_ANTHROPIC_API_KEY`). A kérés csak termékadatot visz
+  (név, cikkszám, régi kategória és tulajdonságok, leírás) – személyes adatot nem. Alapmodell: `claude-opus-5-5`
+  (állítható). A kategória és a szűrőértékek felsorolt listából jönnek (strukturált kimenet), a szerver még
+  egyszer ellenőrzi őket; a biztos javaslat érvénybe lép, a bizonytalan az „Élő, ellenőrizendő” fülre kerül.
+- **Élesítés előtt, tesztszerveren:** adatbázis-mentés → próbafuttatás 20–50 termékkel → a javaslatok átnézése,
+  küszöb / modell hangolása → teljes migráció → az ellenőrizendők átnézése. Minden éles futtatás visszavonható.
+- **A régi kategóriák** a termékek mellett maradnak (URL-ek, SEO). Ha az új kategóriafa bevált, a régieket
+  külön lépésben kell lebontani, 301-es átirányítással (Yoast Premium átirányítások) – ezt a téma nem csinálja
+  meg magától.
+
 ## Tesztek
 
 Egy teszt WordPressen (SQLite is elég, lásd `wp-theme/dev/README.md`), friss `wp mandala setup --demo` után:
@@ -185,8 +209,9 @@ Egy teszt WordPressen (SQLite is elég, lásd `wp-theme/dev/README.md`), friss `
 ```bash
 BASE=http://localhost:8080 node tests/wp-e2e.mjs                        # kínálat, szűrő, kosár, pénztár, űrlapok
 BASE=http://localhost:8080 WP="wp --path=…" node tests/wp-features.mjs   # funkciómodulok (ajándék, utalvány,
-                                                                        # pontok, EU, viszonteladó, mérés)
+                                                                        # pontok, EU, viszonteladó, mérés,
+                                                                        # új termékek sora, Claude migráció)
 ```
 
-A `wp-theme/dev/test-mu-plugin.php` a teszthez kell (levelek fájlba, GLS helyettesítő módok, Meta CAPI
-helyettesítő végpont) – éles oldalra nem kerülhet.
+A `wp-theme/dev/test-mu-plugin.php` a teszthez kell (levelek fájlba, GLS helyettesítő módok, Meta CAPI és
+Anthropic API helyettesítő végpont) – éles oldalra nem kerülhet.

@@ -132,9 +132,9 @@ add_action('admin_post_mandala_newsletter_csv', function () {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=mandala-hirlevel.csv');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['email', 'datum', 'forras']);
+    fputcsv($out, ['email', 'datum', 'forras'], ',', '"', '');
     foreach (get_option('mandala_newsletter', []) as $email => $row) {
-        fputcsv($out, [$email, $row['date'], $row['source']]);
+        fputcsv($out, [$email, $row['date'], $row['source']], ',', '"', '');
     }
     exit;
 });

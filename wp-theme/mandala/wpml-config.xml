@@ -44,6 +44,12 @@
     <custom-field action="ignore">_mandala_review_stats</custom-field>
     <custom-field action="ignore">_mandala_stock_notify</custom-field>
     <custom-field action="ignore">_mandala_demo</custom-field>
+    <custom-field action="ignore">_mandala_onboarding</custom-field>
+    <custom-field action="ignore">_mandala_onboarding_since</custom-field>
+    <custom-field action="ignore">_mandala_onboarding_done</custom-field>
+    <custom-field action="ignore">_mandala_ai</custom-field>
+    <custom-field action="ignore">_mandala_ai_undo</custom-field>
+    <custom-field action="ignore">_mandala_ai_applied</custom-field>
   </custom-fields>
   <admin-texts>
     <key name="mandala_contact" />

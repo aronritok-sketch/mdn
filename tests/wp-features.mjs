@@ -305,6 +305,73 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await noConsent.context().close();
 }
 
+// ======================= Új termékek sora + Claude migráció =======================
+{
+  const W = (cmd) => execSync(`${WP} ${cmd}`, { encoding: 'utf8' });
+  const ids = JSON.parse(wp(`
+    update_option("mandala_ai", ["api_key" => "test-key"]);
+    $GLOBALS["mandala_onboarding_skip"] = true;
+    $cat = function ($slug, $name) { $t = get_term_by("slug", $slug, "product_cat"); return $t ? $t->term_id : wp_insert_term($name, "product_cat", ["slug" => $slug])["term_id"]; };
+    $mk = function ($name, $sku, $cid) { if ($id = wc_get_product_id_by_sku($sku)) { wp_delete_post($id, true); } $p = new WC_Product_Simple(); $p->set_name($name); $p->set_sku($sku); $p->set_regular_price("19900"); $p->set_status("publish"); $p->set_category_ids([$cid]); $p->set_description("Régi leírás."); return $p->save(); };
+    echo wp_json_encode([$mk("Tibeti hangtál kézzel kovácsolt – G#, 405 Hz, 520 g", "OLD-1", $cat("regi-tibeti-hangtalak", "Régi: Tibeti hangtálak")), $mk("Tibeti hangtál – ismeretlen", "OLD-2", $cat("regi-tibeti-hangtalak", "")), $mk("Nag Champa füstölő 15 g", "OLD-3", $cat("regi-fustolok", "Régi: Füstölők"))]);`));
+  W(`mandala ai-migrate --ids=${ids.join(',')} --dry-run`);
+  const sug = (id) => JSON.parse(wp(`echo wp_json_encode(wc_get_product(${id})->get_meta("_mandala_ai"));`));
+  ok(sug(ids[0]).decision === 'auto' && sug(ids[1]).decision === 'review' && sug(ids[2]).decision === 'review', 'Claude próbafuttatás: biztos → automatikus, bizonytalan → ellenőrizendő');
+  ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'Claude próbafuttatás: nem ír a termékbe');
+  const mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
+  ok(mock.model === 'claude-opus-5-5' && mock.tool_choice.name === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell, kötelező eszköz (strukturált kimenet), gyorsítótárazott rendszerprompt');
+  ok(sug(ids[2]).problems.length === 0 && sug(ids[2]).missing.includes('Illat'), 'Claude: a bizonytalan kötelező szűrő (illat) miatt ellenőrizendő');
+
+  const out = W(`mandala ai-migrate --ids=${ids.join(',')}`);
+  const run = out.match(/Futtatás: (\w+)/)[1];
+  const cats0 = wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"]));`);
+  ok(cats0.includes('hangtalak') && cats0.includes('szakralis-targyak') && cats0.includes('regi-tibeti-hangtalak'), 'migráció: új kategória, a régi megmarad', cats0);
+  const vals = JSON.parse(wp(`echo wp_json_encode(mandala_product_filter_values(wc_get_product(${ids[0]})));`));
+  ok(vals.hang[0] === 'g-sharp' && vals.hz === 405 && vals.suly === 520 && vals.csakra[0] === 'torok' && vals.keszites[0] === 'kovacsolt', 'migráció: szűrőadatok (hang, Hz, súly, csakra, készítés)');
+  ok(wp(`echo get_post_meta(${ids[1]}, "_mandala_onboarding", true) . get_post_status(${ids[1]});`) === 'reviewpublish', 'migráció: bizonytalan élő termék az ellenőrizendő sorba, élő marad');
+  ok(wp(`echo implode(",", wp_get_post_terms(${ids[1]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'migráció: bizonytalan terméknél nem ír a kategóriába');
+  wp(`mandala_ai_apply(wc_get_product(${ids[2]}), wc_get_product(${ids[2]})->get_meta("_mandala_ai"), "kézi");`);
+  ok(JSON.parse(wp(`echo wp_json_encode(mandala_attr(wc_get_product(${ids[2]}), "pa_forma", "slug"));`))[0] === 'palcika', 'javaslat kézi alkalmazása: új szűrőérték (nyitott lista) létrejön');
+  W(`mandala ai-undo ${run}`);
+  ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"])) . "|" . get_post_meta(${ids[0]}, "_mandala_hz", true) . "|" . get_post_meta(${ids[1]}, "_mandala_onboarding", true);`) === 'regi-tibeti-hangtalak||', 'visszavonás: kategória, szűrőadat és sorállapot visszaáll');
+
+  // Új termék importból (JUTA): piszkozat, sor, Claude-előtöltés, ellenőrzőlista, élesítés
+  const before = mails().length;
+  const nid = Number(wp(`$p = new WC_Product_Simple(); $p->set_name("Tibeti hangtál öntött – A, 432 Hz, 610 g"); $p->set_sku("JUTA-NEW-" . wp_rand()); $p->set_regular_price("21900"); $p->set_status("publish"); $p->set_manage_stock(true); $p->set_stock_quantity(4); echo $p->save();`));
+  ok(wp(`echo get_post_status(${nid}) . "|" . get_post_meta(${nid}, "_mandala_onboarding", true);`) === 'draft|new', 'import: új termék piszkozat, „új” állapot');
+  wp(`$p = wc_get_product(${nid}); $p->set_regular_price("22900"); $p->set_stock_quantity(6); $p->set_status("publish"); $p->save();`);
+  ok(wp(`echo get_post_status(${nid});`) === 'draft', 'import: a JUTA ár/készlet frissítése nem élesít');
+  wp('do_action("mandala_onboarding_digest");');
+  ok(/Tibeti hangtál öntött – A, 432 Hz/.test(mails().slice(before)) && /új termék vár élesítésre/.test(mails().slice(before)), 'értesítő levél az új termékekről');
+  wp('do_action("mandala_ai_new_batch"); foreach (mandala_ai_runs() as $id => $r) { if (!empty($r["auto_new"]) && $r["status"] === "running") { do { $i = mandala_ai_process($id, false); } while ($i["status"] === "running"); } }');
+  ok(wp(`echo implode(",", wp_get_post_terms(${nid}, "product_cat", ["fields" => "slugs"])) . "|" . get_post_status(${nid});`).match(/hangtalak.*\|draft$/) !== null, 'új termék: Claude előtölti a kategóriát, de nem élesít');
+  ok(wp(`echo implode(",", mandala_onboarding_approve(${nid}));`).includes('Fő termékkép'), 'élesítés hiányos terméknél megtagadva (kép, leírás)');
+  wp(`$p = wc_get_product(${nid}); $p->set_image_id(get_post_thumbnail_id(wc_get_product_id_by_sku("MND-HT-0490"))); $p->set_description(str_repeat("Mélyen zengő, öntött hangtál Nepálból, meditációhoz és hangfürdőhöz. ", 4)); $GLOBALS["mandala_onboarding_skip"] = true; $p->save();`);
+  ok(wp(`echo implode(",", mandala_onboarding_approve(${nid})) . "|" . get_post_status(${nid}) . "|" . get_post_meta(${nid}, "_mandala_onboarding", true);`) === '|publish|done', 'teljes termék élesítve');
+
+  // Admin felület
+  const page = await newPage();
+  await page.goto(`${BASE}/wp-login.php`);
+  await page.fill('#user_login', 'admin');
+  await page.fill('#user_pass', 'admin');
+  await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
+  for (const tab of ['new', 'review', 'ai', 'settings']) {
+    const res = await page.goto(`${BASE}/wp-admin/edit.php?post_type=product&page=mandala-onboarding&tab=${tab}`);
+    const text = await page.textContent('#wpbody-content');
+    ok(res.status() === 200 && !/Fatal error|Warning:|Notice:/.test(text), `admin: Új termékek → ${tab} fül`);
+  }
+  ok((await page.textContent('#adminmenu')).includes('Új termékek'), 'admin: „Új termékek” menüpont');
+  const eid = Number(wp('$p = new WC_Product_Simple(); $p->set_name("Szerkesztő teszt hangtál"); $p->set_sku("ED-" . wp_rand()); $p->set_regular_price("9900"); $p->set_status("publish"); echo $p->save();'));
+  await page.goto(`${BASE}/wp-admin/post.php?post=${eid}&action=edit`);
+  ok(await page.isVisible('#mandala_onboarding'), 'szerkesztő: élesítési ellenőrzőlista doboz');
+  await Promise.all([page.waitForNavigation(), page.click('#publish')]);
+  ok(wp(`echo get_post_status(${eid});`) === 'draft' && (await page.locator('.notice-warning', { hasText: 'nem élesíthető' }).count()) === 1, 'szerkesztő: hiányos új termék közzététele → piszkozat marad, hiánylista');
+  await page.goto(`${BASE}/wp-admin/edit.php?post_type=product&page=mandala-onboarding&tab=ai`);
+  ok((await page.textContent('#wpbody-content')).includes('Próbafuttatás eredménye'), 'admin: próbafuttatás eredménye és becslés');
+  await page.context().close();
+  wp('delete_option("mandala_ai");');
+}
+
 ok(errors.length === 0, 'nincs JS / szerver hiba', errors.slice(0, 5).join(' | '));
 await browser.close();
 console.log(`\n${fails ? fails + ' HIBA' : 'Minden rendben.'}`);

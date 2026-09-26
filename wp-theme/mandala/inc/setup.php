@@ -47,6 +47,8 @@ final class Mandala_Setup
     public function run(array $only = [], bool $force = false): array
     {
         $this->log = [];
+        // A telepítő / bemutató termékei nem importból jönnek: nem kerülnek az „Új termékek” sorba.
+        $GLOBALS['mandala_onboarding_skip'] = true;
         if (!class_exists('WooCommerce')) {
             $this->log[] = 'A WooCommerce nincs bekapcsolva: a bolti lépések kimaradnak.';
         }
