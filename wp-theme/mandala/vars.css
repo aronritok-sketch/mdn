@@ -1,0 +1,142 @@
+/* ==========================================================================
+   Mandala – design tokenek
+   A child téma vars.css fájlja. Az iu_theme változóit (--iu-*) írja felül,
+   a színek a theme.json palettájából jönnek (--wp--preset--color--*).
+   A prototípusban a palettát itt definiáljuk, WordPressben a theme.json adja.
+   ========================================================================== */
+
+:root {
+  /* --- Paletta (theme.json slugok) --- */
+  --wp--preset--color--white: #FFFFFF;
+  --wp--preset--color--paper: #F7F4EE;
+  --wp--preset--color--sand: #EEE7DB;
+  --wp--preset--color--line: #DDD3C3;
+  --wp--preset--color--ink: #1C1916;
+  --wp--preset--color--muted: #6E6357;
+  --wp--preset--color--accent: #A9581A;
+  --wp--preset--color--accent-deep: #8A4512;
+  --wp--preset--color--maroon: #6B2A2A;
+  --wp--preset--color--night: #16120F;
+  --wp--preset--color--success: #2E6A3E;
+  --wp--preset--color--error: #A3322A;
+
+  /* Rövid nevek a projekt CSS-éhez */
+  --c-white: var(--wp--preset--color--white);
+  --c-paper: var(--wp--preset--color--paper);
+  --c-sand: var(--wp--preset--color--sand);
+  --c-line: var(--wp--preset--color--line);
+  --c-ink: var(--wp--preset--color--ink);
+  --c-muted: var(--wp--preset--color--muted);
+  --c-accent: var(--wp--preset--color--accent);
+  --c-accent-deep: var(--wp--preset--color--accent-deep);
+  --c-maroon: var(--wp--preset--color--maroon);
+  --c-night: var(--wp--preset--color--night);
+  --c-success: var(--wp--preset--color--success);
+  --c-error: var(--wp--preset--color--error);
+  /* Sötét háttéren használható halvány szöveg (kontraszt: 7,9:1 a night-on) */
+  --c-on-dark-muted: rgba(247, 244, 238, .72);
+  --c-accent-soft: #F4E7D6;
+  --c-success-soft: #E6F0E7;
+  --c-error-soft: #F7E4E1;
+
+  /* --- Tipográfia: legfeljebb 2 betűcsalád --- */
+  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-text: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Szövegstílusok – asztali méretek (mobil: lent) */
+  --fs-h1: 4rem;        /* 64 */
+  --fs-h2: 2.75rem;     /* 44 */
+  --fs-h3: 1.75rem;     /* 28 */
+  --fs-h4: 1.375rem;    /* 22 */
+  --fs-h5: 1.125rem;    /* 18 */
+  --fs-h6: .8125rem;    /* 13, nagybetűs címke */
+  --fs-lead: 1.1875rem; /* 19 */
+  --fs-body: 1rem;      /* 16 */
+  --fs-small: .875rem;  /* 14 */
+  --fs-xs: .75rem;      /* 12 */
+  --fs-button: .9375rem;/* 15 */
+  --lh-heading: 1.08;
+  --lh-body: 1.6;
+  --ls-heading: -.015em;
+  --ls-label: .14em;
+
+  /* --- Térköz skála: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* --- Rács: 12 oszlop asztalon, 4 mobilon --- */
+  --container: 1280px;
+  --gutter: 32px;          /* oszlopköz */
+  --margin: 48px;          /* oldalmargó */
+
+  /* --- Egyéb tokenek --- */
+  --radius-s: 6px;
+  --radius-m: 12px;
+  --radius-l: 20px;
+  --radius-pill: 999px;
+  --border: 1px solid var(--c-line);
+  --shadow-s: 0 1px 2px rgba(28, 25, 22, .06);
+  --shadow-m: 0 2px 6px rgba(28, 25, 22, .05), 0 12px 32px -12px rgba(28, 25, 22, .18);
+  --shadow-l: 0 24px 64px -24px rgba(28, 25, 22, .35);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur: .2s;
+  --focus: 0 0 0 3px var(--c-paper), 0 0 0 5px var(--c-accent-deep);
+  --tap: 44px;             /* minimális érinthető méret */
+  --header-h: 76px;
+
+  /* --- iu_theme változók felülírása --- */
+  --iu-text-font-family: var(--font-text);
+  --iu-heading-font-family: var(--font-display);
+  --iu-menu-font-family: var(--font-text);
+  --iu-text-font-size: var(--fs-body);          /* az alap 1vw helyett fix érték (skill: mobilon ellenőrizni) */
+  --iu-text-small-font-size: var(--fs-small);
+  --iu-heading-1-font-size: var(--fs-h1);
+  --iu-heading-2-font-size: var(--fs-h2);
+  --iu-heading-3-font-size: var(--fs-h3);
+  --iu-heading-4-font-size: var(--fs-h4);
+  --iu-heading-5-font-size: var(--fs-h5);
+  --iu-heading-6-font-size: var(--fs-h6);
+  --iu-button-font-size: var(--fs-button);
+  --iu-menu-font-size: .9375rem;
+  --iu-text-line-height: var(--lh-body);
+  --iu-heading-line-height: var(--lh-heading);
+  --iu-text-color: var(--c-ink);
+  --iu-text-color-muted: var(--c-muted);
+  --iu-heading-color: var(--c-ink);
+  --iu-menu-color: var(--c-ink);
+  --iu-link-color: var(--c-accent-deep);
+  --iu-icon-default-color: var(--c-ink);
+  --iu-icon-highlight-color: var(--c-accent);
+  --iu-section-default-padding: var(--space-9);
+  --iu-section-fullwidth-padding: 0px;
+  --iu-row-width: min(var(--container), calc(100% - 2 * var(--margin)));
+  --iu-column-gap: var(--gutter);
+  --iu-group-gap: var(--space-4);
+  --iu-menu-gap: var(--space-2);
+}
+
+/* Mobil: az iu_theme töréspontja (991.8px) */
+@media (max-width: 991.8px) {
+  :root {
+    --fs-h1: 2.625rem;   /* 42 */
+    --fs-h2: 2.125rem;   /* 34 */
+    --fs-h3: 1.5rem;     /* 24 */
+    --fs-h4: 1.25rem;    /* 20 */
+    --fs-lead: 1.0625rem;
+    --gutter: 16px;
+    --margin: 20px;
+    --header-h: 64px;
+    --iu-section-default-padding: var(--space-8);
+  }
+}
+@media (max-width: 480px) {
+  :root { --fs-h1: 2.375rem; --margin: 16px; }
+}

@@ -1,0 +1,1377 @@
+[
+ {
+  "stock": "low",
+  "stockQty": 2,
+  "intents": [
+   "csend",
+   "ajandek"
+  ],
+  "specs": {
+   "Súly": "490 g",
+   "Frekvencia": "405 Hz",
+   "Hang": "G#",
+   "Csakra": "Torok (Vishuddha)",
+   "Anyag": "7 fémes ötvözet",
+   "Díszítés": "Vésett minta"
+  },
+  "images": [
+   "hangtalak-studio"
+  ],
+  "id": 26234,
+  "sku": "MND-HT-0490",
+  "slug": "mintas-hangtal-490g-405hz",
+  "name": "Hét fémből öntött mintás hangtál – G#, torokcsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 37340,
+  "origin": "nepal",
+  "place": "Patan, Katmandu-völgy",
+  "art": "bowl",
+  "tone": "saffron",
+  "isNew": true,
+  "featured": true,
+  "short": "Tiszta, hosszan lecsengő hang, kézzel vésett díszítéssel. Ütővel és alátéttel.",
+  "description": "A nepáli műhelyekben hagyományosan hét fém ötvözetéből készülő hangtálak mély, rétegzett felhangokat adnak. Ez a darab a G# hangra, a torokcsakrához kapcsolt 405 Hz körüli alaphangra szól, ezért kedvelt a hangfürdőkben és a hangképzéssel kapcsolatos gyakorlásban.",
+  "ritual": "Tartsd a tálat nyitott tenyéren, és egyenletes nyomással, lassan köröztesd az ütőt a peremén. Ha a hang megszólalt, ne gyorsíts – a tál „énekelni” kezd.",
+  "attrs": {
+   "hang": "G#",
+   "hz": 405,
+   "suly": 490,
+   "csakra": [
+    "torok"
+   ],
+   "keszites": "ontott",
+   "anyag": [
+    "7 fémes ötvözet"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Súly": "560 g",
+   "Frekvencia": "390 Hz",
+   "Hang": "G",
+   "Csakra": "Torok (Vishuddha)",
+   "Anyag": "7 fémes ötvözet",
+   "Díszítés": "Vésett minta"
+  },
+  "images": [
+   "hangtalak-studio"
+  ],
+  "id": 27101,
+  "sku": "MND-HT-0560",
+  "slug": "mintas-hangtal-560g-390hz",
+  "name": "Hét fémből öntött mintás hangtál – G, torokcsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 42672,
+  "origin": "nepal",
+  "place": "Patan, Katmandu-völgy",
+  "art": "bowl",
+  "tone": "saffron",
+  "isNew": true,
+  "short": "Testesebb, mélyebb alaphang. Meditációhoz és hangfürdőhöz ajánljuk.",
+  "description": "Nagyobb tömege miatt lassabban cseng le és gazdagabb alsó felhangokat ad, mint a kisebb tálak. Egyéni gyakorláshoz és kisebb csoportos hangfürdőhöz egyaránt jó választás.",
+  "ritual": "Ütővel egyet megütve a peremen, a hang lecsengéséig figyeld a légzésed. Ez már önmagában egy teljes, rövid meditáció.",
+  "attrs": {
+   "hang": "G",
+   "hz": 390,
+   "suly": 560,
+   "csakra": [
+    "torok"
+   ],
+   "keszites": "ontott",
+   "anyag": [
+    "7 fémes ötvözet"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "out",
+  "stockQty": 0,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Súly": "780 g",
+   "Frekvencia": "~136 Hz",
+   "Hang": "C#",
+   "Anyag": "Kézzel kovácsolt bronz",
+   "Készítés": "Teliholdas öntés hagyománya"
+  },
+  "images": [
+   "hangtalak-studio",
+   "hangtalak-gyertyafeny"
+  ],
+  "id": 30101,
+  "sku": "MND-HT-0780",
+  "slug": "kezi-kovacsolt-hangtal-full-moon",
+  "name": "Kézzel kovácsolt Full Moon hangtál",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 58900,
+  "origin": "nepal",
+  "place": "Katmandu-völgy",
+  "art": "bowl",
+  "tone": "saffron",
+  "featured": true,
+  "short": "A hagyomány szerint teliholdkor készülő, mély zengésű kovácsolt tál.",
+  "description": "A kovácsolt tálak felületén a kalapács nyomai láthatók: minden darab egyedi, a hangja is. A Full Moon tálakat a nepáli hagyomány szerint teliholdkor kezdik el formázni.",
+  "ritual": "Helyezd párnára, és puha, filcborítású ütővel üsd meg. A mély zengés a padlón és a testen keresztül is érezhető.",
+  "attrs": {
+   "hang": "C#",
+   "hz": 136,
+   "suly": 780,
+   "keszites": "kovacsolt",
+   "anyag": [
+    "bronz"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "ajandek",
+   "onkifejezes"
+  ],
+  "specs": {
+   "Gyöngyök": "108 + guru gyöngy",
+   "Méret": "8,5 mm",
+   "Kövek": "Hét csakrakő",
+   "Bojt": "Pamut"
+  },
+  "images": [],
+  "id": 4490,
+  "sku": "MND-ML-0085",
+  "slug": "chakra-mala-8-5mm",
+  "name": "7 csakra mala, 8,5 mm-es gyöngyökből",
+  "cat": "szakralis-targyak",
+  "sub": "mala-lancok",
+  "price": 16510,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "mala",
+  "tone": "maroon",
+  "featured": true,
+  "short": "108 szemes mala a hét csakra köveivel, kézzel csomózva.",
+  "description": "A mala a mantrák és a légzés számolásának hagyományos eszköze. A hét csakra színeit követő kövek kézzel csomózott selyemfonalon futnak, a guru gyöngy alatt pamutbojttal.",
+  "ritual": "A jobb kezed hüvelyk- és középujjával haladj gyöngyről gyöngyre, minden szemnél egy mantrával vagy légzéssel. A guru gyöngyöt ne lépd át – ott fordítsd meg a malát.",
+  "attrs": {
+   "csakra": [
+    "het"
+   ],
+   "gyongy": 8.5,
+   "anyag": [
+    "féldrágakő",
+    "pamut"
+   ],
+   "szin": [
+    "többszínű"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Magasság": "18 cm",
+   "Anyag": "Bronzötvözet",
+   "Tartozék": "Dordzse (vadzsra)"
+  },
+  "images": [],
+  "id": 4688,
+  "sku": "MND-CS-0018",
+  "slug": "buddhista-csengo-l",
+  "name": "Tibeti csengő és dordzse (L)",
+  "cat": "szakralis-targyak",
+  "sub": "rituale-eszkozok",
+  "price": 21090,
+  "origin": "nepal",
+  "place": "Patan",
+  "art": "bell",
+  "tone": "saffron",
+  "featured": true,
+  "short": "A ghanta és a dordzse a bölcsesség és az együttérzés egységét jelképezi.",
+  "description": "A tibeti szertartások két elválaszthatatlan eszköze: a bal kézben tartott csengő (ghanta) a bölcsességet, a jobb kézben tartott dordzse az együttérzést jelképezi. Tiszta, magas, hosszan kitartott hang.",
+  "ritual": "A csengőt a nyelével függőlegesen tartva lendítsd meg egyszer, és hagyd teljesen lecsengeni a hangot, mielőtt újra megszólaltatod.",
+  "attrs": {
+   "anyag": [
+    "bronz"
+   ],
+   "szin": [
+    "arany"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "ajandek"
+  ],
+  "specs": {
+   "Átmérő": "6,5 cm",
+   "Anyag": "Bronzötvözet",
+   "Zsinór": "Bőr"
+  },
+  "images": [],
+  "id": 30102,
+  "sku": "MND-TS-0065",
+  "slug": "tingsha-nyolc-szerencsejel",
+  "name": "Tingsha – nyolc szerencsejellel",
+  "cat": "szakralis-targyak",
+  "sub": "rituale-eszkozok",
+  "price": 9890,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "tingsha",
+  "tone": "saffron",
+  "isNew": true,
+  "short": "Két kis cintányér bőrszíjon – tiszta jelzőhang a gyakorlás elején és végén.",
+  "description": "A tingsha éles, hosszan csengő hangja jelzésre szolgál: kijelöli a meditáció kezdetét és végét. Felületén a buddhizmus nyolc szerencsehozó jelképe látható.",
+  "ritual": "Fogd meg a két tányért a zsinórnál fogva, és a peremükkel üsd össze őket könnyedén, függőlegesen tartva.",
+  "attrs": {
+   "anyag": [
+    "bronz",
+    "bőr"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "otthon"
+  ],
+  "specs": {
+   "Tartalom": "30 szál",
+   "Égési idő": "~40 perc / szál",
+   "Összetevők": "Himalájai gyógynövények, szantál"
+  },
+  "images": [],
+  "id": 30103,
+  "sku": "MND-FT-0030",
+  "slug": "tibeti-fustolo-lotus",
+  "name": "Tibeti gyógynövényes füstölő – Lótusz",
+  "cat": "szakralis-targyak",
+  "sub": "fustolok",
+  "price": 2490,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "incense",
+  "tone": "maroon",
+  "short": "Pálca nélküli, kézzel sodort tibeti füstölő, lágy földes illattal.",
+  "description": "A tibeti füstölők bambuszpálca nélkül, gyógynövényporból sodort rudak. Illatuk visszafogottabb és földesebb, mint az indiai füstölőké – a kolostori használatból erednek.",
+  "ritual": "Gyújtsd meg a végét, néhány másodperc múlva fújd el a lángot, és tedd homokba vagy tibeti füstölőtartóba.",
+  "attrs": {
+   "illat": [
+    "földes",
+    "gyógynövényes"
+   ],
+   "forma": "pálca nélküli",
+   "anyag": [
+    "gyógynövény"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "otthon"
+  ],
+  "specs": {
+   "Tartalom": "15 g (~12 szál)",
+   "Égési idő": "~45 perc / szál",
+   "Összetevők": "Champa virág, halmaddi, szantál"
+  },
+  "images": [
+   "fustolok-csakra"
+  ],
+  "id": 30104,
+  "sku": "MND-FI-0015",
+  "slug": "nag-champa-fustolo",
+  "name": "Nag Champa kézzel sodort füstölő",
+  "cat": "szakralis-targyak",
+  "sub": "fustolok",
+  "price": 1690,
+  "origin": "india",
+  "place": "Bengaluru",
+  "art": "incense",
+  "tone": "saffron",
+  "isNew": true,
+  "short": "A klasszikus indiai templomillat: édes, virágos, meleg.",
+  "description": "A dél-indiai Bengaluru környéki családi műhelyek kézzel sodort füstölői. A Nag Champa a legismertebb indiai illatkeverék: champa virág és halmaddi gyanta.",
+  "ritual": "A füstölőt ferdén, pálcikás füstölőtartóba állítva gyújtsd meg, a lángot fújd el. Szellőztetett térben használd.",
+  "attrs": {
+   "illat": [
+    "virágos",
+    "édes"
+   ],
+   "forma": "pálcás",
+   "anyag": [
+    "gyanta",
+    "bambusz"
+   ]
+  },
+  "region": "Bengaluru"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Méret": "9 × 9 cm",
+   "Anyag": "Festett fém",
+   "Használat": "Kúp és por füstölőhöz"
+  },
+  "images": [],
+  "id": 4652,
+  "sku": "MND-FTT-0009",
+  "slug": "keleties-fustolo-keszlet-feher",
+  "name": "Kúp és por füstölőtartó – fehér",
+  "cat": "szakralis-targyak",
+  "sub": "fustolotartok",
+  "price": 13450,
+  "origin": "india",
+  "place": "Moradabad",
+  "art": "holder",
+  "tone": "sand",
+  "featured": true,
+  "short": "Áttört mintás, fedeles tartó kúp- és porfüstölőhöz.",
+  "description": "A fedél áttört mintáján át szűrődik a füst, ezért a tartó akkor is díszes marad, amikor épp nem használod. Kúp és por füstölőhöz is alkalmas.",
+  "ritual": "A kúpot a hegyénél gyújtsd meg, fújd el a lángot, majd helyezd a tartó közepére és tedd vissza a fedelet.",
+  "attrs": {
+   "anyag": [
+    "fém"
+   ],
+   "szin": [
+    "fehér"
+   ]
+  },
+  "region": "Moradabad"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Hossz": "~2 m",
+   "Zászlók": "10 db, 5 szín",
+   "Anyag": "Pamutvászon, fanyomat"
+  },
+  "images": [],
+  "id": 30105,
+  "sku": "MND-IZ-0010",
+  "slug": "imazaszlo-lung-ta",
+  "name": "Imazászló – Lung-ta, 10 zászló",
+  "cat": "szakralis-targyak",
+  "sub": "oltar-kiegeszitok",
+  "price": 3490,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "flag",
+  "tone": "sky",
+  "short": "Öt szín, öt elem – a szél viszi tovább a rájuk nyomtatott áldásokat.",
+  "description": "A kék, fehér, piros, zöld és sárga zászlók az öt elemet jelképezik. A hagyomány szerint a szél viszi tovább a rájuk nyomtatott mantrákat és áldásokat.",
+  "ritual": "Szép időben, magasra, szabad légáramlatba feszítsd ki. A régi zászlót nem dobjuk ki: elégetjük vagy újak mellé akasztjuk.",
+  "attrs": {
+   "anyag": [
+    "pamut"
+   ],
+   "szin": [
+    "többszínű"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "low",
+  "stockQty": 1,
+  "intents": [
+   "otthon",
+   "ajandek",
+   "csend"
+  ],
+  "specs": {
+   "Magasság": "20 cm",
+   "Anyag": "Réz, öntött",
+   "Kézjel": "Dhjána mudra (meditáció)"
+  },
+  "images": [],
+  "id": 30201,
+  "sku": "MND-BS-0020",
+  "slug": "meditacios-buddha-szobor-rez",
+  "name": "Meditáló Buddha szobor, réz – 20 cm",
+  "cat": "lakberendezes",
+  "sub": "szobrok",
+  "price": 24900,
+  "origin": "nepal",
+  "place": "Patan",
+  "art": "buddha",
+  "tone": "saffron",
+  "featured": true,
+  "short": "Patani öntőműhely munkája, kézzel patinázva.",
+  "description": "A Katmandu-völgyi Patan évszázadok óta a fémszobrászat központja. A dhjána mudra – az ölben egymásra helyezett kezek – a meditáció és az elmélyülés kézjele.",
+  "ritual": "Szemmagasságban vagy afölött, tiszta, rendezett helyen érdemes elhelyezni – ne a padlón és ne a fürdőszobában.",
+  "attrs": {
+   "anyag": [
+    "réz"
+   ],
+   "szin": [
+    "réz"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Hossz": "48 cm",
+   "Anyag": "Réz, fa",
+   "Hangolás": "Pentaton"
+  },
+  "images": [],
+  "id": 30202,
+  "sku": "MND-SZ-0005",
+  "slug": "szelcsengo-ot-csoves",
+  "name": "Öt csöves réz szélcsengő",
+  "cat": "lakberendezes",
+  "sub": "alomfogok-szelcsengok",
+  "price": 8990,
+  "origin": "india",
+  "place": "Moradabad",
+  "art": "chime",
+  "tone": "sage",
+  "isNew": true,
+  "short": "Pentaton hangolású csövek – bármilyen szél mellett harmonikus hangzás.",
+  "description": "A Moradabadi fémműves hagyományból érkező szélcsengő csövei pentaton skálára hangoltak, így a hangok bármilyen sorrendben harmonikusan szólnak.",
+  "ritual": "Bejárat, erkély vagy nyitott ablak közelébe akaszd, ahol a légmozgás gyengéden megszólaltatja.",
+  "attrs": {
+   "anyag": [
+    "réz",
+    "fa"
+   ],
+   "szin": [
+    "réz"
+   ]
+  },
+  "region": "Moradabad"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "otthon"
+  ],
+  "specs": {
+   "Átmérő": "33 cm",
+   "Magasság": "15 cm",
+   "Huzat": "100% pamut, levehető",
+   "Töltet": "Hajdinahéj"
+  },
+  "images": [],
+  "id": 30203,
+  "sku": "MND-MP-0033",
+  "slug": "meditacios-parna-zafu",
+  "name": "Meditációs párna (zafu), hajdinahéj töltettel",
+  "cat": "lakberendezes",
+  "sub": "lakastextil",
+  "price": 14900,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "cushion",
+  "tone": "maroon",
+  "short": "Stabil, formatartó ülőpárna, mosható pamuthuzattal.",
+  "description": "A hajdinahéj töltet felveszi a test formáját, mégis stabil marad, így a medence kissé megemelkedik, és a gerinc könnyebben egyenesedik ki ülés közben.",
+  "ritual": "Ülj a párna első harmadára, hogy a térdeid a talajra érkezhessenek.",
+  "attrs": {
+   "anyag": [
+    "pamut",
+    "hajdinahéj"
+   ],
+   "szin": [
+    "bordó"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Átmérő": "10 cm",
+   "Anyag": "Réz",
+   "Mécses": "Standard teamécses"
+  },
+  "images": [],
+  "id": 30204,
+  "sku": "MND-MT-0010",
+  "slug": "mecsestarto-lotusz-rez",
+  "name": "Lótusz mécsestartó, réz",
+  "cat": "lakberendezes",
+  "sub": "spiritualis-dekor",
+  "price": 5990,
+  "origin": "india",
+  "place": "Moradabad",
+  "art": "candle",
+  "tone": "sand",
+  "short": "Nyíló lótusz formájú tartó – esti fényrituálékhoz.",
+  "description": "A lótusz a sárból tisztán kiemelkedő virág – a tisztaság és az ébredés jelképe. Réz szirmai meleg fénnyel verik vissza a mécses lángját.",
+  "ritual": "Gyújtsd meg este, a nap lezárásaként, és néhány lélegzetnyi ideig csak figyeld a lángot.",
+  "attrs": {
+   "anyag": [
+    "réz"
+   ],
+   "szin": [
+    "réz"
+   ]
+  },
+  "region": "Moradabad"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Átmérő": "20 cm",
+   "Hossz": "55 cm",
+   "Anyag": "Pamutfonal, fa, toll"
+  },
+  "images": [],
+  "id": 30205,
+  "sku": "MND-AF-0020",
+  "slug": "alomfogo-makrame",
+  "name": "Makramé álomfogó tollakkal",
+  "cat": "lakberendezes",
+  "sub": "alomfogok-szelcsengok",
+  "price": 6490,
+  "origin": "india",
+  "place": "Pushkar",
+  "art": "dreamcatcher",
+  "tone": "sand",
+  "short": "Kézzel csomózott pamut háló, természetes színekben.",
+  "description": "Kézzel csomózott makramé háló, puha pamutfonalból. Hálószobába, gyerekszobába vagy olvasósarokba.",
+  "ritual": "Az ágy fölé vagy ablak közelébe akaszd, ahol a reggeli fény éri.",
+  "attrs": {
+   "anyag": [
+    "pamut",
+    "fa",
+    "toll"
+   ],
+   "szin": [
+    "természetes"
+   ]
+  },
+  "region": "Pushkar"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "ajandek"
+  ],
+  "specs": {
+   "Méret": "Állítható",
+   "Anyag": "Aranyszínű fém, kövek"
+  },
+  "images": [],
+  "id": 25843,
+  "sku": "9990000043316",
+  "slug": "csakras-gyuru-arany-szinu",
+  "name": "Csakrás gyűrű, arany színű",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "ekszerek",
+  "price": 3940,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "ring",
+  "tone": "saffron",
+  "isNew": true,
+  "short": "Hét apró kő a hét csakra színeiben, állítható méretben.",
+  "description": "Finom, mindennap hordható gyűrű a hét csakra színeit követő kövekkel. Állítható, így ajándéknak is biztonságos választás.",
+  "ritual": "Tárold száraz helyen, és kerüld a parfümmel, vízzel való érintkezést.",
+  "attrs": {
+   "csakra": [
+    "het"
+   ],
+   "anyag": [
+    "fém",
+    "féldrágakő"
+   ],
+   "szin": [
+    "arany"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "ajandek"
+  ],
+  "specs": {
+   "Méret": "Állítható",
+   "Anyag": "Ezüstszínű fém, kövek"
+  },
+  "images": [],
+  "id": 25854,
+  "sku": "9990000043309",
+  "slug": "csakras-gyuru-ezust-szinu",
+  "name": "Csakrás gyűrű, ezüst színű",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "ekszerek",
+  "price": 3940,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "ring",
+  "tone": "sky",
+  "isNew": true,
+  "short": "Hét apró kő a hét csakra színeiben, állítható méretben.",
+  "description": "Finom, mindennap hordható gyűrű a hét csakra színeit követő kövekkel. Állítható, így ajándéknak is biztonságos választás.",
+  "ritual": "Tárold száraz helyen, és kerüld a parfümmel, vízzel való érintkezést.",
+  "attrs": {
+   "csakra": [
+    "het"
+   ],
+   "anyag": [
+    "fém",
+    "féldrágakő"
+   ],
+   "szin": [
+    "ezüst"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "ajandek"
+  ],
+  "specs": {
+   "Anyag": "Ezüstözött fém, féldrágakő"
+  },
+  "images": [],
+  "id": 25721,
+  "sku": "9990000043330",
+  "slug": "gyuru-41-2",
+  "name": "Ezüstözött gyűrű kővel – 41-2",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "ekszerek",
+  "price": 6350,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "ring",
+  "tone": "sage",
+  "isNew": true,
+  "short": "Kézműves foglalatú gyűrű egyetlen, nagyobb féldrágakővel.",
+  "description": "A jaipuri ékszerkészítő hagyomány ihlette gyűrű. Minden kő egyedi rajzolatú, ezért a darabok kismértékben eltérhetnek a fotótól.",
+  "ritual": "Puha, száraz kendővel tisztítsd.",
+  "attrs": {
+   "anyag": [
+    "fém",
+    "féldrágakő"
+   ],
+   "szin": [
+    "ezüst"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "ajandek"
+  ],
+  "specs": {
+   "Méret": "180 × 90 cm",
+   "Anyag": "100% viszkóz",
+   "Minta": "Blokknyomat ihlette virágos inda"
+  },
+  "images": [
+   "ruhazat-to"
+  ],
+  "id": 25949,
+  "sku": "9990000043170",
+  "slug": "viragos-indas-sal-1",
+  "name": "Virágos-indás viszkóz sál – terrakotta",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "kiegeszitok",
+  "price": 8750,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "scarf",
+  "tone": "saffron",
+  "isNew": true,
+  "short": "Könnyű, omló sál a jaipuri blokknyomás motívumaival.",
+  "description": "A rádzsasztáni blokknyomás virág- és indamotívumai könnyű, jól omló viszkózon. Nyáron vállkendőnek, télen sálnak.",
+  "ritual": "Kézzel, langyos vízben mosd, és árnyékban szárítsd.",
+  "attrs": {
+   "meret": [
+    "Egy méret"
+   ],
+   "anyag": [
+    "viszkóz"
+   ],
+   "szin": [
+    "terrakotta"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "ajandek"
+  ],
+  "specs": {
+   "Méret": "180 × 90 cm",
+   "Anyag": "100% viszkóz",
+   "Minta": "Blokknyomat ihlette virágos inda"
+  },
+  "images": [],
+  "id": 25950,
+  "sku": "9990000043200",
+  "slug": "viragos-indas-sal-4",
+  "name": "Virágos-indás viszkóz sál – indigó",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "kiegeszitok",
+  "price": 8750,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "scarf",
+  "tone": "sky",
+  "short": "Könnyű, omló sál a jaipuri blokknyomás motívumaival.",
+  "description": "A rádzsasztáni blokknyomás virág- és indamotívumai könnyű, jól omló viszkózon. Nyáron vállkendőnek, télen sálnak.",
+  "ritual": "Kézzel, langyos vízben mosd, és árnyékban szárítsd.",
+  "attrs": {
+   "meret": [
+    "Egy méret"
+   ],
+   "anyag": [
+    "viszkóz"
+   ],
+   "szin": [
+    "indigó"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes",
+   "csend"
+  ],
+  "specs": {
+   "Méret": "Egy méret (S–L)",
+   "Anyag": "100% pamut",
+   "Derék": "Gumírozott, zsinóros"
+  },
+  "images": [
+   "ruhazat-to"
+  ],
+  "id": 30301,
+  "sku": "MND-HN-0001",
+  "slug": "harem-nadrag-pamut",
+  "name": "Pamut hárem nadrág mandala mintával",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "nadragok",
+  "price": 9990,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "pants",
+  "tone": "maroon",
+  "short": "Laza, szellős szabás – jógához, utazáshoz, otthonra.",
+  "description": "Könnyű pamutvászon, gumírozott derék és bokánál szűkülő szár. Jógához, meditációhoz és a nyári hétköznapokhoz egyaránt kényelmes.",
+  "ritual": "30 °C-on, kifordítva mosd; az első mosásnál festéket engedhet.",
+  "attrs": {
+   "meret": [
+    "S",
+    "M",
+    "L"
+   ],
+   "anyag": [
+    "pamut"
+   ],
+   "szin": [
+    "bordó"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "ajandek",
+   "otthon"
+  ],
+  "specs": {
+   "Űrtartalom": "900 ml",
+   "Anyag": "100% réz, belül bevonat nélkül",
+   "Zárás": "Csavaros kupak"
+  },
+  "images": [],
+  "id": 30401,
+  "sku": "MND-RK-0900",
+  "slug": "rez-kulacs-kalapalt",
+  "name": "Kalapált réz kulacs – 900 ml",
+  "cat": "ajandektargyak",
+  "sub": "rez-kulacsok",
+  "price": 11900,
+  "origin": "india",
+  "place": "Moradabad",
+  "art": "copper",
+  "tone": "saffron",
+  "featured": true,
+  "isNew": true,
+  "short": "Az ájurvédikus hagyomány szerint a rézedényben tárolt víz frissítő.",
+  "description": "Kézzel kalapált tiszta réz kulacs. Az ájurvéda szerint a rézedényben állni hagyott víz kiegyensúlyozó hatású. Csak vizet tölts bele – savas italokat ne.",
+  "ritual": "Este töltsd meg, és reggel, éhgyomorra idd meg. Citromos vízzel és sóval időnként tisztítsd.",
+  "attrs": {
+   "anyag": [
+    "réz"
+   ],
+   "szin": [
+    "réz"
+   ]
+  },
+  "region": "Moradabad"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "ajandek",
+   "otthon"
+  ],
+  "specs": {
+   "Tömeg": "100 g",
+   "Összetevők": "Fekete tea, fahéj, kardamom, gyömbér, szegfűszeg"
+  },
+  "images": [],
+  "id": 30402,
+  "sku": "MND-TEA-0100",
+  "slug": "himalajai-masala-chai",
+  "name": "Himalájai masala chai teakeverék",
+  "cat": "ajandektargyak",
+  "sub": "teak",
+  "price": 3290,
+  "origin": "india",
+  "place": "Darjeeling",
+  "art": "tea",
+  "tone": "sage",
+  "isNew": true,
+  "short": "Fűszeres fekete tea – tejjel, mézzel, ahogy Indiában isszák.",
+  "description": "Darjeelingi fekete tea egész fűszerekkel. Tejjel felforralva, mézzel édesítve a legjobb.",
+  "ritual": "Két teáskanálnyit forralj fel 2 dl vízzel és 1 dl tejjel, 4 percig főzd, majd szűrd le.",
+  "attrs": {
+   "anyag": [
+    "fekete tea",
+    "fűszer"
+   ]
+  },
+  "region": "Darjeeling"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "ajandek",
+   "csend"
+  ],
+  "specs": {
+   "Tartalom": "Tingsha, tibeti füstölő, füstölőtartó, masala chai",
+   "Csomagolás": "Újrahasznosított dobozban, kézzel írt kártyával"
+  },
+  "images": [],
+  "id": 30403,
+  "sku": "MND-AJ-0001",
+  "slug": "ajandekcsomag-elcsendesules",
+  "name": "Ajándékcsomag – Elcsendesülés",
+  "cat": "ajandektargyak",
+  "sub": "teak",
+  "price": 19900,
+  "compare": 22570,
+  "origin": "nepal",
+  "place": "Nepál és India",
+  "art": "gift",
+  "tone": "maroon",
+  "featured": true,
+  "short": "Összeállított csomag, díszdobozban – kézzel írt kártyával.",
+  "description": "Kis rituálé egy dobozban: tingsha a kezdéshez és a lezáráshoz, tibeti füstölő, egyszerű tartó és egy doboz fűszeres tea. Kérésre a kártyára a te üzenetedet írjuk.",
+  "ritual": "A megjegyzés rovatban add meg, mit írjunk a kártyára.",
+  "attrs": {
+   "anyag": [
+    "vegyes"
+   ],
+   "szin": [
+    "többszínű"
+   ]
+  },
+  "region": ""
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Súly": "650 g",
+   "Frekvencia": "349 Hz",
+   "Hang": "F",
+   "Csakra": "Szív (Anáhata)",
+   "Anyag": "Kovácsolt bronz",
+   "Készítés": "Kézzel kovácsolt"
+  },
+  "images": [
+   "hangtalak-studio"
+  ],
+  "id": 30106,
+  "sku": "MND-HT-0650",
+  "slug": "kezi-kovacsolt-hangtal-sziv",
+  "name": "Kézzel kovácsolt hangtál – F, szívcsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 46900,
+  "origin": "nepal",
+  "place": "Patan, Katmandu-völgy",
+  "art": "bowl",
+  "tone": "sage",
+  "isNew": true,
+  "short": "Meleg, lágy hang; a kalapácsnyomok minden darabon egyediek.",
+  "description": "Kézzel kovácsolt nepáli tál, lassan épülő, meleg felhangokkal. Szívcsakrához kapcsolt F hang – elcsendesedéshez és hangfürdőhöz.",
+  "ritual": "Filcborítású ütővel a perem külső oldalán köröztesd, egyenletes nyomással.",
+  "attrs": {
+   "hang": "F",
+   "hz": 349,
+   "suly": 650,
+   "csakra": [
+    "sziv"
+   ],
+   "keszites": "kovacsolt",
+   "anyag": [
+    "bronz"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "otthon"
+  ],
+  "specs": {
+   "Súly": "820 g",
+   "Frekvencia": "262 Hz",
+   "Hang": "C",
+   "Csakra": "Gyökér (Múládhára)",
+   "Anyag": "7 fémes ötvözet",
+   "Díszítés": "Belső mandala vésés"
+  },
+  "images": [],
+  "id": 30107,
+  "sku": "MND-HT-0820",
+  "slug": "mandalas-hangtal-gyoker",
+  "name": "Mandalás hangtál – C, gyökércsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 52900,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "bowl",
+  "tone": "maroon",
+  "featured": false,
+  "short": "Mély, földelő hang, a tál belsejében vésett mandalával.",
+  "description": "Nagyobb, testes tál mély alaphanggal. A belső mandala vésés hagyományos nepáli motívum.",
+  "ritual": "Párnára helyezve, puha ütővel szólaltasd meg; a rezgés a padlón keresztül is érezhető.",
+  "attrs": {
+   "hang": "C",
+   "hz": 262,
+   "suly": 820,
+   "csakra": [
+    "gyoker"
+   ],
+   "keszites": "ontott",
+   "anyag": [
+    "7 fémes ötvözet"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend",
+   "ajandek"
+  ],
+  "specs": {
+   "Súly": "320 g",
+   "Frekvencia": "294 Hz",
+   "Hang": "D",
+   "Csakra": "Szakrális (Szvádhisthána)",
+   "Anyag": "Sárgaréz ötvözet",
+   "Készítés": "Gépi"
+  },
+  "images": [],
+  "id": 30108,
+  "sku": "MND-HT-0320",
+  "slug": "gepi-hangtal-kezdoknek",
+  "name": "Gépi hangtál kezdőknek – D, szakrális csakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 14900,
+  "origin": "india",
+  "place": "Moradabad",
+  "art": "bowl",
+  "tone": "sand",
+  "short": "Könnyű, jól kezelhető első tál – ütővel és párnával.",
+  "description": "Gépi megmunkálású, egyenletes hangú tál. Jó választás az első hangtálnak vagy ajándéknak.",
+  "ritual": "Tenyéren tartva, a perem mentén köröztesd az ütőt.",
+  "attrs": {
+   "hang": "D",
+   "hz": 294,
+   "suly": 320,
+   "csakra": [
+    "szakralis"
+   ],
+   "keszites": "gepi",
+   "anyag": [
+    "sárgaréz"
+   ],
+   "szin": [
+    "arany"
+   ]
+  },
+  "region": "Moradabad"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Súly": "540 g",
+   "Frekvencia": "330 Hz",
+   "Hang": "E",
+   "Csakra": "Napfonat (Manipúra)",
+   "Anyag": "7 fémes ötvözet",
+   "Díszítés": "Napmotívum"
+  },
+  "images": [],
+  "id": 30109,
+  "sku": "MND-HT-0540",
+  "slug": "sun-hangtal-napfonat",
+  "name": "Sun hangtál – E, napfonatcsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 39900,
+  "compare": 44900,
+  "origin": "nepal",
+  "place": "Patan, Katmandu-völgy",
+  "art": "bowl",
+  "tone": "saffron",
+  "short": "Fényes, élénk hang, napmotívumos díszítéssel.",
+  "description": "A Sun tálak külső peremét napmotívum díszíti. Élénk, tiszta hangjuk reggeli gyakorláshoz ideális.",
+  "ritual": "Egyetlen ütéssel indítsd a gyakorlást, és hagyd teljesen lecsengeni.",
+  "attrs": {
+   "hang": "E",
+   "hz": 330,
+   "suly": 540,
+   "csakra": [
+    "napfonat"
+   ],
+   "keszites": "ontott",
+   "anyag": [
+    "7 fémes ötvözet"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Patan"
+ },
+ {
+  "stock": "low",
+  "stockQty": 1,
+  "intents": [
+   "csend"
+  ],
+  "specs": {
+   "Súly": "900 g",
+   "Frekvencia": "440 Hz",
+   "Hang": "A",
+   "Csakra": "Homlok (Ádzsnyá)",
+   "Anyag": "Kovácsolt bronz",
+   "Készítés": "Kézzel kovácsolt"
+  },
+  "images": [],
+  "id": 30110,
+  "sku": "MND-HT-0900",
+  "slug": "antik-hangtal-homlok",
+  "name": "Antik jellegű kovácsolt hangtál – A, homlokcsakra",
+  "cat": "szakralis-targyak",
+  "sub": "hangtalak",
+  "price": 64900,
+  "origin": "nepal",
+  "place": "Katmandu",
+  "art": "bowl",
+  "tone": "sky",
+  "short": "Patinás felületű, hosszan zengő darab – egyetlen példány.",
+  "description": "Antik jellegű, patinázott kovácsolt tál. Hosszú lecsengés, gazdag felhangok.",
+  "ritual": "Csak puha ütővel szólaltasd meg, és ne tisztítsd vegyszerrel a patinát.",
+  "attrs": {
+   "hang": "A",
+   "hz": 440,
+   "suly": 900,
+   "csakra": [
+    "homlok"
+   ],
+   "keszites": "kovacsolt",
+   "anyag": [
+    "bronz"
+   ],
+   "szin": [
+    "bronz"
+   ]
+  },
+  "region": "Katmandu"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "csend"
+  ],
+  "specs": {
+   "Tartalom": "12 kúp",
+   "Égési idő": "~20 perc / kúp",
+   "Illat": "Szantálfa"
+  },
+  "images": [],
+  "id": 30111,
+  "sku": "MND-FK-0012",
+  "slug": "szantal-kupfustolo",
+  "name": "Szantál kúpfüstölő – 12 db",
+  "cat": "szakralis-targyak",
+  "sub": "fustolok",
+  "price": 1490,
+  "origin": "india",
+  "place": "Bengaluru",
+  "art": "holder",
+  "tone": "sand",
+  "short": "Meleg, fás szantálillat – gyors, rövid rituálékhoz.",
+  "description": "Kézzel formázott kúpfüstölő szantálfával. Rövid égési idő, kisebb terekhez.",
+  "ritual": "Hőálló tartóba helyezve gyújtsd meg a csúcsát, majd fújd el a lángot.",
+  "attrs": {
+   "illat": [
+    "fás"
+   ],
+   "forma": "kúp",
+   "anyag": [
+    "szantálfa"
+   ]
+  },
+  "region": "Bengaluru"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "otthon",
+   "ajandek"
+  ],
+  "specs": {
+   "Tartalom": "10 kúp",
+   "Égési idő": "~15 perc / kúp",
+   "Illat": "Lótusz"
+  },
+  "images": [],
+  "id": 30112,
+  "sku": "MND-FB-0010",
+  "slug": "backflow-kupfustolo-lotusz",
+  "name": "Backflow kúpfüstölő – lótusz, 10 db",
+  "cat": "szakralis-targyak",
+  "sub": "fustolok",
+  "price": 1890,
+  "origin": "india",
+  "place": "Bengaluru",
+  "art": "holder",
+  "tone": "maroon",
+  "isNew": true,
+  "short": "Lefelé áramló füst backflow tartóhoz – virágos lótuszillat.",
+  "description": "Üreges kúpfüstölő, amelynek füstje lefelé áramlik a backflow tartón, mint egy kis vízesés.",
+  "ritual": "Kizárólag backflow tartóban használd, huzatmentes helyen.",
+  "attrs": {
+   "illat": [
+    "virágos"
+   ],
+   "forma": "backflow kúp",
+   "anyag": [
+    "gyógynövény"
+   ]
+  },
+  "region": "Bengaluru"
+ },
+ {
+  "stock": "in",
+  "stockQty": 12,
+  "intents": [
+   "onkifejezes"
+  ],
+  "specs": {
+   "Méret": "S, M, L, XL",
+   "Anyag": "100% viszkóz",
+   "Hossz": "Bokáig érő"
+  },
+  "images": [
+   "ruhazat-to"
+  ],
+  "id": 30302,
+  "sku": "MND-RU-0001",
+  "slug": "mandalamintas-maxi-ruha",
+  "name": "Mandalamintás maxi ruha – indigó",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "ruhak",
+  "price": 15900,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "scarf",
+  "tone": "sky",
+  "isNew": true,
+  "short": "Könnyű, omló viszkóz ruha blokknyomott mandalamintával.",
+  "description": "Laza szabású, bokáig érő nyári ruha jaipuri mintával.",
+  "ritual": "30 °C-on, kifordítva mosd.",
+  "attrs": {
+   "meret": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "anyag": [
+    "viszkóz"
+   ],
+   "szin": [
+    "indigó"
+   ]
+  },
+  "region": "Jaipur"
+ },
+ {
+  "stock": "low",
+  "stockQty": 2,
+  "intents": [
+   "onkifejezes",
+   "csend"
+  ],
+  "specs": {
+   "Méret": "M, L",
+   "Anyag": "100% pamut",
+   "Derék": "Gumírozott"
+  },
+  "images": [],
+  "id": 30303,
+  "sku": "MND-NA-0002",
+  "slug": "pillango-nadrag-bordo",
+  "name": "Pillangó nadrág – bordó",
+  "cat": "ruhazat-es-kiegeszitok",
+  "sub": "nadragok",
+  "price": 8990,
+  "origin": "india",
+  "place": "Jaipur",
+  "art": "pants",
+  "tone": "maroon",
+  "short": "Bő, lebegő szár – jógához és meleg napokra.",
+  "description": "Könnyű pamut pillangó nadrág, gumírozott derékkal.",
+  "ritual": "30 °C-on mosd, ne centrifugázd erősen.",
+  "attrs": {
+   "meret": [
+    "M",
+    "L"
+   ],
+   "anyag": [
+    "pamut"
+   ],
+   "szin": [
+    "bordó"
+   ]
+  },
+  "region": "Jaipur"
+ }
+]

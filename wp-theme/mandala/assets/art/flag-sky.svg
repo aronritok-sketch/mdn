@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="art" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="" style="--art-bg:#E3E8EC;color:#34506A">
+    <rect width="200" height="200" fill="#E3E8EC"/>
+    <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(30 30) scale(.7)">
+    <path d="M14 46c60 22 112 22 172 0" />
+    <path d="M26 51h26v44h-26z" fill="#3E6FA8" fill-opacity=".55"/><path d="M32 65h14M32 73h14M32 81h10" opacity=".45"/><path d="M58 57h26v44h-26z" fill="#F7F3EC" fill-opacity=".55"/><path d="M64 71h14M64 79h14M64 87h10" opacity=".45"/><path d="M90 60h26v44h-26z" fill="#B23B2E" fill-opacity=".55"/><path d="M96 74h14M96 82h14M96 90h10" opacity=".45"/><path d="M122 57h26v44h-26z" fill="#3E7F4F" fill-opacity=".55"/><path d="M128 71h14M128 79h14M128 87h10" opacity=".45"/><path d="M154 51h26v44h-26z" fill="#D9A62B" fill-opacity=".55"/><path d="M160 65h14M160 73h14M160 81h10" opacity=".45"/></g>
+  </svg>

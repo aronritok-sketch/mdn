@@ -1,0 +1,168 @@
+{
+ "categories": [
+  {
+   "slug": "szakralis-targyak",
+   "label": "Szakrális tárgyak",
+   "art": "bowl",
+   "text": "Hangtálak, füstölők, mala láncok és rituálé eszközök a csendesebb pillanatokhoz.",
+   "subs": [
+    [
+     "hangtalak",
+     "Hangtálak"
+    ],
+    [
+     "fustolok",
+     "Füstölők"
+    ],
+    [
+     "fustolotartok",
+     "Füstölőtartók"
+    ],
+    [
+     "mala-lancok",
+     "Mala láncok"
+    ],
+    [
+     "rituale-eszkozok",
+     "Rituálé eszközök"
+    ],
+    [
+     "oltar-kiegeszitok",
+     "Oltár kiegészítők"
+    ],
+    [
+     "illoolajok",
+     "Illóolajok"
+    ]
+   ]
+  },
+  {
+   "slug": "lakberendezes",
+   "label": "Lakberendezés",
+   "art": "buddha",
+   "text": "Buddha szobrok, szélcsengők, meditációs párnák és dekorok harmonikus terekhez.",
+   "subs": [
+    [
+     "spiritualis-dekor",
+     "Spirituális dekor"
+    ],
+    [
+     "szobrok",
+     "Szobrok"
+    ],
+    [
+     "alomfogok-szelcsengok",
+     "Álomfogók és szélcsengők"
+    ],
+    [
+     "lakastextil",
+     "Lakástextil"
+    ],
+    [
+     "fali-dekoracio",
+     "Fali dekoráció"
+    ],
+    [
+     "keramia",
+     "Kerámia"
+    ]
+   ]
+  },
+  {
+   "slug": "ruhazat-es-kiegeszitok",
+   "label": "Ruházat és ékszer",
+   "art": "scarf",
+   "text": "Könnyű pamut és viszkóz ruhák, sálak és ékszerek keleti ihletéssel.",
+   "subs": [
+    [
+     "ekszerek",
+     "Ékszerek"
+    ],
+    [
+     "nadragok",
+     "Nadrágok"
+    ],
+    [
+     "ruhak",
+     "Ruhák"
+    ],
+    [
+     "kiegeszitok",
+     "Sálak és kiegészítők"
+    ]
+   ]
+  },
+  {
+   "slug": "ajandektargyak",
+   "label": "Ajándéktárgyak",
+   "art": "copper",
+   "text": "Réz kulacsok, teák és apró kincsek, ha valami személyeset adnál.",
+   "subs": [
+    [
+     "rez-kulacsok",
+     "Réz kulacsok"
+    ],
+    [
+     "teak",
+     "Teák"
+    ],
+    [
+     "bogrek",
+     "Bögrék"
+    ]
+   ]
+  }
+ ],
+ "intents": [
+  {
+   "id": "csend",
+   "label": "Elcsendesülés",
+   "text": "Hangtálak, füstölők és mala láncok a befelé figyelés pillanataihoz.",
+   "art": "bowl"
+  },
+  {
+   "id": "otthon",
+   "label": "Otthoni harmónia",
+   "text": "Szobrok, szélcsengők és textilek, amelyek nyugalmat adnak a térnek.",
+   "art": "chime"
+  },
+  {
+   "id": "onkifejezes",
+   "label": "Önkifejezés",
+   "text": "Könnyű indiai textilek és ékszerek szabadabb, személyesebb stílushoz.",
+   "art": "ring"
+  },
+  {
+   "id": "ajandek",
+   "label": "Figyelmes ajándék",
+   "text": "Tárgyak, amelyekkel nemcsak ajándékot, hanem jelentést is adsz.",
+   "art": "gift"
+  }
+ ],
+ "origins": {
+  "nepal": {
+   "label": "Nepál",
+   "long": "Nepál – Katmandu-völgy",
+   "tone": "#7A2E2E"
+  },
+  "india": {
+   "label": "India",
+   "long": "India",
+   "tone": "#B5651D"
+  }
+ },
+ "testimonials": [
+  {
+   "name": "Kovács Nóra",
+   "text": "Weboldaluk és átvevőhelyük egy kincses ládika. Rengeteg apró és hatalmas értéket rejt, de mégis a legnagyobb kincs a hozzáállásuk, szakértelmük, kedvességük. Ha kell, hagynak csendben válogatni, ha kell, segítenek rálelni arra, amit még magam sem tudtam szavakba önteni."
+  },
+  {
+   "name": "Edina",
+   "text": "Gyors, megbízható szállítás, igényes és könnyen kezelhető webshop felület, a rendelt termék pedig kiváló minőségű, és még ajándékot is kaptam mellé. Köszönöm!"
+  },
+  {
+   "name": "Nagy Erika",
+   "text": "Korrekt, rugalmas bolt. Az eladók kedvesek, a rendelt réz csengők gyönyörűek. Köszönjük szépen."
+  }
+ ]
+}

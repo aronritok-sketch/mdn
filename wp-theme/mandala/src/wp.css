@@ -1,0 +1,147 @@
+/* ==========================================================================
+   WordPress-specifikus kiegészítések (a prototípus site.css-e után fűzve).
+   A blokkok WordPressben oszlopokba kerülnek (iu/section › iu/row › iu/column),
+   ezért néhány, a prototípusban közvetlen gyerekre írt szabály itt igazodik.
+   ========================================================================== */
+
+/* JS nélkül ne maradjon láthatatlan tartalom: a beúszás csak JS-sel él. */
+.reveal { opacity: 1; transform: none; }
+html.has-js .reveal:not(.is-in) { opacity: 0; transform: translateY(16px); }
+@media (prefers-reduced-motion: reduce) { html.has-js .reveal:not(.is-in) { opacity: 1; transform: none; } }
+
+/* Fejléc: az iu_theme <header> zónája ragad; a site.js adja a .site-header osztályt. */
+body > header, header.site-header { position: sticky; top: 0; z-index: 50; }
+.mandala-header { width: 100%; }
+.site-notice .mandala-notice { margin: 0; }
+
+/* Háttérszínek (iu/section bgColor = a paletta slugja) */
+.bg-white { background-color: var(--c-white); }
+.bg-paper { background-color: var(--c-paper); }
+.bg-sand { background-color: var(--c-sand); }
+.bg-night { background-color: var(--c-night); }
+.bg-maroon { background-color: var(--c-maroon); }
+
+/* Térköz segédosztályok a szekciókhoz (a prototípus inline stílusai helyett) */
+.iu-section.pt-6 { padding-top: var(--space-6); }
+.iu-section.pt-7 { padding-top: var(--space-7); }
+.iu-section.pt-8 { padding-top: var(--space-8); }
+.iu-section.pb-8 { padding-bottom: var(--space-8); }
+
+/* Szekciófej: iu/group-ok (szöveg + gomb) */
+.section-head .section-head-text { gap: 0; }
+.section-head .section-head-text > * { margin-top: 0; }
+.section-head .section-head-text .eyebrow { margin-bottom: var(--space-4); }
+.section-head .iu-button-group { margin: 0; }
+
+/* Hős: a kép a szekcióhoz igazodik (a sor és az oszlop nem pozicionált), a szöveg a sötétítés fölött */
+.hero, .page-hero { position: relative; }
+.hero .iu-row, .hero .iu-column, .page-hero .iu-row, .page-hero .iu-column { position: static; z-index: auto; }
+.hero .hero-media, .page-hero .page-hero-media { position: absolute; inset: 0; z-index: 0; }
+.hero::after { z-index: 1; }
+.hero .hero-mandala { z-index: 1; }
+.hero .iu-column > :not(.hero-media):not(.hero-mandala), .page-hero .iu-column > :not(.page-hero-media) { position: relative; z-index: 2; }
+.hero .iu-column-2-3, .page-hero .iu-column-2-3 { padding-top: 160px; }
+.hero .iu-row { padding-top: 0; }
+.page-hero-media img { width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+
+/* Szándék kártyák és vélemények: saját rács (a blokk egy oszlopban él) */
+.intent-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gutter); }
+.quote-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gutter); }
+.cat-stack { height: 100%; gap: var(--gutter); }
+.cat-stack > * { flex: 1; }
+.media-frame-43 { aspect-ratio: 4 / 3; }
+.media-frame-45 { aspect-ratio: 4 / 5; }
+.media-frame-43 img, .media-frame-45 img { height: 100%; object-fit: cover; }
+.intent-card .iu-card-image img.art { width: 96px; height: 96px; border-radius: 50%; }
+.cat-tile:not(.cat-tile-wide) > img.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Lépések (Így dolgozunk): a prototípus <ol>-ja helyett iu/row */
+.steps { counter-reset: s; }
+.steps > .iu-column { counter-increment: s; padding: var(--space-6); border-radius: var(--radius-l); background: var(--c-white); border: var(--border); }
+.steps > .iu-column::before { content: counter(s, decimal-leading-zero); display: block; font: italic 500 1.125rem var(--font-display); color: var(--c-accent-deep); margin-bottom: var(--space-5); }
+.steps > .iu-column h3 { font-size: 1.5rem; }
+.steps > .iu-column p { margin: 0; color: var(--c-muted); font-size: .9375rem; }
+
+/* Listák */
+.spec-grid { list-style: none; padding: 0; }
+.check-list { list-style: none; padding: 0; display: grid; gap: var(--space-3); }
+.check-list li { padding-left: 28px; position: relative; }
+.check-list li::before { content: ''; position: absolute; left: 2px; top: .45em; width: 12px; height: 7px; border-left: 2px solid var(--c-success); border-bottom: 2px solid var(--c-success); transform: rotate(-45deg); }
+
+/* Elérhetőség kártyák (Kapcsolat) */
+.contact-cards { display: grid; gap: var(--space-4); margin-bottom: var(--space-6); }
+.contact-card { display: flex; gap: var(--space-4); align-items: flex-start; }
+.contact-card .ico { color: var(--c-accent); margin-top: 2px; }
+.contact-card h3 { font: 600 var(--fs-xs)/1.2 var(--font-text); letter-spacing: var(--ls-label); text-transform: uppercase; margin: 0 0 var(--space-1); }
+.contact-card p { margin: 0; }
+
+/* iu/form: hírlevél sor, mezők, üzenetek */
+.nl-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-2); row-gap: var(--space-3); align-items: start; }
+.nl-form > .nl-row, .nl-form > .iu-group { grid-column: 1; grid-row: 1; }
+.nl-form > .iu-form-submit { grid-column: 2; grid-row: 1; }
+.nl-form > :not(.nl-row):not(.iu-group):not(.iu-form-submit) { grid-column: 1 / -1; }
+.nl-form .iu-form-field label { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.nl-form input[type="email"] { border-radius: var(--radius-pill); min-height: 56px; padding: 0 var(--space-5); }
+.nl-form .iu-form-submit .iu-button { min-height: 56px; }
+.iu-form { display: grid; gap: var(--space-4); }
+.iu-form .iu-form-field { display: grid; gap: var(--space-2); }
+.iu-form .iu-form-submit { margin: 0; }
+.iu-form .form-message:empty { display: none; }
+.iu-form-steps fieldset { border: 0; padding: 0; margin: 0; }
+.iu-form-steps legend { font: 500 var(--fs-h4)/1.2 var(--font-display); margin-bottom: var(--space-4); }
+
+/* Oldalfej: kivonat (mandala/page-lead) */
+.page-head .page-lead { margin-top: var(--space-3); }
+
+/* Cikk */
+.post-head .iu-row, .post-body .iu-row { max-width: 800px; }
+.post-hero .iu-row { max-width: 1040px; }
+.post-body .iu-column > * + * { margin-top: var(--space-5); }
+.figure-caption { font-size: var(--fs-small); color: var(--c-muted); margin-top: var(--space-2) !important; }
+
+/* Kínálat: a JS nélküli kategórialista linkjei */
+.mandala-filter .filter-list a { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; color: inherit; text-decoration: none; }
+.mandala-filter .filter-list a[aria-current] { font-weight: 600; }
+.woocommerce-pagination ul { list-style: none; padding: 0; display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-7); }
+.woocommerce-pagination .page-numbers { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: var(--radius-pill); border: var(--border); text-decoration: none; }
+.woocommerce-pagination .current { background: var(--c-ink); color: var(--c-white); border-color: var(--c-ink); }
+
+/* Pénztár elrendezés: fejléc/lábléc egyszerűsítés */
+body.is-checkout-layout .newsletter { display: none; }
+body.is-checkout-layout .site-footer .iu-row:first-child { display: none; }
+body.is-checkout-layout .site-footer { padding-top: 0; }
+.mandala-checkout .mandala-company-field { display: block; }
+.reveal-fields[hidden] { display: none !important; }
+.gateway-icon img { max-height: 22px; width: auto; display: inline-block; vertical-align: middle; margin-top: 4px; }
+.thankyou-extra:empty { display: none; }
+
+/* Szerkesztőben a JS nélküli saját blokkok jelölése */
+.mandala-block-placeholder { padding: 14px 16px; border: 1px dashed var(--c-accent); border-radius: 6px; background: var(--c-paper); color: var(--c-muted); font: 500 13px/1.4 system-ui; }
+
+@media (max-width: 991.8px) {
+  .intent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quote-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero .iu-column-2-3, .page-hero .iu-column-2-3 { padding-top: 120px; }
+  .nl-form { grid-template-columns: minmax(0, 1fr); }
+  .nl-form > .iu-form-submit { grid-column: 1; grid-row: 2; }
+  .nl-form .iu-form-submit .iu-button { width: 100%; }
+}
+@media (max-width: 575.8px) {
+  .intent-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* WooCommerce akadálymentes szövegek (pl. „Eredeti ár: …” az akciós áraknál) */
+.screen-reader-text { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.woocommerce-pagination ul.page-numbers { display: flex; flex-wrap: wrap; border: 0; background: none; }
+.woocommerce-pagination ul.page-numbers li { border: 0; }
+
+/* Termékgaléria: a fotó vagy illusztráció kitölti a keretet */
+.product-gallery-main > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.search-hits .thumb img, .review-items .thumb img, .hero-pick .thumb img, .sticky-atc .thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* Az abszolút pozicionált akadálymentes szövegek a kártyán belül maradjanak (karusszel görgetése) */
+ul.products li.product { position: relative; }
+
+/* Egyetlen ország (Magyarország): a választó szövegként jelenik meg */
+select.country_to_state--single { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 0; min-height: 0; pointer-events: none; font-weight: 500; color: var(--c-ink); }
+.footer-bottom p { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.display-title { font-size: var(--fs-h1); max-width: 16ch; }

@@ -1,0 +1,35 @@
+<!-- wp:iu/section {"className":"pt-7"} -->
+<section class="iu-section pt-7"><!-- wp:iu/row {"columns":"1-3|2-3"} -->
+<div class="iu-row"><!-- wp:iu/column {"width":"1-3"} -->
+<div class="iu-column iu-column-1-3"><!-- wp:mandala/contact {"variant":"cards"} /-->
+<!-- wp:mandala/map /--></div>
+<!-- /wp:iu/column -->
+<!-- wp:iu/column {"width":"2-3"} -->
+<div class="iu-column iu-column-2-3"><!-- wp:iu/form {"formId":"kapcsolat","buttonLabel":"Üzenet küldése","success":"Köszönjük az üzenetet! Egy munkanapon belül válaszolunk a megadott e-mail-címre.","className":"panel"} -->
+<form class="iu-form panel" data-form-id="kapcsolat" novalidate><!-- wp:heading {"className":"h3"} -->
+<h2 class="wp-block-heading h3">Üzenet küldése</h2>
+<!-- /wp:heading -->
+<!-- wp:iu/group {"className":"form-grid"} -->
+<div class="iu-group form-grid"><!-- wp:iu/form-text {"name":"nev","label":"Név","validate":"required|Add meg a neved."} -->
+<div class="iu-form-field"><label>Név<abbr class="required" title="kötelező">*</abbr></label><input type="text" name="nev" placeholder=""/></div>
+<!-- /wp:iu/form-text -->
+<!-- wp:iu/form-text {"name":"email","label":"E-mail-cím","validate":"required|Add meg az e-mail-címed.\nemail|Ez nem tűnik érvényes e-mail-címnek.","type":"email"} -->
+<div class="iu-form-field"><label>E-mail-cím<abbr class="required" title="kötelező">*</abbr></label><input type="email" name="email" placeholder=""/></div>
+<!-- /wp:iu/form-text -->
+<!-- wp:iu/form-text {"name":"telefon","label":"Telefonszám","placeholder":"+36 30 123 4567","type":"tel"} -->
+<div class="iu-form-field"><label>Telefonszám</label><input type="tel" name="telefon" placeholder="+36 30 123 4567"/></div>
+<!-- /wp:iu/form-text -->
+<!-- wp:iu/form-select {"name":"tema","label":"Téma","options":"Termékkérdés\nRendelésem állapota\nVisszaküldés\nSzemélyes átvétel / bemutatóterem\nEgyéb","default":"Termékkérdés"} -->
+<div class="iu-form-field"><label>Téma</label><select name="tema"><option selected>Termékkérdés</option><option>Rendelésem állapota</option><option>Visszaküldés</option><option>Személyes átvétel / bemutatóterem</option><option>Egyéb</option></select></div>
+<!-- /wp:iu/form-select --></div>
+<!-- /wp:iu/group -->
+<!-- wp:iu/form-textarea {"name":"message","label":"Üzenet","validate":"required|Írd meg az üzeneted."} -->
+<div class="iu-form-field span-2"><label>Üzenet</label><textarea name="message" placeholder=""></textarea></div>
+<!-- /wp:iu/form-textarea -->
+<!-- wp:iu/form-accept {"name":"adatkezeles","label":"Elfogadom az \u003ca href=\u0022[mandala_url page=privacy]\u0022\u003eadatkezelési tájékoztatót\u003c/a\u003e.","error":"Az elküldéshez fogadd el az adatkezelési tájékoztatót."} -->
+<div class="iu-form-accept"><label><input type="checkbox" name="adatkezeles" value="1"/> <span>Elfogadom az <a href="[mandala_url page=privacy]">adatkezelési tájékoztatót</a>.</span></label></div>
+<!-- /wp:iu/form-accept --><div class="iu-form-submit"><button type="submit" class="iu-button">Üzenet küldése</button></div><p class="form-message" role="status"></p></form>
+<!-- /wp:iu/form --></div>
+<!-- /wp:iu/column --></div>
+<!-- /wp:iu/row --></section>
+<!-- /wp:iu/section -->

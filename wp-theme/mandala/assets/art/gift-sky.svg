@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="art" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="" style="--art-bg:#E3E8EC;color:#34506A">
+    <rect width="200" height="200" fill="#E3E8EC"/>
+    <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(30 30) scale(.7)">
+    <rect x="40" y="80" width="120" height="84" rx="4"/>
+    <rect x="34" y="62" width="132" height="22" rx="4"/>
+    <path d="M100 62v102"/>
+    <path d="M100 62c-10-22-40-26-40-10 0 10 22 10 40 10zM100 62c10-22 40-26 40-10 0 10-22 10-40 10z"/>
+    <path d="M58 112h24M58 124h18" opacity=".45"/></g>
+  </svg>

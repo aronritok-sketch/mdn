@@ -1,16 +1,15 @@
+// GENERÁLT FÁJL – forrás: assets/js/pages/shop.js (tools/build-theme.py). Ne szerkeszd közvetlenül.
 // Kínálat oldal – mandala/filter (saját szűrőblokk) + [products class="mainquery"].
 // Az állapot az URL-ben él: megosztható, a vissza gomb visszalépteti a szűrést.
-import { initPage, productCard, $, $$, esc, icon, params, setMeta, refreshReveal } from '../ui.js';
-import { CATEGORIES, INTENTS } from '../data.js';
-import { categoryBySlug, fmt, fmtNum, loadProducts, subLabel, storage } from '../store.js';
-import { FACETS, facetByKey, parseState, serialize, filterProducts, facetOptions, rangeInfo, categoryCounts, isVisible, relaxSuggestions, PRESETS, presetActive, togglePreset, activeCount, CHAKRAS } from '../facets.js';
+import { initPage, productCard, $, $$, esc, icon, params, setMeta, refreshReveal, CATEGORIES, INTENTS, categoryBySlug, fmt, fmtNum, loadProducts, subLabel, storage, shopUrl, contextState, contactUrl } from './env.js';
+import { FACETS, facetByKey, parseState, serialize, filterProducts, facetOptions, rangeInfo, categoryCounts, isVisible, relaxSuggestions, PRESETS, presetActive, togglePreset, activeCount, CHAKRAS } from './facets.js';
 
 initPage({ active: params().get('orderby') === 'date' ? '' : 'shop' });
 
 const PER_PAGE = 9;
 const OPEN_KEY = 'mandala.filter.open.v1';
 const products = await loadProducts();
-let state = parseState(params());
+let state = contextState(parseState(params()));
 if (state.sub && !state.cat) state.cat = CATEGORIES.find((c) => c.subs.some(([s]) => s === state.sub))?.slug || '';
 let shown = PER_PAGE;
 const openGroups = new Set(storage.get(OPEN_KEY, ['kategoria', 'szandek', 'ar', 'hang', 'suly', 'csakra', 'illat', 'meret']));
@@ -150,7 +149,7 @@ function resultsHtml(list) {
   const tips = relaxSuggestions(products, state);
   return `<li style="grid-column:1/-1"><div class="empty-state">${icon('search', 'ico ico-xl')}<h2 style="font-size:var(--fs-h3)">Nincs ilyen termék</h2>
     ${tips.length ? `<p>Ha lazítasz egy szűrőn, lesz találat:</p><div class="relax">${tips.map((t, i) => `<button type="button" class="chip" data-relax="${i}">A(z) <strong>${esc(t.label)}</strong> nélkül: ${t.n} termék</button>`).join('')}</div>` : '<p>Próbálj kevesebb szűrőt, vagy nézd meg a teljes kínálatot.</p>'}
-    <div class="iu-button-group iu-button-group-center"><button type="button" class="iu-button" data-clear="all">Összes szűrő törlése</button><a class="iu-button iu-button-outline" href="kapcsolat.html">Kérdezz tőlünk</a></div></div></li>`;
+    <div class="iu-button-group iu-button-group-center"><button type="button" class="iu-button" data-clear="all">Összes szűrő törlése</button><a class="iu-button iu-button-outline" href="${contactUrl()}">Kérdezz tőlünk</a></div></div></li>`;
 }
 
 let relaxCache = [];
@@ -182,7 +181,7 @@ function render({ focus = null, history: mode = 'push' } = {}) {
   $('[data-results]').innerHTML = resultsHtml(list);
   $('div[data-more]').innerHTML = n < list.length ? `<div class="load-more"><p>${n} / ${list.length} termék</p><div class="meter" aria-hidden="true"><span style="width:${(n / list.length) * 100}%"></span></div><button type="button" class="iu-button iu-button-outline" data-more-btn>Több termék betöltése</button></div>` : '';
   const qs = serialize(state);
-  const url = `${location.pathname}${qs ? `?${qs}` : ''}`;
+  const url = shopUrl(state, qs);
   if (mode === 'push' && url !== `${location.pathname}${location.search}`) history.pushState(null, '', url);
   else if (mode !== 'none') history.replaceState(null, '', url);
   bindRanges();
@@ -319,6 +318,6 @@ document.addEventListener('input', (e) => {
   }
 });
 
-addEventListener('popstate', () => { state = parseState(params()); shown = PER_PAGE; render({ history: 'none' }); });
+addEventListener('popstate', () => { state = contextState(parseState(params())); shown = PER_PAGE; render({ history: 'none' }); });
 
 render({ history: 'replace' });

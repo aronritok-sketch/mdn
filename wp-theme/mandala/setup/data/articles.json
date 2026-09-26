@@ -1,0 +1,274 @@
+{
+ "categories": [
+  "Hangszerek",
+  "Otthon és oltár",
+  "Szimbólumok",
+  "Rituálé"
+ ],
+ "articles": [
+  {
+   "slug": "csengo-tingsha-hangtal",
+   "date": "2026-09-18",
+   "art": "tingsha",
+   "tone": "saffron",
+   "image": "hangtalak-studio",
+   "category": "Hangszerek",
+   "minutes": 6,
+   "author": "A Mandala csapata",
+   "title": "Csengő, tingsha, hangtál: három hang, három különböző szerep",
+   "excerpt": "Egyes buddhista hangszerek szertartást kísérnek, mások jelzést adnak – és akad olyan is, amelyhez téves eredettörténet társul.",
+   "content": [
+    [
+     "p",
+     "A buddhista hagyományban a hang nem háttérzaj, hanem a gyakorlás része. Mégsem mindegy, melyik hangszer mikor szól – és mit várhatunk tőle."
+    ],
+    [
+     "h2",
+     "A csengő és a dordzse"
+    ],
+    [
+     "p",
+     "A **tibeti csengő (ghanta)** mindig párban jár a **dordzsével (vadzsra)**. A bal kézben tartott csengő a bölcsességet, a jobb kézben tartott dordzse az együttérzést jelképezi; a kettő együtt a megvilágosodás egységét fejezi ki."
+    ],
+    [
+     "quote",
+     "A hang csak akkor tanít, ha hagyjuk teljesen elhalni.",
+     "Kolostori mondás"
+    ],
+    [
+     "h2",
+     "A tingsha: jelzés, nem zene"
+    ],
+    [
+     "p",
+     "A tingsha két kisméretű, zsinórral összekötött cintányér. Éles, tiszta hangja **jelzés**: kijelöli a meditáció kezdetét és végét, vagy visszahívja a figyelmet."
+    ],
+    [
+     "ul",
+     [
+      "A kezdéskor: egyetlen megszólaltatás, majd csend.",
+      "A végén: kettő, hogy a figyelem visszatérjen a térbe.",
+      "Csoportban: a vezető jelzése a szakaszok között."
+     ]
+    ],
+    [
+     "figure",
+     "hangtalak-studio",
+     "Kézzel kovácsolt és öntött nepáli hangtálak filcborítású ütőkkel."
+    ],
+    [
+     "h2",
+     "A hangtál – és egy téves eredettörténet"
+    ],
+    [
+     "p",
+     "A hangtál ma a hangfürdők ikonikus eszköze. A „tibeti hangtál” mint ősi szertartási hangszer története azonban nagyrészt a 20. század második felében született; a tálakat a Himalája térségében használati edényként is ismerték. Ettől még kiváló eszköz a figyelem összpontosítására."
+    ],
+    [
+     "h3",
+     "Mit érdemes megnézni vásárláskor?"
+    ],
+    [
+     "table",
+     [
+      "Szempont",
+      "Mit jelent",
+      "Mire figyelj"
+     ],
+     [
+      [
+       "Súly",
+       "A tál tömege grammban",
+       "Nehezebb tál mélyebb, hosszabb hangot ad"
+      ],
+      [
+       "Frekvencia",
+       "A mért alaphang (Hz)",
+       "Kérj mért értéket, ne becslést"
+      ],
+      [
+       "Lecsengés",
+       "Meddig hallható a hang",
+       "Jó tálnál 30–60 másodperc"
+      ]
+     ]
+    ],
+    [
+     "h4",
+     "Röviden"
+    ],
+    [
+     "p",
+     "Csengő a szertartáshoz, tingsha a jelzéshez, hangtál az elmélyüléshez. Mindháromból tartunk nepáli műhelyekből származó darabokat."
+    ],
+    [
+     "button",
+     "Hangtálak böngészése",
+     "termekek.html?cat=szakralis-targyak&sub=hangtalak"
+    ]
+   ]
+  },
+  {
+   "slug": "buddhista-oltar",
+   "date": "2026-09-11",
+   "art": "buddha",
+   "tone": "maroon",
+   "image": "fustolok-csakra",
+   "category": "Otthon és oltár",
+   "minutes": 5,
+   "author": "A Mandala csapata",
+   "title": "Mi kerül egy buddhista oltárra – és miért nem mindegy, hová?",
+   "excerpt": "Szobrok, szent szövegek, víztálkák és füstölők: így áll össze egy hagyományos otthoni oltár rendje.",
+   "content": [
+    [
+     "p",
+     "Egy otthoni oltár nem díszlet, hanem emlékeztető: egy hely, ahová a figyelem újra és újra visszatérhet."
+    ],
+    [
+     "h2",
+     "A középpont: test, beszéd, elme"
+    ],
+    [
+     "p",
+     "Középen Buddha-szobor áll, a szobor jobbján (a nézőtől balra) egy szent szöveg, a bal oldalán (a nézőtől jobbra) egy sztúpa vagy annak képe."
+    ],
+    [
+     "h2",
+     "A felajánlások"
+    ],
+    [
+     "ul",
+     [
+      "Hét víztálka: reggel feltöltve, este kiürítve.",
+      "Mécses vagy gyertya – a bölcsesség fénye.",
+      "Füstölő és virág – a mulandóság emlékeztetői."
+     ]
+    ],
+    [
+     "h2",
+     "A hely"
+    ],
+    [
+     "p",
+     "Legyen tiszta és emelt: szemmagasságban vagy afölött, ne a padlón, ne a fürdőszobában. Nem kell nagynak lennie – egy polc is elég."
+    ]
+   ]
+  },
+  {
+   "slug": "buddha-arca",
+   "date": "2026-09-04",
+   "art": "buddha",
+   "tone": "saffron",
+   "category": "Szimbólumok",
+   "minutes": 7,
+   "author": "A Mandala csapata",
+   "title": "Miért ilyen Buddha arca? – 7 jelentéssel bíró apróság",
+   "excerpt": "Miért hosszú Buddha füle, mi a homlokpont, és mit jelentenek a csigás hajfürtök? Hét részlet, amely segít eligazodni az ábrázolásokon.",
+   "content": [
+    [
+     "p",
+     "A Buddha-ábrázolások nem portrék, hanem jelképrendszerek. Minden részletnek jelentése van."
+    ],
+    [
+     "ol",
+     [
+      "**Hosszú fülcimpák** – Sziddhártha herceg nehéz fülbevalókat viselt; lemondásakor levette őket.",
+      "**Urna (homlokpont)** – a bölcsesség fénye a szemöldökök között.",
+      "**Usnísa (koponyadudor)** – a megvilágosodott elme kiterjedésének jele.",
+      "**Csigás hajfürtök** – a legenda szerint csigák védték a meditáló Buddha fejét a naptól.",
+      "**Félig lehunyt szem** – egyszerre befelé és kifelé figyel.",
+      "**Három vonal a nyakon** – a csengő hang és a tanítás jele.",
+      "**Szelíd mosoly** – a belső nyugalom, amely nem függ a külső körülményektől."
+     ]
+    ]
+   ]
+  },
+  {
+   "slug": "hangtal-valasztas",
+   "date": "2026-08-28",
+   "art": "bowl",
+   "tone": "sage",
+   "category": "Hangszerek",
+   "minutes": 5,
+   "author": "A Mandala csapata",
+   "title": "Hogyan válassz hangtálat? Súly, hang és felhangok",
+   "excerpt": "Kisebb tál tisztább, magasabb hanggal – nagyobb tál mélyebb zengéssel. Egy rövid útmutató az első hangtál kiválasztásához.",
+   "content": [
+    [
+     "p",
+     "Az első hangtálnál a legfontosabb kérdés nem a csakra, hanem az, hogy mire használnád: egyéni meditációhoz, jógaóra végéhez vagy hangfürdőhöz."
+    ],
+    [
+     "h2",
+     "Méret és súly"
+    ],
+    [
+     "p",
+     "A 400–600 grammos tálak jól kézben tarthatók, tiszta, közepes hangot adnak. A 700 gramm feletti tálakat inkább párnán szólaltatjuk meg; hangjuk mélyebb, a rezgés a testen is érezhető."
+    ],
+    [
+     "h2",
+     "Hallgasd meg"
+    ],
+    [
+     "p",
+     "Minden tálnál mért frekvenciát adunk meg, és szívesen küldünk hangfelvételt is – írj nekünk a termékoldalon."
+    ]
+   ]
+  },
+  {
+   "slug": "tibeti-vagy-indiai-fustolo",
+   "date": "2026-08-21",
+   "art": "incense",
+   "tone": "maroon",
+   "category": "Rituálé",
+   "minutes": 4,
+   "author": "A Mandala csapata",
+   "title": "Tibeti vagy indiai füstölő? Két hagyomány, két illat",
+   "excerpt": "Pálcával vagy anélkül, virágos vagy földes: miben különbözik a két leggyakoribb füstölőtípus, és melyik mikor jó választás.",
+   "content": [
+    [
+     "p",
+     "Az indiai füstölők többnyire bambuszpálcára sodort, édesebb, virágos illatkeverékek. A tibeti füstölők pálca nélküli, gyógynövényporból sodort rudak, visszafogottabb, földesebb illattal."
+    ],
+    [
+     "h2",
+     "Mikor melyiket?"
+    ],
+    [
+     "ul",
+     [
+      "Esti elcsendesedéshez: tibeti, gyógynövényes.",
+      "Hangulatteremtéshez, vendégvárásra: indiai, virágos (pl. Nag Champa).",
+      "Kis térben: rövidebb égési idő, szellőztetés mellett."
+     ]
+    ]
+   ]
+  },
+  {
+   "slug": "rez-kulacs",
+   "date": "2026-08-14",
+   "art": "copper",
+   "tone": "saffron",
+   "category": "Otthon és oltár",
+   "minutes": 3,
+   "author": "A Mandala csapata",
+   "title": "Réz kulacs a mindennapokban: mit érdemes tudni?",
+   "excerpt": "Mit mond az ájurvéda a rézedényben tárolt vízről, és hogyan tisztítsd, hogy sokáig szép maradjon?",
+   "content": [
+    [
+     "p",
+     "Az ájurvédikus hagyományban a rézedényben állni hagyott víz kiegyensúlyozó hatású. A kulacsba csak vizet tölts – savas italt, tejet, forró folyadékot ne."
+    ],
+    [
+     "h2",
+     "Tisztítás"
+    ],
+    [
+     "p",
+     "Hetente egyszer citromlével és kevés sóval dörzsöld át, majd öblítsd le. A természetes patina nem hiba, hanem a réz jellemzője."
+    ]
+   ]
+  }
+ ]
+}

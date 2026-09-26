@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/theme.json",
+  "version": 3,
+  "settings": {
+    "color": {
+      "custom": false,
+      "customGradient": false,
+      "defaultPalette": false,
+      "defaultGradients": false,
+      "palette": [
+        { "name": "Fehér", "slug": "white", "color": "#FFFFFF" },
+        { "name": "Papír (háttér)", "slug": "paper", "color": "#F7F4EE" },
+        { "name": "Homok (felület)", "slug": "sand", "color": "#EEE7DB" },
+        { "name": "Vonal", "slug": "line", "color": "#DDD3C3" },
+        { "name": "Tinta (szöveg)", "slug": "ink", "color": "#1C1916" },
+        { "name": "Halvány szöveg", "slug": "muted", "color": "#6E6357" },
+        { "name": "Sáfrány (kiemelés)", "slug": "accent", "color": "#A9581A" },
+        { "name": "Sáfrány mély (link)", "slug": "accent-deep", "color": "#8A4512" },
+        { "name": "Bordó", "slug": "maroon", "color": "#6B2A2A" },
+        { "name": "Éjszaka (sötét háttér)", "slug": "night", "color": "#16120F" },
+        { "name": "Siker", "slug": "success", "color": "#2E6A3E" },
+        { "name": "Hiba", "slug": "error", "color": "#A3322A" }
+      ]
+    },
+    "typography": {
+      "customFontSize": false,
+      "fontFamilies": [
+        { "name": "Cormorant Garamond", "slug": "display", "fontFamily": "'Cormorant Garamond', Georgia, serif" },
+        { "name": "Inter", "slug": "text", "fontFamily": "Inter, system-ui, sans-serif" }
+      ]
+    },
+    "spacing": { "customSpacingSize": false },
+    "layout": { "contentSize": "1280px", "wideSize": "1440px" }
+  }
+}

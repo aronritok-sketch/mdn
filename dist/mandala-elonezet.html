@@ -689,6 +689,7 @@ a.post-link:hover .post-thumb > * { transform: scale(1.03); }
 .cookie-bar .iu-button-group { margin-top: var(--space-4); }
 .cookie-bar .iu-button { --btn-bg: var(--c-paper); --btn-fg: var(--c-ink); --btn-bd: var(--c-paper); }
 .cookie-bar .iu-button-outline { --btn-bg: transparent; --btn-fg: var(--c-white); --btn-bd: rgba(255,255,255,.4); }
+.cookie-bar .iu-button-link { --btn-bg: transparent; --btn-fg: var(--c-white); --btn-bd: transparent; }
 .cookie-prefs { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
 .cookie-prefs .check { color: var(--c-white); }
 .cookie-prefs .check small { display: block; color: var(--c-on-dark-muted); }
@@ -4569,7 +4570,7 @@ function render({ focus = null, history: mode = 'push' } = {}) {
   $('[data-count]').textContent = list.length ? `${list.length} termék${list.length > n ? ` · ${n} látható` : ''}` : 'Nincs találat';
   relaxCache = list.length ? [] : relaxSuggestions(products, state);
   $('[data-results]').innerHTML = resultsHtml(list);
-  $('[data-more]').innerHTML = n < list.length ? `<div class="load-more"><p>${n} / ${list.length} termék</p><div class="meter" aria-hidden="true"><span style="width:${(n / list.length) * 100}%"></span></div><button type="button" class="iu-button iu-button-outline" data-more-btn>Több termék betöltése</button></div>` : '';
+  $('div[data-more]').innerHTML = n < list.length ? `<div class="load-more"><p>${n} / ${list.length} termék</p><div class="meter" aria-hidden="true"><span style="width:${(n / list.length) * 100}%"></span></div><button type="button" class="iu-button iu-button-outline" data-more-btn>Több termék betöltése</button></div>` : '';
   const qs = serialize(state);
   const url = `${__route.path()}${qs ? `?${qs}` : ''}`;
   if (mode === 'push' && url !== `${location.hash}`) history.pushState(null, '', url);

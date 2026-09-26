@@ -6,7 +6,21 @@ A prototípus az **Infinite Unity (iu_theme)** WordPress-keretrendszer szerkezet
 
 - **Üzleti elemzés:** [`docs/ELEMZES.md`](docs/ELEMZES.md)
 - **Blokktérkép és átadási terv:** [`docs/IU-BLOKKTERKEP.md`](docs/IU-BLOKKTERKEP.md)
+- **WordPress child téma (telepíthető):** [`wp-theme/mandala`](wp-theme/mandala/README.md) → `dist/mandala-tema.zip`
 - **Design system (élő):** `stilus.html`
+
+## WordPress téma
+
+A prototípusból készült, telepíthető `mandala` child téma az `iu_theme` keretrendszerre: `dist/mandala-tema.zip`
+(Megjelenés → Témák → Téma feltöltése). Saját blokkok `iucb_add_block`-kal, sablonfájlok, klasszikus 5 lépéses
+WooCommerce pénztár, telepítő (ÁFA, szállítás, fizetés, attribútumok, oldalak, menük), WP-CLI.
+Részletek, követelmények és élesítési teendők: [`wp-theme/mandala/README.md`](wp-theme/mandala/README.md).
+
+```bash
+python3 tools/build-theme.py             # téma frissítése a prototípusból + zip
+python3 tools/build-theme.py --content   # a blokk-markup újragenerálása is (utána: wp-theme/dev/canon.mjs)
+BASE=http://localhost:8080 node tests/wp-e2e.mjs   # végponttól végpontig teszt egy telepített WordPressen
+```
 
 ## Megtekintés
 
@@ -76,7 +90,10 @@ assets/js/blocks.js      iu/accordion, iu/tabs, karusszel, bejegyzéskártya, t�
 assets/js/pages/*.js     oldalankénti logika
 tools/pages.py           oldalgenerátor
 tools/build-single.py    egyfájlos előnézet
-tests/*.mjs              Playwright tesztek
+tests/*.mjs              Playwright tesztek (wp-e2e.mjs: WordPress + WooCommerce)
+tools/build-theme.py     WordPress child téma összeállítása (wp-theme/mandala, dist/mandala-tema.zip)
+wp-theme/mandala         a child téma
+wp-theme/dev             kanonizáló szkript és iu_theme teszt-helyettesítő (nem része a témának)
 ```
 
 ## Tesztek
