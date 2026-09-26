@@ -20,7 +20,9 @@ const ok = (cond, label, extra = '') => { console.log(`${cond ? '✓' : '✗'} $
 const errors = [];
 const num = (s) => Number(String(s).replace(/[^\d-]/g, '')) || 0;
 
-// A tesztben vásárolt termék készlete (ismételt futtatásnál ne fogyjon el).
+// A tesztben vásárolt termék készlete (ismételt futtatásnál ne fogyjon el); a végén visszaáll
+// (a wp-e2e.mjs a bemutató készletével számol).
+const origStock = wp('$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); echo wp_json_encode([$p->get_manage_stock(), $p->get_stock_quantity()]);');
 wp('$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(true); $p->set_stock_quantity(50); $p->save();');
 
 const browser = await chromium.launch();
@@ -372,6 +374,10 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp('delete_option("mandala_ai");');
 }
 
+{
+  const [manage, qty] = JSON.parse(origStock);
+  wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(${manage ? 'true' : 'false'}); $p->set_stock_quantity(${Number(qty) || 0}); $p->set_stock_status("instock"); $p->save();`);
+}
 ok(errors.length === 0, 'nincs JS / szerver hiba', errors.slice(0, 5).join(' | '));
 await browser.close();
 console.log(`\n${fails ? fails + ' HIBA' : 'Minden rendben.'}`);
