@@ -38,11 +38,19 @@ add_action('init', function () {
     }
 });
 
-/** A termékszerkesztőből (vagy gyors / csoportos szerkesztésből) jön-e a mentés. */
+/**
+ * A termékszerkesztőből jön-e a mentés (klasszikus szerkesztő, gyors / csoportos szerkesztés,
+ * másolás, vagy az új blokkos termékszerkesztő: REST bejelentkezett felhasználó nonce-ával).
+ * Az import (JUTA) API-kulccsal, nonce nélkül érkezik, az nem szerkesztő.
+ */
 function mandala_is_editor_save(): bool
 {
     $action = sanitize_key($_REQUEST['action'] ?? ''); // phpcs:ignore WordPress.Security.NonceVerification
-    return is_admin() && current_user_can('edit_products') && (in_array($action, ['editpost', 'inline-save', 'edit'], true) || isset($_REQUEST['bulk_edit'])); // phpcs:ignore
+    $editor = is_admin() && current_user_can('edit_products') && (in_array($action, ['editpost', 'inline-save', 'edit', 'duplicate_product'], true) || isset($_REQUEST['bulk_edit'])); // phpcs:ignore
+    if (!$editor && defined('REST_REQUEST') && REST_REQUEST && !empty($_SERVER['HTTP_X_WP_NONCE'])) {
+        $editor = (bool) wp_verify_nonce(sanitize_text_field(wp_unslash($_SERVER['HTTP_X_WP_NONCE'])), 'wp_rest') && current_user_can('edit_products');
+    }
+    return (bool) apply_filters('mandala_is_editor_save', $editor);
 }
 
 function mandala_onboarding_state(int $id): string
@@ -59,9 +67,11 @@ add_filter('wp_insert_post_data', function ($data, $postarr, $unsanitized = [], 
     $id = (int) ($postarr['ID'] ?? 0);
     $public = in_array($data['post_status'], ['publish', 'future', 'private', 'pending'], true);
     if (!$id || $update === false) {
-        // Új termék importból: piszkozat, sorba kerül.
-        if ($public && !mandala_is_editor_save() && empty($GLOBALS['mandala_onboarding_skip'])) {
-            $data['post_status'] = 'draft';
+        // Új termék importból (akár közzétéve, akár piszkozatként érkezik): piszkozat, sorba kerül.
+        if ($data['post_status'] !== 'auto-draft' && !mandala_is_editor_save() && empty($GLOBALS['mandala_onboarding_skip'])) {
+            if ($public) {
+                $data['post_status'] = 'draft';
+            }
             $GLOBALS['mandala_onboarding_new'] = true;
         }
         return $data;
@@ -74,11 +84,17 @@ add_filter('wp_insert_post_data', function ($data, $postarr, $unsanitized = [], 
 }, 20, 4);
 
 add_action('wp_insert_post', function ($post_id, $post, $update) {
-    if ($post->post_type !== 'product' || empty($GLOBALS['mandala_onboarding_new'])) {
+    if ($post->post_type !== 'product') {
         return;
     }
-    unset($GLOBALS['mandala_onboarding_new']);
-    mandala_onboarding_mark_new((int) $post_id);
+    if (!empty($GLOBALS['mandala_onboarding_new'])) {
+        unset($GLOBALS['mandala_onboarding_new']);
+        mandala_onboarding_mark_new((int) $post_id);
+    } elseif (!$update && !metadata_exists('post', $post_id, '_mandala_onboarding')) {
+        // Szerkesztőből, a telepítőből vagy a témából (pl. eseményjegy) létrejött termék: kész.
+        // Így az óránkénti ellenőrzés csak a WordPresst megkerülő (adatbázisba írt) termékeket fogja meg.
+        update_post_meta($post_id, '_mandala_onboarding', 'done');
+    }
 }, 10, 3);
 
 function mandala_onboarding_mark_new(int $id): void

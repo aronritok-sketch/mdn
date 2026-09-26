@@ -1,7 +1,9 @@
 // Mandala – közös viselkedés minden oldalon: fejléc, megamenü, mobilmenü, élő kereső,
 // minikosár (WooCommerce fragmentek), kedvencek, cookie sáv, értesítések, karusszel,
 // fülek, beúszás, másolás gombok, készletértesítő.
-import { $, $$, esc, icon, fmt, norm, loadProducts, wishlist, storage, refreshReveal, reducedMotion } from './env.js';
+import { $, $$, esc, icon, fmt, loadProducts, wishlist, storage, refreshReveal, reducedMotion, logSearch } from './env.js';
+import { getCorpus } from './search-engine.js';
+import { suggestHtml } from './search-ui.js';
 import { bindValidation, validateForm } from './validate.js';
 
 const M = window.MANDALA || {};
@@ -88,53 +90,53 @@ if (trigger && panel && matchMedia('(hover: hover) and (min-width: 992px)').matc
 }
 
 // ---------- Kereső ----------
-const highlight = (text, term) => {
-  if (!term) return esc(text);
-  const i = norm(text).indexOf(norm(term));
-  return i < 0 ? esc(text) : `${esc(text.slice(0, i))}<mark>${esc(text.slice(i, i + term.length))}</mark>${esc(text.slice(i + term.length))}`;
-};
-function searchProducts(products, q) {
-  const t = norm(q.trim());
-  if (!t) return [];
-  return products.map((p) => {
-    const name = norm(p.name);
-    let score = 0;
-    if (name.startsWith(t)) score += 5;
-    if (name.includes(t)) score += 3;
-    if (norm(p.sku || '').includes(t)) score += 4;
-    if (norm(`${p.catLabel} ${p.short} ${Object.values(p.specs || {}).join(' ')}`).includes(t)) score += 1;
-    return { p, score };
-  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || (a.p.stock === 'out') - (b.p.stock === 'out')).map((x) => x.p);
-}
+// A motor (search-engine.js): ragozás, elírás, szinonimák, kérdés-értelmezés, rangsor.
 const thumb = (p) => (p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : `<img class="art" src="${esc(p.art)}" alt="" loading="lazy">`);
+export const searchHelpers = (q) => ({
+  esc, icon, fmt, thumb,
+  productUrl: (p) => p.url,
+  searchUrl: (query) => `${M.search}?s=${encodeURIComponent(query)}`,
+  shopUrl: (query) => (query ? `${M.shop}${M.shop.includes('?') ? '&' : '?'}q=${encodeURIComponent(query)}` : M.shop),
+  highlight: (text) => (getCorpus() ? getCorpus().highlight(text, q) : esc(text)),
+});
 let searchSeq = 0;
+let logTimer;
 async function runSearch(q) {
   const box = $('#search-results');
   const input = $('#search-input');
   if (!box || !input) return;
   const term = q.trim();
   const seq = ++searchSeq;
+  clearTimeout(logTimer);
   if (term.length < 2) {
     input.setAttribute('aria-expanded', 'false');
-    box.innerHTML = `<div><h2>Népszerű keresések</h2><div class="chip-row">${['hangtál', 'tibeti füstölő', 'mala', 'Buddha szobor', 'réz kulacs', 'szélcsengő'].map((x) => `<button type="button" class="chip" data-term="${x}">${x}</button>`).join('')}</div></div>
+    box.innerHTML = `<div><h2>Népszerű keresések</h2><div class="chip-row">${(M.searchConfig?.popular?.length ? M.searchConfig.popular : ['hangtál', 'tibeti füstölő', 'mala', 'Buddha szobor', 'réz kulacs', 'hangtál 500 g alatt']).map((x) => `<button type="button" class="chip" data-term="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>
       <div><h2>Kategóriák</h2><ul class="mega-list">${(M.categories || []).map((c) => `<li><a href="${esc(c.url)}">${esc(c.label)}</a></li>`).join('')}</ul></div>`;
     return;
   }
-  const [products, posts] = await Promise.all([
-    loadProducts().then((list) => searchProducts(list, term)),
+  const [list, posts] = await Promise.all([
+    loadProducts(),
     fetch(`${M.rest}posts?q=${encodeURIComponent(term)}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
   ]);
   if (seq !== searchSeq) return;
-  const all = `${M.search}?s=${encodeURIComponent(term)}`;
-  input.setAttribute('aria-expanded', String(products.length > 0));
-  box.innerHTML = `<div><h2>Termékek (${products.length})</h2>${products.length
-    ? `<ul class="search-hits" role="listbox" aria-label="Termék találatok">${products.slice(0, 6).map((p) => `<li role="option"><a href="${esc(p.url)}"><span class="thumb">${thumb(p)}</span><span>${highlight(p.name, term)}<small>${esc(p.catLabel || '')} · Cikkszám: ${highlight(p.sku || '–', term)}</small></span><strong class="num">${fmt(p.price)}</strong></a></li>`).join('')}</ul>
-       <p style="margin-top:var(--space-4)"><a class="iu-button iu-button-outline" href="${esc(all)}">Mind a ${products.length + posts.length} találat ${icon('arrow', 'ico ico-s')}</a></p>`
-    : `<p class="text-muted">Nincs termék erre: „${esc(term)}”. Próbáld rövidebben, vagy nézd meg a <a href="${esc(M.shop)}">teljes kínálatot</a>.</p>`}</div>
-    <div><h2>Magazin (${posts.length})</h2>${posts.length ? `<ul class="mega-list">${posts.map((a) => `<li><a href="${esc(a.url)}">${highlight(a.title, term)}</a></li>`).join('')}</ul>` : '<p class="text-muted text-small">Nincs cikk ezzel a kifejezéssel.</p>'}</div>`;
+  const r = getCorpus()?.search(term) || { items: [], total: 0, filters: [], cats: [] };
+  input.setAttribute('aria-expanded', String(r.items.length > 0));
+  box.innerHTML = suggestHtml(r, term, searchHelpers(term), posts);
+  box.dataset.q = term;
+  box.dataset.n = String(r.total);
+  // A „félbehagyott” keresés is számít (pl. nulla találat): 2 mp szünet után naplózzuk.
+  logTimer = setTimeout(() => logSearch(term, r.total, 'live'), 2000);
 }
+// Találatra kattintás: a kifejezés + melyik termék (a statisztika „kattintás” oszlopa).
+$('#search-results')?.addEventListener('click', (e) => {
+  const hit = e.target.closest('[data-search-hit]');
+  const box = e.currentTarget;
+  if (hit) { clearTimeout(logTimer); logSearch(box.dataset.q, Number(box.dataset.n || 0), 'live', Number(hit.dataset.searchHit)); }
+});
 const searchInput = $('#search-input');
 let searchTimer;
+// A termékindex (és a keresőmotor) előtöltése már a kereső felé mozduláskor.
+$$('[data-open-search]').forEach((el) => ['pointerenter', 'focus'].forEach((ev) => el.addEventListener(ev, () => loadProducts(), { once: true })));
 searchInput?.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => runSearch(searchInput.value), 140); });
 searchInput?.addEventListener('keydown', (e) => {
   if (!['ArrowDown', 'ArrowUp'].includes(e.key)) return;
@@ -350,7 +352,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (t.matches('[data-open-cart]')) { if (minicart) { e.preventDefault(); openCart(); } }
-  else if (t.matches('[data-open-search]')) { openLayer($('#search'), '#search-input'); runSearch($('#search-input').value); }
+  else if (t.matches('[data-open-search]')) { openLayer($('#search'), '#search-input'); loadProducts(); runSearch($('#search-input').value); }
   else if (t.matches('[data-close]')) closeLayer(t.closest('.drawer, .search-layer, .iu-modal') || undefined);
   else if (t.dataset.wish) {
     const on = wishlist.toggle(t.dataset.wish);

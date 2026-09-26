@@ -2,6 +2,7 @@
 // Kínálat oldal – mandala/filter (saját szűrőblokk) + [products class="mainquery"].
 // Az állapot az URL-ben él: megosztható, a vissza gomb visszalépteti a szűrést.
 import { initPage, productCard, $, $$, esc, icon, params, setMeta, refreshReveal, CATEGORIES, INTENTS, categoryBySlug, fmt, fmtNum, loadProducts, subLabel, storage, shopUrl, contextState, contactUrl } from './env.js';
+import { queryScores } from './search-engine.js';
 import { FACETS, facetByKey, parseState, serialize, filterProducts, facetOptions, rangeInfo, categoryCounts, isVisible, relaxSuggestions, PRESETS, presetActive, togglePreset, activeCount, CHAKRAS } from './facets.js';
 
 initPage({ active: params().get('orderby') === 'date' ? '' : 'shop' });
@@ -169,7 +170,9 @@ function selectorOf(el) {
 }
 function render({ focus = null, history: mode = 'push' } = {}) {
   const keep = focus ?? selectorOf(document.activeElement);
-  const list = filterProducts(products, state).sort(SORT[state.orderby] || SORT.menu_order);
+  // Kereséskor az alapértelmezett sorrend a relevancia.
+  const scores = state.q && state.orderby === 'menu_order' ? queryScores(state.q) : null;
+  const list = filterProducts(products, state).sort(scores ? (a, b) => (scores.get(b.id) || 0) - (scores.get(a.id) || 0) : SORT[state.orderby] || SORT.menu_order);
   const n = Math.min(shown, list.length);
   heading();
   $('[data-filters]').innerHTML = panelHtml(list.length);

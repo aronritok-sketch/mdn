@@ -84,6 +84,7 @@ def build_js():
     shop = must_replace(shop, "import { initPage, productCard, $, $$, esc, icon, params, setMeta, refreshReveal } from '../ui.js';\nimport { CATEGORIES, INTENTS } from '../data.js';\nimport { categoryBySlug, fmt, fmtNum, loadProducts, subLabel, storage } from '../store.js';\nimport {",
                         "import { initPage, productCard, $, $$, esc, icon, params, setMeta, refreshReveal, CATEGORIES, INTENTS, categoryBySlug, fmt, fmtNum, loadProducts, subLabel, storage, shopUrl, contextState, contactUrl } from './env.js';\nimport {", 'shop imports')
     shop = shop.replace("from '../facets.js';", "from './facets.js';")
+    shop = must_replace(shop, "from '../search-engine.js';", "from './search-engine.js';", 'shop search')
     # Kiinduló állapot: az archívum kategóriája (pl. /kategoria/hangtalak/) + URL paraméterek.
     shop = must_replace(shop, 'let state = parseState(params());', 'let state = contextState(parseState(params()));', 'shop state')
     shop = must_replace(shop, "addEventListener('popstate', () => { state = parseState(params());", "addEventListener('popstate', () => { state = contextState(parseState(params()));", 'shop popstate')
@@ -93,6 +94,10 @@ def build_js():
     if 'termekek.html' in shop or 'kapcsolat.html' in shop:
         raise SystemExit('shop.js: maradt prototípus link')
     (js / 'filter.js').write_text(note.format(src='assets/js/pages/shop.js') + shop)
+
+    # Keresőmotor és a kereső megjelenítése: változtatás nélkül (függőség nélküli modulok).
+    for name in ('search-engine.js', 'search-ui.js'):
+        (js / name).write_text(note.format(src=f'assets/js/{name}') + (ROOT / 'assets/js' / name).read_text())
 
 
 # ---------------------------------------------------------------------------

@@ -550,3 +550,12 @@ a.post-link:hover .post-thumb > * { transform: scale(1.03); }
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* ---------- Kereső: értelmezett szűrők, javaslatok ---------- */
+.search-filters, .search-cats { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: 0 0 var(--space-3); }
+.search-filters .chip .ico { width: 14px; height: 14px; }
+.search-note { display: flex; gap: var(--space-2); align-items: center; margin: 0 0 var(--space-3); color: var(--c-muted); }
+.search-note .ico { flex: none; }
+.search-dym { font: inherit; font-weight: 600; color: var(--c-accent-deep); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.search-dym:hover { color: var(--c-ink); }
+.empty-state .search-note { justify-content: center; }

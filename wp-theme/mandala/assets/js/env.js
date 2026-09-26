@@ -1,6 +1,8 @@
 // WordPress környezet a prototípusból átvett modulokhoz (facets.js, filter.js):
 // ugyanazokat a neveket adja, mint a prototípus data.js / store.js / ui.js, de az
 // adatok a WordPressből jönnek (window.MANDALA, REST termékindex).
+import { setCorpus } from './search-engine.js';
+
 const M = window.MANDALA || {};
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -42,11 +44,34 @@ export const subLabel = (cat, sub) => categoryBySlug(cat)?.subs.find(([s]) => s 
 
 let productsPromise;
 /** A teljes kínálat indexe (mandala/v1/products, gyorsítótárazott REST végpont). */
+/** A keresőmotor beállításai a WordPressből (címkék, szándékok, kategóriák, admin szinonimák). */
+const searchConfig = () => ({
+  synonyms: M.searchConfig?.synonyms,
+  labels: Object.fromEntries((M.categories || []).flatMap((c) => [[c.slug, c.label], ...c.subs.map(([s, l]) => [s, l])])),
+  intents: Object.fromEntries((M.intents || []).map((i) => [i.id, i.label])),
+  origins: Object.fromEntries(Object.entries(M.origins || {}).map(([k, v]) => [k, v.label])),
+  categories: M.categories || [],
+});
+
+/**
+ * Keresési napló a statisztikához (WooCommerce → Mandala kereső): csak a kifejezés és a
+ * találatok száma, személyes adat nélkül. Ugyanazt a kifejezést munkamenetenként egyszer.
+ */
+export function logSearch(q, results, src, click = 0) {
+  const term = String(q || '').trim();
+  if (term.length < 2 || !M.rest) return;
+  const key = `mandala.sl.${src}.${term.toLowerCase()}`;
+  try { if (!click && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* */ }
+  const body = new Blob([JSON.stringify({ q: term, n: results, src, click })], { type: 'application/json' });
+  if (!navigator.sendBeacon?.(`${M.rest}search-log`, body)) fetch(`${M.rest}search-log`, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+}
+
 export function loadProducts() {
   // A nonce azonosítja a belépett vásárlót: viszonteladónak a nagyker árakkal jön az index.
   productsPromise ??= fetch(`${M.rest}products${M.lang ? `${M.rest.includes('?') ? '&' : '?'}lang=${M.lang}` : ''}`, { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} })
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then((list) => list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] })))
+    .then((list) => { setCorpus(list, searchConfig()); return list; })
     .catch((err) => { console.warn('Mandala: a termékindex nem tölthető be.', err); return []; });
   return productsPromise;
 }

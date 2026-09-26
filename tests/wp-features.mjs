@@ -335,7 +335,15 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp(`mandala_ai_apply(wc_get_product(${ids[2]}), wc_get_product(${ids[2]})->get_meta("_mandala_ai"), "kézi");`);
   ok(JSON.parse(wp(`echo wp_json_encode(mandala_attr(wc_get_product(${ids[2]}), "pa_forma", "slug"));`))[0] === 'palcika', 'javaslat kézi alkalmazása: új szűrőérték (nyitott lista) létrejön');
   W(`mandala ai-undo ${run}`);
-  ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"])) . "|" . get_post_meta(${ids[0]}, "_mandala_hz", true) . "|" . get_post_meta(${ids[1]}, "_mandala_onboarding", true);`) === 'regi-tibeti-hangtalak||', 'visszavonás: kategória, szűrőadat és sorállapot visszaáll');
+  ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"])) . "|" . get_post_meta(${ids[0]}, "_mandala_hz", true) . "|" . get_post_meta(${ids[1]}, "_mandala_onboarding", true);`) === 'regi-tibeti-hangtalak||done', 'visszavonás: kategória, szűrőadat és sorállapot visszaáll');
+
+  // Óránkénti biztonsági háló: csak a WordPresst megkerülő (adatbázisba írt) termékeket fogja meg.
+  const ticket = wp('$e = get_posts(["post_type" => "mandala_event", "numberposts" => 1]); echo (int) get_post_meta($e[0]->ID, "_mandala_event_product", true);');
+  const raw = wp('global $wpdb; $wpdb->insert($wpdb->posts, ["post_type" => "product", "post_status" => "publish", "post_title" => "Adatbázisba írt termék", "post_name" => "db-termek-" . wp_rand(), "post_date" => current_time("mysql"), "post_date_gmt" => current_time("mysql", true), "post_modified" => current_time("mysql"), "post_modified_gmt" => current_time("mysql", true), "post_content" => "", "post_excerpt" => "", "to_ping" => "", "pinged" => "", "post_content_filtered" => ""]); echo $wpdb->insert_id;');
+  wp('do_action("mandala_onboarding_sweep");');
+  ok(wp(`echo get_post_status(wc_get_product_id_by_sku("MND-HT-0490")) . "|" . get_post_status(${ticket});`) === 'publish|publish', 'biztonsági háló: a telepítőből jött termékek és az eseményjegyek élők maradnak');
+  ok(wp(`echo get_post_status(${raw}) . "|" . get_post_meta(${raw}, "_mandala_onboarding", true);`) === 'draft|new', 'biztonsági háló: a közvetlenül adatbázisba írt termék piszkozat és a sorba kerül');
+  wp(`wp_delete_post(${raw}, true);`);
 
   // Új termék importból (JUTA): piszkozat, sor, Claude-előtöltés, ellenőrzőlista, élesítés
   const before = mails().length;
@@ -410,6 +418,86 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok((await page.textContent('body')).includes('+36 1 999 8888') && wp('echo mandala_config("freeShippingFrom");') === '30000', 'Mandala bolt adatai: telefon és ingyenes szállítás határa adminból');
   wp('delete_option("mandala_contact"); delete_option("mandala_freeShippingFrom"); delete_option("mandala_payment");');
   wp(`$s = json_decode('${saved}', true); update_option("mandala_setup_steps", $s[0]); update_option("mandala_setup_skipped", $s[1]); update_option("mandala_setup_confirmed", $s[2]);`);
+  await page.context().close();
+}
+
+// ======================= Kereső =======================
+{
+  wp('global $wpdb; $wpdb->query("DELETE FROM " . mandala_search_table()); delete_option("mandala_search");');
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  const overlay = async (q) => {
+    if (!(await page.isVisible('#search-input'))) await page.click('[data-open-search]');
+    await page.fill('#search-input', q);
+    await page.waitForFunction((term) => (term.trim().length < 2 ? true : /Termékek \(\d+\)/.test(document.querySelector('#search-results')?.textContent || '')), q, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    return (await page.textContent('#search-results')).replace(/\s+/g, ' ');
+  };
+  let t = await overlay('hantál');
+  ok(/Termékek \([1-9]/.test(t) && t.includes('hangtál') && t.includes('Találatok erre is: „hangtál”'), 'élő kereső: elírás („hantál”) → hangtálak, jelezve');
+  ok(await page.isVisible('#search-results .search-cats a:has-text("Hangtálak")'), 'élő kereső: kategória javaslat');
+  ok((await page.$$('#search-results .search-hits mark')).length > 0, 'élő kereső: kiemelés a ragozott / elírt szóra is');
+  t = await overlay('hangtál 500 g alatt');
+  const n500 = Number(t.match(/Termékek \((\d+)\)/)[1]);
+  ok(t.includes('Súly ≤ 500 g') && n500 > 0, 'élő kereső: „500 g alatt” szűrőként', String(n500));
+  await page.click('#search-results .search-filters .chip');
+  await page.waitForTimeout(500);
+  ok((await page.inputValue('#search-input')) === 'hangtál' && Number((await page.textContent('#search-results')).match(/Termékek \((\d+)\)/)[1]) > n500, 'élő kereső: az értelmezett szűrő egy kattintással levehető');
+  t = await overlay('singing bowl');
+  ok(t.includes('hangtál'), 'élő kereső: szinonima (singing bowl → hangtál)');
+  t = await overlay('xqzvw');
+  ok(t.includes('Nincs termék erre'), 'élő kereső: értelmetlen szó → üres, javaslattal a kínálatra');
+  await page.waitForTimeout(2600);
+  ok(wp('global $wpdb; echo (int) $wpdb->get_var("SELECT zero FROM " . mandala_search_table() . " WHERE term = \'xqzvw\'");') === '1', 'napló: a nulla találatos keresés rögzítve (2 mp szünet után)');
+  await overlay('buddha');
+  await Promise.all([page.waitForNavigation(), page.click('#search-results [data-search-hit]')]);
+  await page.waitForTimeout(500);
+  ok(wp('global $wpdb; echo (int) $wpdb->get_var("SELECT clicks FROM " . mandala_search_table() . " WHERE term = \'buddha\'");') === '1', 'napló: kattintás a találatra');
+
+  // Találati oldal: szerveroldali első megjelenés, a böngészőben a teljes motor
+  await page.goto(`${BASE}/?s=${encodeURIComponent('hantal 500 g alatt')}`, { waitUntil: 'networkidle' });
+  let text = (await page.textContent('[data-search-page]')).replace(/\s+/g, ' ');
+  ok(text.includes('Súly ≤ 500 g') && (await page.$$('[data-search-products] li.product')).length > 0, 'találati oldal: elírás + súly értelmezés a böngészőben');
+  await page.goto(`${BASE}/?s=${encodeURIComponent('budha szbor')}`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('[data-search-products] li.product:first-child')).includes('Buddha'), 'találati oldal: „budha szbor” → Buddha szobor');
+  const noJs = await browser.newContext({ javaScriptEnabled: false });
+  const nj = await noJs.newPage();
+  await nj.goto(`${BASE}/?s=${encodeURIComponent('tibeti tál')}`);
+  const njCards = await nj.$$eval('[data-search-products] li.product', (l) => l.map((x) => x.textContent));
+  ok(njCards.length > 0 && njCards.every((x) => /hangtál|füstölő/i.test(x)) && !njCards.some((x) => /csengő/i.test(x)), 'találati oldal JS nélkül: szinonima („tibeti tál” → hangtálak), a „Tibeti csengő” nem', String(njCards.length));
+  await nj.goto(`${BASE}/?s=hangt%C3%A1lakat`);
+  ok((await nj.$$('[data-search-products] li.product')).length >= 8, 'találati oldal JS nélkül: ragozott alak (hangtálakat)');
+  await noJs.close();
+  // A kínálat keresője
+  await page.goto(`${BASE}/termekek/?q=${encodeURIComponent('hantál')}`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-results] li.product', { timeout: 8000 }).catch(() => {});
+  const shopNames = await page.$$eval('[data-results] li.product', (l) => l.map((x) => x.textContent));
+  ok(shopNames.length >= 8 && shopNames.every((x) => /hangtál/i.test(x)), 'kínálat keresője: elírással is (hantál), relevancia sorrend', String(shopNames.length));
+
+  // Admin: statisztika, nulla találat → szinonima
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-search`);
+  ok((await admin.textContent('#wpbody-content')).includes('buddha'), 'admin: legtöbbet keresett kifejezések');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-search&tab=zero`);
+  ok((await admin.textContent('#wpbody-content')).includes('xqzvw'), 'admin: nulla találatos keresések listája');
+  await admin.fill('tr:has-text("xqzvw") input[name="to"]', 'hangtál');
+  await Promise.all([admin.waitForNavigation(), admin.click('tr:has-text("xqzvw") button')]);
+  ok(wp('echo mandala_synonyms_text();').includes('xqzvw => hangtál'), 'admin: szinonima egy kattintással a nulla találatos keresésből');
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  t = await overlay('xqzvw');
+  ok(/Termékek \([1-9]/.test(t) && t.includes('hangtál'), 'az új szinonima azonnal él a keresőben');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-search&tab=synonyms`);
+  ok((await admin.inputValue('textarea[name="synonyms"]')).includes('singing bowl'), 'admin: szinonimák szerkeszthetők (alaplista + saját)');
+  wp('for ($i = 0; $i < 3; $i++) { mandala_search_log("mala lánc", 2); }');
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  t = await overlay('');
+  ok(t.includes('mala lánc'), 'népszerű keresések: automatikusan a valódi keresésekből');
+  wp('delete_option("mandala_search");');
+  await admin.context().close();
   await page.context().close();
 }
 

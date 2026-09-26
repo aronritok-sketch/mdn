@@ -97,6 +97,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Mandala automatizmusok** | elhagyott kosár, használati útmutató, újrarendelés, értékelés kérése – mind kikapcsolható, időzíthető; az értékelések moderátorának e-mail-címe |
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
+| WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |
 | Termékek → **Új termékek → Beállítások** | kiket értesítsen az új JUTA-termékekről, minimális leírás hossza |
 | Termékek → **Új termékek → Claude migráció** | modell, küszöb, próbafuttatás (lásd `UJ-TERMEKEK.md`) |
 

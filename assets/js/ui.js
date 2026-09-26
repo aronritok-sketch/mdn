@@ -4,6 +4,8 @@ import { CONFIG, CATEGORIES, INTENTS, ORIGINS, ARTICLES } from './data.js';
 import { art, logoMark } from './art.js';
 import { icon } from './icons.js';
 import { cart, wishlist, loadProducts, totals, fmt, priceHtml, subLabel, maxQty, norm, storage, KEYS } from './store.js';
+import { getCorpus, setCorpus } from './search-engine.js';
+import { suggestHtml } from './search-ui.js';
 
 export { icon };
 export const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -473,29 +475,26 @@ function saveCookie(choice) {
 }
 
 // ---------- Kereső ----------
-const highlight = (text, term) => {
-  if (!term) return esc(text);
-  const i = norm(text).indexOf(norm(term));
-  return i < 0 ? esc(text) : `${esc(text.slice(0, i))}<mark>${esc(text.slice(i, i + term.length))}</mark>${esc(text.slice(i + term.length))}`;
-};
-export function searchProducts(products, q) {
+// A motor (search-engine.js): ragozás, elírás, szinonimák, kérdés-értelmezés, rangsor.
+const engineFor = (products) => getCorpus() || setCorpus(products);
+/** Keresés eredménye (a találati oldal is ezt használja). */
+export const searchResult = (products, q) => engineFor(products).search(q.trim());
+export const searchProducts = (products, q) => (q.trim() ? searchResult(products, q).items : []);
+export const searchPosts = (q) => {
   const t = norm(q.trim());
   if (!t) return [];
-  return products
-    .map((p) => {
-      const name = norm(p.name);
-      let score = 0;
-      if (name.startsWith(t)) score += 5;
-      if (name.includes(t)) score += 3;
-      if (norm(p.sku || '').includes(t)) score += 4;
-      if (norm(`${subLabel(p.cat, p.sub)} ${p.short} ${Object.values(p.specs).join(' ')}`).includes(t)) score += 1;
-      return { p, score };
-    })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score || (a.p.stock === 'out') - (b.p.stock === 'out'))
-    .map((x) => x.p);
-}
-export const searchPosts = (q) => { const t = norm(q.trim()); return t ? ARTICLES.filter((a) => norm(`${a.title} ${a.excerpt}`).includes(t)) : []; };
+  const words = t.split(/\s+/).filter((w) => w.length > 1);
+  return ARTICLES.filter((a) => { const hay = norm(`${a.title} ${a.excerpt}`); return words.every((w) => hay.includes(w.length > 4 ? w.slice(0, -1) : w)); });
+};
+/** A megjelenítő segédfüggvényei (search-ui.js). */
+export const searchHelpers = (q) => ({
+  esc, icon, fmt,
+  productUrl,
+  thumb: (p) => productMedia(p),
+  searchUrl: (query) => `kereses.html?s=${encodeURIComponent(query)}`,
+  shopUrl: (query) => (query ? `termekek.html?q=${encodeURIComponent(query)}` : 'termekek.html'),
+  highlight: (text) => (getCorpus() ? getCorpus().highlight(text, q) : esc(text)),
+});
 
 async function runSearch(q) {
   const box = $('#search-results');
@@ -503,18 +502,13 @@ async function runSearch(q) {
   const term = q.trim();
   if (term.length < 2) {
     input.setAttribute('aria-expanded', 'false');
-    box.innerHTML = `<div><h2>Népszerű keresések</h2><div class="chip-row">${['hangtál', 'tibeti füstölő', 'mala', 'Buddha szobor', 'réz kulacs', 'szélcsengő'].map((x) => `<button type="button" class="chip" data-term="${x}">${x}</button>`).join('')}</div></div>
+    box.innerHTML = `<div><h2>Népszerű keresések</h2><div class="chip-row">${['hangtál', 'tibeti füstölő', 'mala', 'Buddha szobor', 'réz kulacs', 'hangtál 500 g alatt'].map((x) => `<button type="button" class="chip" data-term="${x}">${x}</button>`).join('')}</div></div>
       <div><h2>Kategóriák</h2><ul class="mega-list">${CATEGORIES.map((c) => `<li><a href="termekek.html?cat=${c.slug}">${esc(c.label)}</a></li>`).join('')}</ul></div>`;
     return;
   }
-  const products = searchProducts(await loadProducts(), term);
-  const posts = searchPosts(term);
-  input.setAttribute('aria-expanded', String(products.length > 0));
-  box.innerHTML = `<div><h2>Termékek (${products.length})</h2>${products.length
-    ? `<ul class="search-hits" role="listbox" aria-label="Termék találatok">${products.slice(0, 6).map((p) => `<li role="option"><a href="${productUrl(p)}"><span class="thumb">${productMedia(p)}</span><span>${highlight(p.name, term)}<small>${esc(subLabel(p.cat, p.sub))} · Cikkszám: ${highlight(p.sku || '–', term)}</small></span><strong class="num">${fmt(p.price)}</strong></a></li>`).join('')}</ul>
-       <p style="margin-top:var(--space-4)"><a class="iu-button iu-button-outline" href="kereses.html?s=${encodeURIComponent(term)}">Mind a ${products.length + posts.length} találat ${icon('arrow', 'ico ico-s')}</a></p>`
-    : `<p class="text-muted">Nincs termék erre: „${esc(term)}”. Próbáld rövidebben, vagy nézd meg a <a href="termekek.html">teljes kínálatot</a>.</p>`}</div>
-    <div><h2>Magazin (${posts.length})</h2>${posts.length ? `<ul class="mega-list">${posts.map((a) => `<li><a href="cikk.html?a=${a.slug}">${highlight(a.title, term)}</a></li>`).join('')}</ul>` : '<p class="text-muted text-small">Nincs cikk ezzel a kifejezéssel.</p>'}</div>`;
+  const r = searchResult(await loadProducts(), term);
+  input.setAttribute('aria-expanded', String(r.items.length > 0));
+  box.innerHTML = suggestHtml(r, term, searchHelpers(term), searchPosts(term).map((a) => ({ title: a.title, url: `cikk.html?a=${a.slug}` })));
 }
 
 // ---------- Oldal inicializálás ----------

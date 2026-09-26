@@ -4,6 +4,7 @@
 // Egy csoport darabszámai a többi csoport szűrésével, a saját csoport nélkül számolódnak
 // (diszjunktív facet), így mindig azt mutatják, hány találat lesz a kattintás után.
 import { INTENTS, norm, COLORS as SITE_COLORS } from './env.js';
+import { queryScores, getCorpus } from './search-engine.js';
 
 export const CHAKRAS = [
   ['gyoker', 'Gyökér', '#B03A2E'], ['szakralis', 'Szakrális', '#D9751E'], ['napfonat', 'Napfonat', '#D8A106'],
@@ -98,8 +99,13 @@ function matchBase(p, s, { skipCat = false } = {}) {
   if (!skipCat && s.cat && p.cat !== s.cat) return false;
   if (!skipCat && s.sub && p.sub !== s.sub) return false;
   if (s.q) {
-    const hay = norm(`${p.name} ${p.sku} ${p.short} ${Object.values(p.specs || {}).join(' ')} ${(p.attrs.anyag || []).join(' ')}`);
-    if (!norm(s.q).split(/\s+/).every((w) => hay.includes(w))) return false;
+    // A keresőmotorral (ragozás, elírás, szinonimák, értelmezett szűrők); motor nélkül egyszerű egyezés.
+    if (getCorpus()) {
+      if (!queryScores(s.q).has(p.id)) return false;
+    } else {
+      const hay = norm(`${p.name} ${p.sku} ${p.short} ${Object.values(p.specs || {}).join(' ')} ${(p.attrs.anyag || []).join(' ')}`);
+      if (!norm(s.q).split(/\s+/).every((w) => hay.includes(w))) return false;
+    }
   }
   return true;
 }

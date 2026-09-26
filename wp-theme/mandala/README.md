@@ -120,6 +120,7 @@ nyelvenként) eltérő URL-ek mellett is jók.
 | `catalog-schema.php` | A szűrők adatleírása (mely szűrő hol kötelező) – az ellenőrzőlista és a Claude közös forrása | `mandala_filter_schema` szűrő |
 | `ai-catalog.php` | Claude-alapú kategorizálás: a meglévő termékek migrálása az új kategóriafára és szűrőkre (próbafuttatás, becslés, visszavonás), javaslat az új termékekhez | Termékek → Új termékek → Claude migráció; `wp mandala ai-migrate` |
 | `store-settings.php` | Bolt adatai adminból (elérhetőség, nyitvatartás, ingyenes szállítás, utánvét díja) | WooCommerce → Mandala bolt adatai |
+| `search.php` + `assets/js/search-engine.js` | Kereső: ragozás („hangtálakat”), összetett szavak („tál” → hangtál), elírás-tűrés („hantál”, „Erre gondoltál?”), szinonimák, a kérdés értelmezése szűrőként („hangtál 500 g alatt”, „432 Hz”, „G#”, „10 000 Ft alatt”, „akciós”), cikkszám-részlet, súlyozott rangsor – az élő keresőben, a találati oldalon és a kínálat keresőjében egyformán; keresési statisztika (legtöbbet keresett, nulla találat → szinonima egy kattintással) | WooCommerce → Mandala kereső |
 | `a11y.php` | Címke–mező összekapcsolás az iu/form mezőkön, fókuszálható táblázatok; az akadálymentességi nyilatkozat oldal a telepítőből | – |
 
 ### Ajándékutalvány és ÁFA

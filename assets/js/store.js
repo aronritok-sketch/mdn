@@ -1,7 +1,16 @@
 // Adatréteg: termékek, kosár, kedvencek, kupon, összesítés, rendelések.
 // A böngészős tárolás csak a prototípushoz kell: élesben a WooCommerce session
 // és a Store API (/cart, /checkout) veszi át a szerepét.
-import { CONFIG, PRODUCTS, CATEGORIES } from './data.js';
+import { CONFIG, PRODUCTS, CATEGORIES, INTENTS, ORIGINS } from './data.js';
+import { setCorpus } from './search-engine.js';
+
+/** A keresőmotor beállításai a prototípus adataiból (címkék, szándékok, kategória URL-ek). */
+const SEARCH_CFG = {
+  labels: Object.fromEntries(CATEGORIES.flatMap((c) => [[c.slug, c.label], ...c.subs.map(([s, l]) => [s, l])])),
+  intents: Object.fromEntries(INTENTS.map((i) => [i.id, i.label])),
+  origins: Object.fromEntries(Object.entries(ORIGINS).map(([k, v]) => [k, v.label])),
+  categories: CATEGORIES.map((c) => ({ slug: c.slug, label: c.label, url: `termekek.html?cat=${c.slug}`, subs: c.subs.map(([s, l]) => [s, l, `termekek.html?cat=${c.slug}&sub=${s}`]) })),
+};
 
 const KEYS = { cart: 'mandala.cart.v2', wish: 'mandala.wish.v1', coupon: 'mandala.coupon.v1', orders: 'mandala.orders.v1', draft: 'mandala.checkout.v1', cookie: 'mandala.cookie.v1' };
 
@@ -30,9 +39,14 @@ export const norm = (s = '') => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ
 // ---------- Termékek ----------
 let productsPromise;
 export function loadProducts() {
-  productsPromise ??= CONFIG.woocommerce
+  productsPromise ??= (CONFIG.woocommerce
     ? fetchWooProducts(CONFIG.woocommerce).catch((err) => { console.warn('WooCommerce betöltés sikertelen, mintaadatok.', err); return PRODUCTS; })
-    : Promise.resolve(PRODUCTS);
+    : Promise.resolve(PRODUCTS)
+  ).then((list) => {
+    // A keresőmotor egyszer épül fel, a kereső és a szűrő is ezt használja.
+    setCorpus(list.map((p) => ({ ...p, catLabel: p.catLabel || subLabel(p.cat, p.sub) })), SEARCH_CFG);
+    return list;
+  });
   return productsPromise;
 }
 

@@ -241,3 +241,8 @@ tr.voucher th a { font-weight: 400; margin-left: var(--space-2); }
   .b2b-order table.b2b-table.shop_table td:last-child { grid-column: 4; grid-row: 3; align-self: end; }
   .b2b-order table.b2b-table.shop_table input { width: 100%; }
 }
+
+/* ---------- Találati oldal ---------- */
+.search-notices:empty { display: none; }
+.search-notices { margin-bottom: var(--space-5); }
+.search-page .load-more { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: center; margin-top: var(--space-6); }
