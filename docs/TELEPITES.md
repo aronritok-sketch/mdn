@@ -82,6 +82,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - **Claude (kategória-migráció, új termékek javaslata, AI tanácsadó chat):** `MANDALA_ANTHROPIC_API_KEY` a
   wp-config-ba (az Anthropic Console-ban létrehozott kulcs). Kulcs nélkül ezek a funkciók egyszerűen nem aktívak
   (a chat gomb sem jelenik meg). A Console-ban érdemes havi költségkorlátot is beállítani.
+- **MailerLite:** `MANDALA_MAILERLITE_TOKEN` a wp-config-ba (vagy az admin felületen), lásd 4. pont.
 - **Levelek:** SMTP-bővítménnyel (pl. a tárhely vagy egy levélküldő szolgáltatás SMTP adataival), hogy a
   levelek ne spambe menjenek. Próba: rendelés a tesztszerveren, és nézd meg, megérkezik-e a visszaigazolás.
 
@@ -100,6 +101,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
 | WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |
 | WooCommerce → **Mandala tanácsadó** | AI chat: be/ki, üdvözlő szöveg, modell, korlátok (üzenet / látogató / óra, napi összesített plafon), beszélgetések megőrzése; a beszélgetések és az értékelések átnézése (hetente érdemes) |
+| Mandala levelek → **MailerLite** | API-kulcs → „Mentés és kapcsolat ellenőrzése” → hírlevél csoport (és ha kell: vásárlók, viszonteladók) → vásárlási adatok mezői → **„Meglévő lista átküldése”** (egyszer) → **„Leiratkozás-visszajelzés bekapcsolása”**. A MailerLite-ban a csoporthoz köthető az üdvözlő sorozat. Ha a MailerLite saját WooCommerce bővítménye is fut, a kosárelhagyó levelet csak az egyikben kapcsold be |
 | **Adatkezelési tájékoztató** | egy bekezdés az AI tanácsadóról: a kérdéseket az Anthropic (Claude) dolgozza fel, a beszélgetést 30 napig őrizzük a szolgáltatás javításához, személyes adatot nem kérünk |
 | Termékek → **Új termékek → Beállítások** | kiket értesítsen az új JUTA-termékekről, minimális leírás hossza |
 | Termékek → **Új termékek → Claude migráció** | modell, küszöb, próbafuttatás (lásd `UJ-TERMEKEK.md`) |
@@ -147,6 +149,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
   Beállítások → Csomagszám mezők listába. A „Hol a csomagom?” oldalon rendelésszám + e-mail-címmel is kipróbálható.
   Ha a boltban már volt lábléc menü, a telepítő nem írja át: a „Csomagkövetés” oldalt kézzel add hozzá
   (Megjelenés → Menük → Lábléc – Vásárlás).
+- [ ] **MailerLite:** feliratkozás a lábléc űrlapján → pár percen belül a MailerLite csoportban (a mezőkkel); a
+  leiratkozó link és a MailerLite-os leiratkozás mindkét irányban átmegy (a webhook élő címet igényel, tesztszerveren
+  csak ha kívülről elérhető). A hibák a MailerLite fül alján látszanak.
 - [ ] **AI tanácsadó:** 15–20 valódi vásárlói kérdés (ajánlás kerettel, termékoldalon „Kérdésem van”, szállítás,
   visszaküldés, egy témán kívüli kérdés); a linkelt termékek léteznek-e, az árak stimmelnek-e. A WooCommerce →
   Mandala tanácsadó oldalon a beszélgetések és a tokenek.

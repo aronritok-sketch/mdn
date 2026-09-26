@@ -61,6 +61,7 @@ add_action('template_redirect', function () {
     $subs = (array) get_option('mandala_newsletter', []);
     unset($subs[$email]);
     update_option('mandala_newsletter', $subs, false);
+    do_action('mandala_unsubscribed', $email);
     wp_die('<h1>' . esc_html__('Leiratkoztál', 'mandala') . '</h1><p>' . esc_html__('Több emlékeztetőt és hírlevelet nem küldünk erre a címre. A rendeléseidről szóló értesítéseket továbbra is megkapod.', 'mandala') . '</p><p><a href="' . esc_url(home_url('/')) . '">' . esc_html__('Vissza a webáruházba', 'mandala') . '</a></p>', esc_html__('Leiratkozás', 'mandala'), ['response' => 200]);
 });
 
@@ -439,7 +440,7 @@ function mandala_mail_admin_page(): void
     echo '<div class="wrap mandala-mail"><h1>Mandala levelek</h1>';
     if (!($type && isset(mandala_mail_types()[$type])) && !$wc) {
         echo '<nav class="nav-tab-wrapper">';
-        foreach (['levelek' => 'Automata levelek', 'naplo' => 'Napló', 'beallitasok' => 'Beállítások'] as $k => $label) {
+        foreach (['levelek' => 'Automata levelek', 'naplo' => 'Napló', 'beallitasok' => 'Beállítások', 'mailerlite' => 'MailerLite'] as $k => $label) {
             echo '<a class="nav-tab' . ($tab === $k ? ' nav-tab-active' : '') . '" href="' . esc_url(add_query_arg('tab', $k, $base)) . '">' . esc_html($label) . '</a>';
         }
         echo '</nav>';
@@ -450,6 +451,8 @@ function mandala_mail_admin_page(): void
         mandala_mail_admin_edit($type, $base);
     } elseif ($tab === 'naplo') {
         mandala_mail_admin_log($base);
+    } elseif ($tab === 'mailerlite' && function_exists('mandala_ml_admin')) {
+        mandala_ml_admin();
     } elseif ($tab === 'beallitasok') {
         mandala_mail_admin_settings();
     } else {

@@ -8,6 +8,10 @@
 // Termékek → Új termékek → Claude migráció; WooCommerce → Mandala tanácsadó. Kulcs nélkül ezek nem aktívak.
 define('MANDALA_ANTHROPIC_API_KEY', 'sk-ant-...');
 
+// MailerLite API-kulcs (hírlevél-feliratkozók szinkronja). MailerLite → Integrations → API.
+// Beállítás: WooCommerce → Mandala levelek → MailerLite. Az admin felületen is megadható.
+// define('MANDALA_MAILERLITE_TOKEN', '...');
+
 // Memória a nagyobb háttérfeladatokhoz (migráció, árlista, fotócsomag).
 define('WP_MEMORY_LIMIT', '256M');
 define('WP_MAX_MEMORY_LIMIT', '512M');

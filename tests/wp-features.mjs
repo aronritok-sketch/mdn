@@ -6,7 +6,7 @@
 import { createRequire } from 'module';
 import { execSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PWPATH || 'playwright');
 const BASE = (process.env.BASE || 'http://localhost:8080').replace(/\/$/, '');
@@ -786,6 +786,83 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations&tab=naplo&q=teszt.wc`);
   ok((await admin.textContent('#wpbody-content table')).includes('WooCommerce: '), 'napló: a WooCommerce levelei is');
   wp(`delete_option("woocommerce_customer_completed_order_settings"); delete_option("mandala_custom_mails"); foreach ([${o1}, ${o2}, ${o3}, ${o4}] as $id) { wc_get_order($id)->delete(true); }`);
+  await admin.context().close();
+  await page.context().close();
+}
+
+// ======================= MailerLite =======================
+{
+  wp('delete_option("mandala_mailerlite"); delete_option("mandala_ml_mock"); delete_option("mandala_ml_log"); update_option("mandala_newsletter", ["regi1@example.com" => ["date" => "2026-01-10 10:00:00", "source" => "weboldal"], "regi2@example.com" => ["date" => "2026-02-01 10:00:00", "source" => "weboldal"]]); update_option("mandala_unsubscribed", ["kilepett@example.com"]);');
+  const mlMock = () => JSON.parse(wp('echo wp_json_encode(get_option("mandala_ml_mock", []));'));
+  const runHook = (hook) => wp(`foreach (as_get_scheduled_actions(["hook" => "${hook}", "status" => "pending", "per_page" => 100]) as $aid => $a) { do_action("${hook}", ...$a->get_args()); ActionScheduler::store()->cancel_action($aid); }`);
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations&tab=mailerlite`);
+  await admin.fill('#ml-token', 'bad');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[value="save"]')]);
+  ok((await admin.textContent('#wpbody-content')).includes('Unauthenticated'), 'MailerLite: hibás kulcs → érthető hibaüzenet');
+  await admin.fill('#ml-token', 'ml-test');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[value="save"]')]);
+  ok((await admin.textContent('#wpbody-content')).includes('kapcsolódva') && (await admin.textContent('#ml-group')).includes('Hírlevél (5)'), 'MailerLite: kapcsolódás, csoportok a listában');
+  await admin.selectOption('#ml-group', '111');
+  await admin.selectOption('#ml-buyer_group', '222');
+  wp('delete_option("mandala_ml_mock");');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[value="save"]')]);
+  let mock = mlMock();
+  ok(mock.filter((r) => r.method === 'POST' && r.path === 'fields').length === 5 && !(await admin.content()).includes('ml-test'), 'MailerLite: hiányzó egyedi mezők létrehozva (a meglévő kimarad); a kulcs nem látszik az oldalon');
+
+  // Hírlevél űrlap → MailerLite (háttérben).
+  wp('delete_option("mandala_ml_mock");');
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await page.fill('.nl-form input[name="email"]', 'ml.uj@example.com');
+  await page.check('.nl-form input[name="adatkezeles"]');
+  await page.click('.nl-form button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.nl-form .form-message')?.textContent.trim().length > 0, null, { timeout: 8000 }).catch(() => {});
+  runHook('mandala_ml_sync');
+  let sub = mlMock().find((r) => r.path === 'subscribers' && r.body?.email === 'ml.uj@example.com');
+  ok(sub && sub.body.groups.join() === '111' && sub.body.status === 'active' && sub.body.fields.mandala_forras === 'weboldal' && sub.body.subscribed_at, 'feliratkozás → MailerLite csoportba, forrással, időponttal');
+
+  // Vásárlás teljesítése → vásárlási mezők + vásárlók csoport; nem feliratkozott vásárló nem kerül át.
+  const mk = (email) => wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $o = wc_create_order(); $o->add_product($p, 1); $o->set_billing_first_name("Ella"); $o->set_billing_email("${email}"); $o->calculate_totals(); $o->set_status("processing"); $o->save(); echo $o->get_id();`);
+  const oa = mk('ml.uj@example.com');
+  const ob = mk('nem.feliratkozott@example.com');
+  wp('delete_option("mandala_ml_mock");');
+  wp(`wc_get_order(${oa})->update_status("completed"); wc_get_order(${ob})->update_status("completed");`);
+  runHook('mandala_ml_sync');
+  mock = mlMock();
+  sub = mock.find((r) => r.path === 'subscribers' && r.body?.email === 'ml.uj@example.com');
+  ok(sub && sub.body.groups.includes('222') && sub.body.fields.mandala_vasarlasok === 1 && sub.body.fields.mandala_koltes > 0 && sub.body.fields.mandala_kategoriak && sub.body.fields.name === 'Ella', 'rendelés teljesítése → vásárlási adatok és vásárlók csoport');
+  ok(!mock.some((r) => JSON.stringify(r.body || {}).includes('nem.feliratkozott')), 'hozzájárulás nélküli vásárló nem kerül a MailerLite-ba');
+
+  // A téma leiratkozó linkje → MailerLite unsubscribed.
+  wp('delete_option("mandala_ml_mock");');
+  await page.goto(wp('echo mandala_unsubscribe_url("ml.uj@example.com");'));
+  runHook('mandala_ml_sync');
+  sub = mlMock().find((r) => r.path === 'subscribers' && r.body?.email === 'ml.uj@example.com');
+  ok(sub && sub.body.status === 'unsubscribed', 'leiratkozó link → MailerLite-ban is leiratkozott');
+
+  // Meglévő lista átküldése kötegben.
+  wp('delete_option("mandala_ml_mock");');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[value="bulk"]')]);
+  runHook('mandala_ml_bulk');
+  const batch = mlMock().find((r) => r.path === 'batch');
+  const reqs = batch?.body?.requests || [];
+  ok(reqs.length === 4 && reqs.every((r) => r.path === 'api/subscribers') && reqs.find((r) => r.body.email === 'kilepett@example.com')?.body.status === 'unsubscribed' && reqs.find((r) => r.body.email === 'regi1@example.com')?.body.status === 'active', 'meglévő lista: kötegelt átküldés, a leiratkozottak „unsubscribed”');
+
+  // Webhook: MailerLite-ban leiratkozott → a téma sem küld (aláírás-ellenőrzéssel).
+  await Promise.all([admin.waitForNavigation(), admin.click('button[value="webhook"]')]);
+  ok(wp('echo mandala_ml_settings()["webhook_secret"];') === 'whsecret' && mlMock().some((r) => r.path === 'webhooks' && r.body.events.includes('subscriber.unsubscribed')), 'webhook regisztrálva (subscriber.unsubscribed)');
+  const hookUrl = wp('echo rest_url("mandala/v1/mailerlite");');
+  const payload = JSON.stringify({ events: [{ type: 'subscriber.unsubscribed', data: { subscriber: { email: 'regi2@example.com', status: 'unsubscribed' } } }] });
+  const bad = await fetch(hookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Signature: 'rossz' }, body: payload });
+  ok(bad.status === 401 && wp('echo (int) mandala_is_unsubscribed("regi2@example.com");') === '0', 'webhook: hamis aláírás elutasítva');
+  const good = await fetch(hookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Signature: createHmac('sha256', 'whsecret').update(payload).digest('hex') }, body: payload });
+  ok(good.status === 200 && wp('echo (int) mandala_is_unsubscribed("regi2@example.com");') === '1' && wp('echo (int) isset(get_option("mandala_newsletter")["regi2@example.com"]);') === '0', 'webhook: MailerLite-ban leiratkozott → a témától sem kap emlékeztetőt');
+  wp(`delete_option("mandala_mailerlite"); delete_option("mandala_ml_mock"); delete_option("mandala_newsletter"); delete_option("mandala_unsubscribed"); foreach ([${oa}, ${ob}] as $id) { wc_get_order($id)->delete(true); }`);
   await admin.context().close();
   await page.context().close();
 }

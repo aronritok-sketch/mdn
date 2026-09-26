@@ -151,3 +151,41 @@ function mandala_test_chat_mock(array $req): array
         : 'Sajnos nem találtam ilyet.';
     return $wrap(['stop_reason' => 'end_turn', 'content' => [['type' => 'text', 'text' => $reply]]]);
 }
+
+/**
+ * MailerLite API helyettesítő: a kéréseket a mandala_ml_mock opcióba gyűjti (metódus, útvonal, törzs).
+ * „bad” kulcs → 401; csoportok: 111 Hírlevél, 222 Vásárlók; webhook secret: „whsecret”.
+ */
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    if (!str_starts_with((string) $url, 'https://connect.mailerlite.com/api/')) {
+        return $pre;
+    }
+    $path = substr($url, strlen('https://connect.mailerlite.com/api/'));
+    $log = (array) get_option('mandala_ml_mock', []);
+    $log[] = ['method' => $args['method'] ?? 'GET', 'path' => $path, 'body' => json_decode((string) ($args['body'] ?? ''), true)];
+    update_option('mandala_ml_mock', $log, false);
+    $out = fn($code, $body) => ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => $code, 'message' => 'X'], 'cookies' => [], 'filename' => null];
+    if (($args['headers']['Authorization'] ?? '') === 'Bearer bad') {
+        return $out(401, ['message' => 'Unauthenticated.']);
+    }
+    $method = $args['method'] ?? 'GET';
+    if (str_starts_with($path, 'groups') && $method === 'GET') {
+        return $out(200, ['data' => [['id' => '111', 'name' => 'Hírlevél', 'active_count' => 5], ['id' => '222', 'name' => 'Vásárlók', 'active_count' => 2]]]);
+    }
+    if ($path === 'groups') {
+        return $out(201, ['data' => ['id' => '333', 'name' => 'Új']]);
+    }
+    if (str_starts_with($path, 'fields') && $method === 'GET') {
+        return $out(200, ['data' => [['key' => 'name'], ['key' => 'last_name'], ['key' => 'mandala_forras']]]);
+    }
+    if ($path === 'fields') {
+        return $out(201, ['data' => ['key' => 'x']]);
+    }
+    if ($path === 'webhooks') {
+        return $out(201, ['data' => ['id' => 'wh1', 'secret' => 'whsecret']]);
+    }
+    if ($path === 'batch') {
+        return $out(200, ['total' => 1, 'successful' => 1, 'failed' => 0, 'responses' => array_map(fn() => ['code' => 201, 'body' => ['data' => []]], json_decode($args['body'], true)['requests'] ?? [])]);
+    }
+    return $out(201, ['data' => ['id' => 's1']]);
+}, 10, 3);
