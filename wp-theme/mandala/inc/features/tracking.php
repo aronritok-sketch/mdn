@@ -309,6 +309,7 @@ function mandala_maybe_mark_shipped(WC_Order $order): void
     $busy = false;
     // Kis késleltetés: a szállítási bővítmény még befejezheti a mentést (több csomagszám, címke).
     mandala_schedule(2 * MINUTE_IN_SECONDS, 'mandala_mail_shipped', [(int) $order->get_id()]);
+    do_action('mandala_order_shipped', $order);
 }
 add_action('woocommerce_after_order_object_save', function ($order) {
     if ($order instanceof WC_Order) {
@@ -391,6 +392,7 @@ function mandala_pickup_ready(WC_Order $order): void
     $sent = mandala_mail('pickup_ready', $order->get_billing_email(), mandala_mail_order_vars($order) + ['cim' => (string) ($c['address'] ?? ''), 'fizetendo' => $order->get_payment_method() === 'cod' ? wp_strip_all_tags(wc_price($order->get_total())) : __('nincs – már kifizetted', 'mandala')],
         ['termekek' => mandala_tracking_items_html($order), 'gomb' => mandala_mail_button(mandala_tracking_url($order), __('A rendelésem', 'mandala'))], $order->get_id());
     $order->add_order_note($sent ? 'Átvehető – a vásárlót e-mailben értesítettük.' : 'Átvehető – a levél ki van kapcsolva vagy nem ment el (Mandala levelek).');
+    do_action('mandala_order_pickup_ready', $order);
 }
 
 /* ---------- Levélsablonok (levélközpont) ---------- */

@@ -324,6 +324,14 @@ add_action('woocommerce_checkout_create_order', function (WC_Order $order) {
         }
     }
     $order->update_meta_data('_mandala_newsletter', empty($_POST['mandala_newsletter']) ? 'no' : 'yes'); // phpcs:ignore
+    // A pénztárban bejelölt hírlevél is a feliratkozók közé kerül (és indíthat saját levelet).
+    $email = strtolower($order->get_billing_email());
+    $subscribers = (array) get_option('mandala_newsletter', []);
+    if (!empty($_POST['mandala_newsletter']) && is_email($email) && !isset($subscribers[$email])) { // phpcs:ignore
+        $subscribers[$email] = ['date' => current_time('mysql'), 'source' => 'pénztár'];
+        update_option('mandala_newsletter', $subscribers, false);
+        do_action('mandala_newsletter_subscribed', $email, 'penztar');
+    }
     $order->update_meta_data('_mandala_is_company', empty($_POST['is_company']) ? 'no' : 'yes'); // phpcs:ignore
 });
 

@@ -172,6 +172,7 @@ function mandala_handle_review(): void
         }
         update_post_meta($id, '_photos', $photos);
     }
+    do_action('mandala_review_submitted', (int) $id, (int) $order_id, (int) $product_id);
     $to = mandala_automation_settings()['moderator'] ?: get_option('admin_email');
     wp_mail($to, sprintf('[%s] Új értékelés: %s', get_bloginfo('name'), get_the_title($product_id)), sprintf("%d/5 – %s\n\n%s\n\nJóváhagyás: %s", $rating, $name, $text, admin_url('post.php?post=' . $id . '&action=edit')));
     wp_safe_redirect(add_query_arg('review', 'thanks', $back));

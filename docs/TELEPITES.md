@@ -95,7 +95,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → Beállítások → Fizetés → **Előre utalás** | bankszámlaszám (a köszönőoldal és a levél innen veszi) |
 | WooCommerce → Beállítások → **Szállítás** | a GLS bővítmény módjai a „Magyarország” zónában (a személyes átvétel a lista végén) |
 | **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
-| WooCommerce → **Mandala levelek** | a téma automata levelei: szöveg, be/ki, időzítés, előnézet, tesztlevél; napló. Beállítások fül: aláírás, fogyóeszköz kategóriák, értékelés-moderátor, **a GLS bővítmény csomagszám mezője** (lásd 6. pont, Csomagkövetés) |
+| WooCommerce → **Mandala levelek** | minden levél egy helyen: a téma automata levelei és a WooCommerce levelei (szöveg, be/ki, időzítés, előnézet, tesztlevél), **saját levelek** triggerrel, feltétellel, egyedi kuponnal (+ Új saját levél); napló. Beállítások fül: aláírás, fogyóeszköz kategóriák, értékelés-moderátor, **a GLS bővítmény csomagszám mezője** (lásd 6. pont, Csomagkövetés) |
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
 | WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |

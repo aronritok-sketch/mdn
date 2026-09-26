@@ -87,8 +87,12 @@ function mandala_handle_form(string $id, $response, $form = null)
 
     if ($id === 'hirlevel') {
         $subscribers = get_option('mandala_newsletter', []);
+        $new = !isset($subscribers[strtolower($email)]);
         $subscribers[strtolower($email)] = ['date' => $entry['date'], 'source' => 'weboldal'];
         update_option('mandala_newsletter', $subscribers, false);
+        if ($new) {
+            do_action('mandala_newsletter_subscribed', strtolower($email), 'weboldal');
+        }
     }
 
     if ($config['mail']) {

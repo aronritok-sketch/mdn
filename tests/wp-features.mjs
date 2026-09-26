@@ -606,7 +606,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations`);
   const list = await admin.textContent('#wpbody-content');
   ok(['Elhagyott kosár', 'Használati útmutató', 'Értékelés kérése', 'Újrarendelés emlékeztető', 'Újra raktáron', 'Ajándékutalvány – vásárlónak', 'Ajándékutalvány – címzettnek', 'Heti új érkezések', 'Csomag feladva', 'Átvehető a bemutatóteremben'].every((l) => list.includes(l)), 'levélközpont: minden automata levél egy helyen');
-  ok(list.includes('WooCommerce rendszerlevelek') && (await admin.$$('a[href*="section=wc_email_customer_completed_order"]')).length === 1, 'levélközpont: a WooCommerce levelei is, a beállításukra linkelve');
+  ok(list.includes('WooCommerce rendszerlevelek') && (await admin.$$('a[href*="wc=customer_completed_order"]')).length === 1, 'levélközpont: a WooCommerce levelei is, itt szerkeszthetők');
 
   // Szerkesztés: tárgy + szöveg (HTML nézetben), helyőrzővel.
   await admin.click('a.button[href*="type=abandoned"]');
@@ -673,6 +673,121 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(wp('echo mandala_tracking_settings()["url"];').endsWith('match={szam}'), 'beállítások mentése: a követő link helyőrzője megmarad');
   wp('delete_option("mandala_automations"); delete_option("mandala_mail_templates"); delete_option("mandala_abandoned"); delete_option("mandala_tracking");');
   await admin.context().close();
+}
+
+// ======================= Saját levelek (trigger) + WooCommerce levelek =======================
+{
+  wp('delete_option("mandala_custom_mails"); global $wpdb; $wpdb->query("DELETE FROM " . mandala_mail_table()); $n = (array) get_option("mandala_newsletter", []); unset($n["uj.feliratkozo@example.com"]); update_option("mandala_newsletter", $n);');
+  const runCustom = (orderOrEmail) => wp(`foreach (as_get_scheduled_actions(["hook" => "mandala_custom_mail", "status" => "pending", "per_page" => 100]) as $aid => $a) { $args = $a->get_args(); if ($args[2] === "${orderOrEmail}") { do_action("mandala_custom_mail", ...$args); ActionScheduler::store()->cancel_action($aid); echo "run;"; } }`);
+  const mkOrder = (email) => wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $o = wc_create_order(); $o->add_product($p, 1);
+    $o->set_billing_first_name("Kata"); $o->set_billing_email("${email}"); $o->set_billing_country("HU");
+    $s = new WC_Order_Item_Shipping(); $s->set_method_id("gls_test_courier"); $s->set_method_title("GLS futárszolgálat"); $o->add_item($s);
+    $o->set_payment_method("bacs"); $o->calculate_totals(); $o->set_date_paid(time()); $o->set_status("processing"); $o->save(); echo $o->get_id();`);
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations`);
+  await Promise.all([admin.waitForNavigation(), admin.click('text=+ Új saját levél')]);
+  ok(/type=custom_[a-z0-9]{6}/.test(admin.url()) && await admin.isVisible('#cm-trigger'), 'új saját levél: szerkesztő triggerrel');
+  const customId = admin.url().match(/type=custom_([a-z0-9]{6})/)[1];
+  await admin.fill('#cm-name', 'Köszönő – első nagy rendelés');
+  await admin.selectOption('#cm-trigger', 'status_completed');
+  await admin.fill('input[name="cm[cond][min_total]"]', '10000');
+  await admin.selectOption('select[name="cm[cond][customer]"]', 'first');
+  await admin.selectOption('select[name="cm[coupon][type]"]', 'percent');
+  await admin.fill('input[name="cm[coupon][amount]"]', '10');
+  await admin.check('input[name="mail_enabled"]');
+  await admin.fill('#mail-subject', 'Köszönjük, {keresztnev}! Itt egy ajándék');
+  await admin.click('#mandala_mail_body-html');
+  await admin.fill('#mandala_mail_body', '<p>Kedves {keresztnev}!</p>\n\n<p>Az első rendelésed ({rendeles}) után {kupon_ertek} kedvezmény jár: {kupon}</p>\n\n{kupon_doboz}\n\n{termekek}');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_save"]')]);
+  ok((await admin.textContent('#wpbody-content')).includes('Mentve') && await admin.isVisible('[data-insert="{kupon_doboz}"]'), 'saját levél: mentés, a kupon helyőrzői megjelennek');
+  await admin.click('button[formtarget="mandala-mail-preview"]');
+  await admin.waitForTimeout(1500);
+  const prev = (await admin.frame({ name: 'mandala-mail-preview' }).textContent('body')).replace(/\s+/g, ' ');
+  ok(prev.includes('Köszönjük, Anna! Itt egy ajándék') && prev.includes('10% kedvezmény jár: MND-MINTA1') && prev.includes('Egyszer használható'), 'saját levél előnézet: mintakupon');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations`);
+  ok((await admin.textContent('tr:has-text("Köszönő – első nagy rendelés")')).includes('Rendelés állapota: Teljesítve') && (await admin.textContent('tr:has-text("Köszönő – első nagy rendelés")')).includes('egyedi kupon'), 'lista: saját levél triggerrel, feltétellel');
+
+  // Trigger: teljesítés → ütemezve → küldés egyedi kuponnal.
+  const o1 = mkOrder('elso.vevo@example.com');
+  wp(`wc_get_order(${o1})->update_status("completed");`);
+  let before = mails().length;
+  ok(runCustom(o1).includes('run'), 'trigger: a teljesítés ütemezi a saját levelet');
+  let m = mails().slice(before);
+  const code = (m.match(/MND-[A-Z0-9]{6}/) || [])[0];
+  ok(/TO: elso\.vevo@example\.com\nSUBJECT: Köszönjük, Kata! Itt egy ajándék/.test(m) && code && m.includes(`10% kedvezmény jár: ${code}`) && m.includes(wp('echo wc_get_product(wc_get_product_id_by_sku("MND-HT-0490"))->get_name();')), 'saját levél: kiküldve, egyedi kuponnal és a termékekkel', code);
+  ok(wp(`$c = new WC_Coupon("${code}"); echo wp_json_encode([$c->get_usage_limit(), $c->get_email_restrictions(), $c->get_discount_type(), (int) $c->get_amount()]);`) === '[1,["elso.vevo@example.com"],"percent",10]', 'egyedi kupon: egyszer használható, a címzetthez kötött, 10%');
+  wp(`do_action("mandala_custom_mail", "${customId}", "order", "${o1}");`);
+  ok(mails().length === before + m.length, 'saját levél: rendelésenként egyszer');
+  // Feltétel: visszatérő vásárló (második rendelés) → nem ütemez.
+  const o2 = mkOrder('elso.vevo@example.com');
+  wp(`wc_get_order(${o2})->update_status("completed");`);
+  ok(!runCustom(o2).includes('run'), 'feltétel: csak első rendelés – visszatérőnek nem megy');
+  // Küldés előtt visszamondva → nem megy.
+  const o3 = mkOrder('masik.vevo@example.com');
+  wp(`wc_get_order(${o3})->update_status("completed"); wc_get_order(${o3})->update_status("cancelled");`);
+  before = mails().length;
+  runCustom(o3);
+  ok(mails().length === before, 'küldéskor újraellenőrzés: közben visszamondott rendelésre nem megy');
+
+  // Belső levél a raktárnak csomagfeladáskor, csak GLS futárnál.
+  wp(`$all = get_option("mandala_custom_mails"); $all["raktar"] = ["name" => "Raktár – feladva", "enabled" => "yes", "trigger" => "shipped", "delay" => 0, "unit" => "minute", "recipient" => "custom", "to" => "raktar@example.com",
+    "cond" => ["shipping" => "courier"], "subject" => "Feladva: #{rendeles} ({csomagszam})", "heading" => "Feladva", "body" => "<p>{szallitas_mod} · {osszeg}</p><p><a href=\\"{admin_link}\\">Megnyitás</a></p>"]; update_option("mandala_custom_mails", $all);`);
+  const o4 = mkOrder('harmadik@example.com');
+  wp(`$o = wc_get_order(${o4}); $o->update_meta_data("_gls_parcel_number", "55544433322"); $o->save();`);
+  before = mails().length;
+  runCustom(o4);
+  m = mails().slice(before);
+  ok(new RegExp(`TO: raktar@example\\.com\\nSUBJECT: Feladva: #${o4} \\(55544433322\\)`).test(m) && m.includes('GLS futárszolgálat') && !m.includes('mandala_unsub='), 'trigger „csomag feladva” → belső levél megadott címre, feltétellel');
+
+  // Hírlevél feliratkozás trigger (a lábléc űrlapjáról).
+  wp(`$all = get_option("mandala_custom_mails"); $all["hirlevel"] = ["name" => "Üdvözlő", "enabled" => "yes", "trigger" => "newsletter", "delay" => 0, "unit" => "minute", "recipient" => "customer", "marketing" => "yes", "coupon" => ["type" => "fixed_cart", "amount" => 1500, "days" => 14],
+    "subject" => "Üdv a Mandalánál!", "heading" => "Üdv", "body" => "<p>{kupon_ertek} ajándék: {kupon}</p>"]; update_option("mandala_custom_mails", $all);`);
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await page.fill('.nl-form input[name="email"]', 'uj.feliratkozo@example.com');
+  await page.check('.nl-form input[name="adatkezeles"]');
+  await page.click('.nl-form button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.nl-form .form-message')?.textContent.trim().length > 0, null, { timeout: 8000 }).catch(() => {});
+  before = mails().length;
+  runCustom('uj.feliratkozo@example.com');
+  m = mails().slice(before);
+  ok(/TO: uj\.feliratkozo@example\.com\nSUBJECT: Üdv a Mandalánál!/.test(m) && /1 500 Ft ajándék: MND-[A-Z0-9]{6}/.test(m) && m.includes('mandala_unsub='), 'trigger „hírlevél feliratkozás” → üdvözlő levél kuponnal, leiratkozó linkkel');
+
+  // Másolat és törlés.
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations&type=custom_${customId}`);
+  await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_duplicate"]')]);
+  ok((await admin.inputValue('#cm-name')) === 'Köszönő – első nagy rendelés (másolat)' && !(await admin.isChecked('input[name="mail_enabled"]')), 'másolat: kikapcsolva jön létre');
+  admin.once('dialog', (d) => d.accept());
+  await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_delete"]')]);
+  ok((await admin.textContent('#wpbody-content')).includes('A levél törölve') && Object.keys(JSON.parse(wp('echo wp_json_encode(get_option("mandala_custom_mails"));'))).length === 3, 'törlés');
+
+  // WooCommerce levél szerkesztése a levélközpontban.
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations`);
+  await Promise.all([admin.waitForNavigation(), admin.click('a.button[href*="wc=customer_completed_order"]')]);
+  await admin.fill('#wc-subject', 'Teljesítve: #');
+  await admin.focus('#wc-subject');
+  await admin.press('#wc-subject', 'End');
+  await admin.click('[data-insert="{order_number}"]');
+  await admin.type('#wc-subject', ' – köszönjük!');
+  await admin.fill('#wc-additional', 'Jó elcsendesedést kívánunk! Kérdésed van? Írj nekünk.');
+  await Promise.all([admin.waitForNavigation(), admin.click('button.button-primary:has-text("Mentés")')]);
+  ok(wp('echo get_option("woocommerce_customer_completed_order_settings")["subject"];') === 'Teljesítve: #{order_number} – köszönjük!', 'WooCommerce levél: tárgy mentve (helyőrzővel)');
+  const wcPrev = await admin.frameLocator('iframe[title="A levél előnézete"]').locator('body').textContent({ timeout: 15000 }).catch(() => '');
+  ok(wcPrev.includes('Jó elcsendesedést kívánunk!'), 'WooCommerce levél: előnézet a mentett szöveggel');
+  before = mails().length;
+  await admin.fill('#wc-test-to', 'teszt.wc@example.com');
+  await Promise.all([admin.waitForNavigation(), admin.click('button[name="wcmail_test"]')]);
+  m = mails().slice(before);
+  ok(/TO: teszt\.wc@example\.com\nSUBJECT: Teljesítve: #\d+ – köszönjük!/.test(m) && m.includes('Jó elcsendesedést kívánunk!') && !m.includes('TO: elso.vevo') && !m.includes('TO: harmadik'), 'WooCommerce levél: tesztküldés a megadott címre (a vásárló nem kapja)');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-automations&tab=naplo&q=teszt.wc`);
+  ok((await admin.textContent('#wpbody-content table')).includes('WooCommerce: '), 'napló: a WooCommerce levelei is');
+  wp(`delete_option("woocommerce_customer_completed_order_settings"); delete_option("mandala_custom_mails"); foreach ([${o1}, ${o2}, ${o3}, ${o4}] as $id) { wc_get_order($id)->delete(true); }`);
+  await admin.context().close();
+  await page.context().close();
 }
 
 // ======================= Csomagkövetés =======================

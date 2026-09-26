@@ -102,6 +102,14 @@ add_action('mandala_mail_cleanup', function () {
     $wpdb->query($wpdb->prepare('DELETE FROM ' . mandala_mail_table() . ' WHERE created < %s', gmdate('Y-m-d H:i:s', time() - 180 * DAY_IN_SECONDS)));
 });
 
+/** A WooCommerce saját levelei is a naplóba kerülnek (ügyfélszolgálat: „megkapta-e a visszaigazolást?”). */
+add_action('woocommerce_email_sent', function ($sent, $id, $email) {
+    $order = $email->object ?? null;
+    foreach (array_filter(array_map('trim', explode(',', (string) $email->get_recipient()))) as $to) {
+        mandala_mail_log('wc:' . $id, $to, (string) $email->get_subject(), $sent ? 'sent' : 'failed', $order instanceof WC_Order ? $order->get_id() : 0);
+    }
+}, 10, 3);
+
 function mandala_mail_log(string $type, string $to, string $subject, string $status, int $order_id = 0): void
 {
     global $wpdb;
@@ -177,10 +185,10 @@ function mandala_mail_button(string $url, string $label): string
  * required (nem kapcsolható ki), marketing, vars / blocks (helyőrzők leírással), subject, heading,
  * body (alapszöveg), sample (mintaadat az előnézethez: [vars, blocks]).
  */
-function mandala_mail_types(): array
+function mandala_mail_types(bool $fresh = false): array
 {
     static $types = null;
-    if ($types !== null) {
+    if ($types !== null && !$fresh) {
         return $types;
     }
     $hello = '<p>' . __('Kedves {keresztnev}!', 'mandala') . '</p>';
@@ -278,6 +286,9 @@ function mandala_mail_enabled(string $type): bool
     if (!empty($def['required'])) {
         return true;
     }
+    if (isset($def['is_enabled'])) {
+        return (bool) ($def['is_enabled'])();
+    }
     if (!empty($def['setting'])) {
         return mandala_automation_on($def['setting']);
     }
@@ -288,6 +299,14 @@ function mandala_mail_enabled(string $type): bool
 function mandala_mail_template(string $type): array
 {
     $def = mandala_mail_types()[$type];
+    if (!empty($def['custom'])) {
+        // Saját levél: a szöveg a levél saját adata (nincs „alapszöveg”, amihez vissza lehetne állni).
+        $out = ['custom' => false];
+        foreach (['subject', 'heading', 'body'] as $field) {
+            $out[$field] = (string) apply_filters('wpml_translate_single_string', $def[$field], 'mandala-mail', $type . ':' . $field);
+        }
+        return $out;
+    }
     $saved = (array) (((array) get_option('mandala_mail_templates', []))[$type] ?? []);
     $out = ['custom' => false];
     foreach (['subject', 'heading', 'body'] as $field) {
@@ -415,16 +434,19 @@ function mandala_mail_admin_page(): void
 {
     $tab = sanitize_key($_GET['tab'] ?? 'levelek');
     $type = sanitize_key($_GET['type'] ?? '');
+    $wc = sanitize_key($_GET['wc'] ?? '');
     $base = admin_url('admin.php?page=mandala-automations');
     echo '<div class="wrap mandala-mail"><h1>Mandala levelek</h1>';
-    if (!($type && isset(mandala_mail_types()[$type]))) {
+    if (!($type && isset(mandala_mail_types()[$type])) && !$wc) {
         echo '<nav class="nav-tab-wrapper">';
         foreach (['levelek' => 'Automata levelek', 'naplo' => 'Napló', 'beallitasok' => 'Beállítások'] as $k => $label) {
             echo '<a class="nav-tab' . ($tab === $k ? ' nav-tab-active' : '') . '" href="' . esc_url(add_query_arg('tab', $k, $base)) . '">' . esc_html($label) . '</a>';
         }
         echo '</nav>';
     }
-    if ($type && isset(mandala_mail_types()[$type])) {
+    if ($wc && function_exists('WC')) {
+        mandala_mail_admin_wc_edit($wc, $base);
+    } elseif ($type && isset(mandala_mail_types()[$type])) {
         mandala_mail_admin_edit($type, $base);
     } elseif ($tab === 'naplo') {
         mandala_mail_admin_log($base);
@@ -450,7 +472,14 @@ function mandala_mail_admin_list(string $base): void
     foreach (mandala_mail_types() as $key => $def) {
         $groups[$def['group']][$key] = $def;
     }
-    echo '<p>A téma saját levelei. A szövegük, tárgyuk és időzítésük itt szerkeszthető; a termékeket, gombokat és kódokat a rendszer tölti ki.</p>';
+    if (!empty($_GET['deleted'])) {
+        echo '<div class="notice notice-success"><p>A levél törölve.</p></div>';
+    }
+    echo '<p style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">A levelek szövege, tárgya és időzítése itt szerkeszthető; a termékeket, gombokat és kódokat a rendszer tölti ki. '
+        . '<a class="button button-primary" href="' . esc_url(wp_nonce_url(add_query_arg('type', 'new', $base), 'mandala_mail_new')) . '">+ Új saját levél</a></p>';
+    if (!array_filter(mandala_mail_types(), fn($d) => !empty($d['custom']))) {
+        echo '<div class="notice notice-info inline"><p><strong>Saját levelek:</strong> bármilyen eseményre (új rendelés, fizetés, állapotváltás, feladás, regisztráció, hírlevél, értékelés, X nap az utolsó rendelés óta) késleltetéssel, feltételekkel és egyedi kuponnal. Pl. „köszönő levél 30 000 Ft feletti első rendelés után”, „visszacsábító 90 nap után 10% kuponnal”, „belső értesítés a raktárnak GLS pontos rendelésről”.</p></div>';
+    }
     foreach ($groups as $group => $defs) {
         echo '<h2>' . esc_html($group) . '</h2><table class="widefat striped" style="max-width:1100px"><thead><tr><th style="width:24%">Levél</th><th>Mikor megy</th><th style="width:22%">Tárgy</th><th style="width:9%">Állapot</th><th style="width:8%">30 nap</th><th style="width:8%"></th></tr></thead><tbody>';
         foreach ($defs as $key => $def) {
@@ -465,10 +494,10 @@ function mandala_mail_admin_list(string $base): void
     }
     // A WooCommerce saját levelei (visszaigazolás, teljesítés…): a WooCommerce beállításainál szerkeszthetők.
     if (function_exists('WC')) {
-        echo '<h2>WooCommerce rendszerlevelek</h2><p class="description">Rendelés-visszaigazolás, teljesítés, számla, jelszó… Ezeket a WooCommerce levélbeállításainál lehet szerkeszteni; a csomagkövetés linkjét a téma automatikusan beleteszi.</p><table class="widefat striped" style="max-width:1100px"><thead><tr><th style="width:30%">Levél</th><th>Kinek</th><th style="width:9%">Állapot</th><th style="width:8%"></th></tr></thead><tbody>';
+        echo '<h2>WooCommerce rendszerlevelek</h2><p class="description">Rendelés-visszaigazolás, teljesítés, számla, jelszó… A tárgyuk, címsoruk és kiegészítő szövegük itt is szerkeszthető; a rendelés részleteit és a csomagkövetés dobozát a rendszer teszi bele.</p><table class="widefat striped" style="max-width:1100px"><thead><tr><th style="width:30%">Levél</th><th>Kinek</th><th style="width:9%">Állapot</th><th style="width:8%"></th></tr></thead><tbody>';
         foreach (WC()->mailer()->get_emails() as $email) {
             echo '<tr><td>' . esc_html($email->get_title()) . '</td><td>' . esc_html($email->is_customer_email() ? 'vásárló' : ($email->get_recipient() ?: 'bolt')) . '</td><td>' . ($email->is_enabled() ? '<span style="color:#008a20">● be</span>' : '<span style="color:#8c8f94">○ ki</span>') . '</td>'
-                . '<td><a class="button" href="' . esc_url(admin_url('admin.php?page=wc-settings&tab=email&section=' . strtolower(get_class($email)))) . '">Beállítás</a></td></tr>';
+                . '<td><a class="button" href="' . esc_url(add_query_arg('wc', $email->id, $base)) . '">Szerkesztés</a></td></tr>';
         }
         echo '</tbody></table>';
     }
@@ -483,7 +512,11 @@ function mandala_mail_admin_edit(string $type, string $base): void
     $notice = '';
     if (!empty($_POST['mail']) && check_admin_referer('mandala_mail_edit')) {
         $posted = mandala_mail_posted_template();
-        if (!empty($_POST['mail_test'])) {
+        if (!empty($def['custom']) && empty($_POST['mail_test'])) {
+            mandala_custom_mail_save($def['custom'], $posted);
+            $def = mandala_mail_types(true)[$type];
+            $notice = '<div class="notice notice-success"><p>Mentve.' . (mandala_mail_enabled($type) ? '' : ' A levél ki van kapcsolva – a „Küldés: bekapcsolva” jelölővel indul.') . '</p></div>';
+        } elseif (!empty($_POST['mail_test'])) {
             $to = sanitize_email(wp_unslash($_POST['mail_test_to'] ?? ''));
             [$vars, $blocks] = ($def['sample'])();
             [$subject, $heading, $body] = mandala_mail_render($type, $vars, $blocks, $posted);
@@ -536,6 +569,9 @@ function mandala_mail_admin_edit(string $type, string $base): void
         }
         echo '</td></tr>';
     }
+    if (!empty($def['custom'])) {
+        mandala_custom_mail_fields($def['custom']);
+    }
     echo '<tr><th scope="row"><label for="mail-subject">Tárgy</label></th><td><input type="text" id="mail-subject" name="mail[subject]" class="large-text" value="' . esc_attr($tpl['subject']) . '" data-mail-field></td></tr>'
         . '<tr><th scope="row"><label for="mail-heading">Címsor</label></th><td><input type="text" id="mail-heading" name="mail[heading]" class="large-text" value="' . esc_attr($tpl['heading']) . '" data-mail-field><p class="description">A levél fejlécében, nagy betűvel.</p></td></tr>'
         . '</table>';
@@ -564,6 +600,7 @@ function mandala_mail_admin_edit(string $type, string $base): void
         . '<button type="submit" class="button button-primary" name="mail_save" value="1">Mentés</button>'
         . '<button type="submit" class="button" formaction="' . esc_url(admin_url('admin-post.php?action=mandala_mail_preview&type=' . $type)) . '" formtarget="mandala-mail-preview">Előnézet frissítése</button>'
         . ($tpl['custom'] ? '<button type="submit" class="button button-link-delete" name="mail_reset" value="1" onclick="return confirm(\'Visszaállítod az alapszöveget?\')">Alaphelyzet</button>' : '')
+        . (!empty($def['custom']) ? '<button type="submit" class="button" name="mail_duplicate" value="1">Másolat</button><button type="submit" class="button button-link-delete" name="mail_delete" value="1" onclick="return confirm(\'Törlöd ezt a levelet?\')">Törlés</button>' : '')
         . '</p><p style="display:flex;gap:8px;align-items:center"><label for="mail-test-to">Tesztlevél ide:</label> <input type="email" id="mail-test-to" name="mail_test_to" value="' . esc_attr(wp_get_current_user()->user_email) . '" class="regular-text"> <button type="submit" class="button" name="mail_test" value="1">Küldés</button></p>';
     echo '</div><div style="position:sticky;top:40px"><p style="margin:0 0 6px"><strong>Előnézet</strong> <span class="description">mintaadatokkal</span></p><iframe name="mandala-mail-preview" title="A levél előnézete" src="' . esc_url(wp_nonce_url(admin_url('admin-post.php?action=mandala_mail_preview&type=' . $type), 'mandala_mail_preview')) . '" style="width:100%;height:760px;border:1px solid #dcdcde;border-radius:4px;background:#fff"></iframe></div></div></form>';
     ?>
@@ -616,7 +653,11 @@ function mandala_mail_admin_log(string $base): void
     $total = (int) $wpdb->get_var($sql('COUNT(*)'));
     $rows = $wpdb->get_results($sql('*', 'ORDER BY id DESC LIMIT 50 OFFSET ' . (($paged - 1) * 50)));
     $types = mandala_mail_types();
-    $label = fn($t) => $types[$t]['label'] ?? ['teszt' => 'Tesztlevél', 'szallitas' => 'Szállítás', 'belso' => 'Belső értesítő', 'egyeb' => 'Egyéb'][$t] ?? $t;
+    $wc_titles = [];
+    foreach (function_exists('WC') ? WC()->mailer()->get_emails() : [] as $e) {
+        $wc_titles['wc:' . $e->id] = 'WooCommerce: ' . $e->get_title();
+    }
+    $label = fn($t) => $types[$t]['label'] ?? $wc_titles[$t] ?? ['teszt' => 'Tesztlevél', 'belso' => 'Belső értesítő', 'egyeb' => 'Egyéb'][$t] ?? $t;
     echo '<form method="get" style="margin:16px 0;display:flex;gap:8px;flex-wrap:wrap"><input type="hidden" name="page" value="mandala-automations"><input type="hidden" name="tab" value="naplo">'
         . '<select name="mtype"><option value="">Minden levél</option>';
     foreach ($types as $key => $def) {
@@ -665,4 +706,106 @@ function mandala_mail_admin_settings(): void
     echo '</table>';
     submit_button('Mentés');
     echo '</form>';
+}
+
+/* ---------- A WooCommerce saját levelei (visszaigazolás, teljesítés…) ---------- */
+
+/** Tesztküldés ezekhez a WooCommerce levelekhez lehetséges (a legutóbbi rendeléssel, a megadott címre). */
+const MANDALA_WC_TESTABLE = ['new_order', 'cancelled_order', 'failed_order', 'customer_on_hold_order', 'customer_processing_order', 'customer_completed_order', 'customer_invoice', 'customer_failed_order', 'customer_cancelled_order'];
+
+function mandala_mail_admin_wc_edit(string $id, string $base): void
+{
+    $email = null;
+    foreach (WC()->mailer()->get_emails() as $e) {
+        if ($e->id === $id) {
+            $email = $e;
+        }
+    }
+    echo '<p><a href="' . esc_url($base) . '">← Minden levél</a></p>';
+    if (!$email) {
+        echo '<div class="notice notice-error"><p>Nincs ilyen WooCommerce levél.</p></div>';
+        return;
+    }
+    $has_enabled = isset($email->form_fields['enabled']);
+    if (!empty($_POST['wcmail']) && check_admin_referer('mandala_wc_mail')) {
+        $in = (array) wp_unslash($_POST['wcmail']);
+        if (!empty($_POST['wcmail_test'])) {
+            $to = sanitize_email(wp_unslash($_POST['wcmail_test_to'] ?? ''));
+            $orders = wc_get_orders(['limit' => 1, 'orderby' => 'date', 'order' => 'DESC', 'return' => 'ids', 'type' => 'shop_order']);
+            $ok = false;
+            if (is_email($to) && $orders && in_array($id, MANDALA_WC_TESTABLE, true)) {
+                $force = fn() => $to;
+                $on = fn() => true;
+                add_filter('woocommerce_email_recipient_' . $id, $force, 999);
+                add_filter('woocommerce_email_enabled_' . $id, $on, 999);
+                try {
+                    $email->trigger($orders[0]);
+                    $ok = true;
+                } catch (Throwable $e) {
+                    $ok = false;
+                }
+                remove_filter('woocommerce_email_recipient_' . $id, $force, 999);
+                remove_filter('woocommerce_email_enabled_' . $id, $on, 999);
+            }
+            echo $ok ? '<div class="notice notice-success"><p>Tesztlevél elküldve: ' . esc_html($to) . ' (a legutóbbi rendelés adataival, a mentett szöveggel).</p></div>' : '<div class="notice notice-error"><p>A tesztlevelet nem sikerült elküldeni (nincs még rendelés, vagy ehhez a levélhez nem küldhető teszt).</p></div>';
+        } else {
+            if ($has_enabled) {
+                $email->update_option('enabled', empty($_POST['wcmail_enabled']) ? 'no' : 'yes');
+            }
+            foreach (['subject', 'heading'] as $f) {
+                if (isset($email->form_fields[$f])) {
+                    $email->update_option($f, sanitize_text_field($in[$f] ?? ''));
+                }
+            }
+            if (isset($email->form_fields['additional_content'])) {
+                $email->update_option('additional_content', wp_kses_post((string) ($in['additional_content'] ?? '')));
+            }
+            $email->init_settings();
+            echo '<div class="notice notice-success"><p>Mentve.</p></div>';
+        }
+    }
+    $opt = fn($f) => (string) $email->get_option($f, '');
+    echo '<h2>' . esc_html($email->get_title()) . ' <span class="description" style="font-weight:400">– WooCommerce levél</span></h2><p class="description">' . esc_html($email->get_description()) . '</p>';
+    echo '<form method="post"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start;max-width:1400px"><div>';
+    wp_nonce_field('mandala_wc_mail');
+    echo '<input type="hidden" name="wcmail[x]" value="1"><table class="form-table" role="presentation">';
+    if ($has_enabled) {
+        echo '<tr><th scope="row">Küldés</th><td><label><input type="checkbox" name="wcmail_enabled" value="1"' . checked($email->is_enabled(), true, false) . '> bekapcsolva</label></td></tr>';
+    }
+    foreach (['subject' => ['Tárgy', $email->get_default_subject()], 'heading' => ['Címsor', $email->get_default_heading()]] as $f => [$label, $default]) {
+        if (isset($email->form_fields[$f])) {
+            echo '<tr><th scope="row"><label for="wc-' . $f . '">' . esc_html($label) . '</label></th><td><input type="text" id="wc-' . $f . '" name="wcmail[' . $f . ']" value="' . esc_attr($opt($f)) . '" placeholder="' . esc_attr($default) . '" class="large-text" data-mail-field><p class="description">Üresen az alapszöveg: ' . esc_html($default) . '</p></td></tr>';
+        }
+    }
+    if (isset($email->form_fields['additional_content'])) {
+        echo '<tr><th scope="row"><label for="wc-additional">Kiegészítő szöveg</label></th><td><textarea id="wc-additional" name="wcmail[additional_content]" rows="6" class="large-text" data-mail-field placeholder="' . esc_attr($email->get_default_additional_content()) . '">' . esc_textarea($opt('additional_content')) . '</textarea><p class="description">A rendelés részletei alatt jelenik meg (pl. köszönet, tudnivalók, ajánló). A rendelés adatait, a címeket és a csomagkövetés dobozát a rendszer teszi bele.</p></td></tr>';
+    }
+    echo '</table>';
+    $ph = array_unique(array_merge(array_keys((array) $email->placeholders), ['{site_title}', '{site_url}', '{store_email}']));
+    echo '<p style="margin:16px 0 6px"><strong>Helyőrzők</strong> <span class="description">kattintásra a kurzorhoz kerül</span></p><p style="display:flex;flex-wrap:wrap;gap:6px;margin:0">';
+    foreach ($ph as $p) {
+        echo '<button type="button" class="button button-small" data-insert="' . esc_attr($p) . '"><code>' . esc_html($p) . '</code></button>';
+    }
+    echo '</p><p class="submit" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button type="submit" class="button button-primary">Mentés</button>'
+        . '<a class="button" href="' . esc_url(admin_url('admin.php?page=wc-settings&tab=email&section=' . strtolower(get_class($email)))) . '">Összes beállítás (WooCommerce) ↗</a></p>';
+    if (in_array($id, MANDALA_WC_TESTABLE, true)) {
+        echo '<p style="display:flex;gap:8px;align-items:center"><label for="wc-test-to">Tesztlevél ide:</label> <input type="email" id="wc-test-to" name="wcmail_test_to" value="' . esc_attr(wp_get_current_user()->user_email) . '" class="regular-text"> <button type="submit" class="button" name="wcmail_test" value="1">Küldés</button></p><p class="description">A legutóbbi rendelés adataival – a vásárló nem kapja meg.</p>';
+    }
+    $preview = wp_nonce_url(add_query_arg(['preview_woocommerce_mail' => 'true', 'type' => get_class($email)], admin_url('')), 'preview-mail');
+    echo '</div><div style="position:sticky;top:40px"><p style="margin:0 0 6px"><strong>Előnézet</strong> <span class="description">a mentett változat, mintaadatokkal</span></p><iframe title="A levél előnézete" src="' . esc_url($preview) . '" style="width:100%;height:760px;border:1px solid #dcdcde;border-radius:4px;background:#fff"></iframe></div></div></form>';
+    ?>
+<script>
+(() => {
+  let last = null;
+  document.querySelectorAll('[data-mail-field]').forEach((el) => el.addEventListener('focus', () => { last = el; }));
+  document.querySelectorAll('[data-insert]').forEach((b) => { b.addEventListener('mousedown', (e) => e.preventDefault()); b.addEventListener('click', () => {
+    const el = last || document.getElementById('wc-additional') || document.getElementById('wc-subject');
+    if (!el) return;
+    const [s, e] = [el.selectionStart ?? el.value.length, el.selectionEnd ?? el.value.length];
+    el.value = el.value.slice(0, s) + b.dataset.insert + el.value.slice(e);
+    el.focus(); el.setSelectionRange(s + b.dataset.insert.length, s + b.dataset.insert.length);
+  }); });
+})();
+</script>
+    <?php
 }
