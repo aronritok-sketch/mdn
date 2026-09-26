@@ -31,7 +31,6 @@ function mandala_product_index(): array
             $row['originLabel'] = mandala_attr($product, 'pa_eredet')[0] ?? '';
             $row['buyable'] = $product->is_type('simple') && $product->is_purchasable() && $product->is_in_stock();
             $row['addUrl'] = $row['buyable'] ? $product->add_to_cart_url() : '';
-            $row['priceHtml'] = $product->get_price_html();
             $index[] = $row;
         }
     }

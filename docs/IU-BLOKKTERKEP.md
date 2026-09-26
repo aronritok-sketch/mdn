@@ -62,7 +62,7 @@ Shortcode-os oldalak (`[woocommerce_cart]`, `[woocommerce_checkout]`, `[woocomme
 | Fizetés a bal oszlopban | `remove_action('woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20)` + `add_action('woocommerce_checkout_after_customer_details', 'woocommerce_checkout_payment')` |
 | Céges vásárlás | checkbox + `billing_company` + **`billing_tax_number`** saját mező (vasskisgep: `inc/shop.php`), szerveroldali adószám-ellenőrzés (8-1-2, CDV) |
 | Irányítószám → település | `assets/shop.js` (KSH lista) |
-| Foxpost automata | Foxpost / szállítási bővítmény csomagpont-választója (klasszikus pénztárral működőt kell választani) |
+| GLS pont (CsomagPont, automata) | A GLS bővítmény térképes pontválasztója (klasszikus pénztárral működőt kell választani); a téma a kiválasztott mód alá jeleníti meg |
 | Személyes átvétel | `local_pickup` (a „Pickup location” csak blokkos pénztárral megy – skill) |
 | Utánvét díj | COD díj (`woocommerce_cart_calculate_fees`), személyes átvételnél 0 és „Fizetés átvételkor” felirat |
 | Kupon az összesítőben | AJAX `apply_coupon` (a checkout form nem tartalmazhat beágyazott formot) |
@@ -113,22 +113,22 @@ A skill ismert keretrendszer-hibái miatt: az `email` attribútum üres, a level
 ## 6. WooCommerce beállítások (telepítő lépésként, `inc/setup.php`)
 
 - Árak bruttóval, 27% ÁFA, ÁFA-tartalom a végösszeg alatt.
-- Szállítás (Magyarország zóna): GLS futár 1 990 Ft, Foxpost 1 290 Ft, személyes átvétel (`local_pickup`) 0 Ft; mindkét futáros mód ingyenes 25 000 Ft felett.
-- Fizetés: Barion (bővítmény), Előre utalás (bankadatok), Utánvét (+490 Ft díj; személyes átvételnél „Fizetés átvételkor”).
+- Szállítás (Magyarország zóna): a GLS módokat (futár, CsomagPont, automata) és díjaikat a GLS bővítmény adja; a telepítő csak a személyes átvételt (`local_pickup`, 0 Ft, a lista végén) hozza létre. Ingyenes szállítás 25 000 Ft felett (a téma szabálya, `mandala_freeShippingFrom` opcióval módosítható, 0 = ki).
+- Fizetés: Teya (bővítmény / fizetőoldal), Előre utalás (bankadatok), Utánvét (+490 Ft díj; személyes átvételnél „Fizetés átvételkor”, díj nélkül). Számla: Számlázz.hu bővítmény.
 - Termékattribútumok és meta mezők a szűrőhöz: `pa_szandek`, `pa_hang`, `pa_csakra`, `pa_keszites`, `pa_illat`, `pa_forma`, `pa_meret`, `pa_eredet`, `pa_regio`, `pa_anyag`, `pa_szin`; numerikus meta: `_mandala_hz`, `_mandala_suly` (lásd [`SZURO.md`](SZURO.md)).
 - Kuponok (minta): `MANDALA10` (10%), `UDVOZLO` (1 500 Ft, 10 000 Ft felett).
 - Oldalak: ÁSZF, Adatkezelés, Impresszum, Vásárlási információk; ÁSZF oldal a pénztárhoz.
 
 ## 7. Élesítés előtti adatok az ügyféltől
 
-1. Cégadatok (impresszum, ÁSZF), bankszámla és IBAN, Barion POSKey.
+1. Cégadatok (impresszum, ÁSZF), bankszámla és IBAN, Teya fiók (teszt és éles).
 2. Bemutatóterem címe, nyitvatartása, telefonszám (a prototípusban helykitöltő).
 3. Termékfotók (1000 × 1128, álló) – most SVG illusztrációk a helyükön.
 4. Pontos beszerzési helyszínek (Patan, Moradabad, Jaipur, Bengaluru – ellenőrizendő).
-5. Szállítási díjak és a futárcég végleges választása; Foxpost szerződés.
+5. GLS bővítmény beállítása: szolgáltatások (futár, CsomagPont, automata), díjak, szerződéses adatok.
 6. Angol változat (WPML) szövegei.
 7. Számlázó (Számlázz.hu / Billingo), SMTP, Google Analytics / Meta pixel (a cookie sáv kategóriáihoz).
 
 ## 8. Tesztlista (a skill ellenőrzőlistája alapján)
 
-A prototípuson lefuttatva (`tests/`): minden oldal JS-hiba nélkül; oldalanként egy H1; 390 px-en nincs vízszintes görgetés; teljes rendelés (kosár → pénztár → köszönő oldal) GLS / Foxpost / személyes átvétel és Barion / utalás / utánvét kombinációkkal; hibás és helyes adószám; kupon; piszkozat megmarad; egyfájlos előnézet file://-ról. Élesben ugyanez + e-mailek, Barion teszt mód, fiók, űrlap-levelek, `"invalid":[]` a szerkesztőben.
+A prototípuson lefuttatva (`tests/`): minden oldal JS-hiba nélkül; oldalanként egy H1; 390 px-en nincs vízszintes görgetés; teljes rendelés (kosár → pénztár → köszönő oldal) GLS futár / GLS pont / személyes átvétel és Teya / utalás / utánvét kombinációkkal; hibás és helyes adószám; kupon; piszkozat megmarad; egyfájlos előnézet file://-ról. Élesben ugyanez + e-mailek, Teya teszt mód, fiók, űrlap-levelek, `"invalid":[]` a szerkesztőben.

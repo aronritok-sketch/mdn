@@ -8,7 +8,7 @@ const root = $('[data-cart]');
 let couponMsg = null;
 
 function shippingRow(t) {
-  if (t.freeShipping) return '<td><strong style="color:var(--c-success)">Ingyenes</strong><span class="includes_tax">GLS, Foxpost vagy személyes átvétel</span></td>';
+  if (t.freeShipping) return '<td><strong style="color:var(--c-success)">Ingyenes</strong><span class="includes_tax">GLS vagy személyes átvétel</span></td>';
   return `<td><span class="includes_tax" style="margin:0">A pénztárban választod ki:</span>${CONFIG.shipping.map((s) => `<span class="includes_tax">${esc(s.label)}: ${s.price ? fmt(s.price) : 'ingyenes'}</span>`).join('')}</td>`;
 }
 
@@ -64,7 +64,7 @@ async function render(focusSel) {
       </tbody></table>
       <div class="wc-proceed-to-checkout">
         <a href="penztar.html" class="checkout-button iu-button iu-button-large iu-button-block">${icon('lock', 'ico ico-s')} Tovább a pénztárhoz</a>
-        <div class="pay-marks" aria-label="Fizetési módok"><span>Barion</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span><span>Utánvét</span></div>
+        <div class="pay-marks" aria-label="Fizetési módok"><span>Teya</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span><span>Utánvét</span></div>
       </div>
       <ul class="trust-mini" style="margin-top:var(--space-5)"><li>${icon('return', 'ico ico-s')}14 napos visszaküldés</li><li>${icon('store', 'ico ico-s')}Személyes átvétel Budapesten</li><li>${icon('hand', 'ico ico-s')}Kérdés esetén: ${esc(CONFIG.contact.phone)}</li></ul>
     </div></div>

@@ -412,7 +412,7 @@ function footer(variant) {
     </div>
     <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="footer-bottom">
       <p>© <span data-year></span> Mandala. Minden jog fenntartva.</p>${legal}
-      <div class="payment-marks" aria-label="Elfogadott fizetési módok"><span>Barion</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span></div>
+      <div class="payment-marks" aria-label="Elfogadott fizetési módok"><span>Teya</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span></div>
     </div></div></div>
   </section>`;
 }

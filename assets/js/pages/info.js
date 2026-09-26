@@ -6,7 +6,7 @@ import { fmt } from '../store.js';
 
 initPage();
 const FAQ = [
-  ['Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS és a Foxpost általában a feladást követő munkanapon kézbesít.'],
+  ['Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS általában a feladást követő munkanapon kézbesít.'],
   ['Meghallgathatom a hangtálat vásárlás előtt?', 'Igen: a bemutatóteremben előzetes egyeztetéssel, vagy a termékoldalon kérhetsz hangfelvételt.'],
   ['Kérhetek számlát cégnévre?', 'Igen, a pénztárban jelöld be a „Cégként vásárolok” lehetőséget, és add meg a cégnevet és az adószámot.'],
   ['Csomagoltok ajándékba?', 'Kérésre díszdobozba tesszük a terméket, és kézzel írt kártyát teszünk mellé – a pénztárban a megjegyzésnél írd meg a szöveget.'],

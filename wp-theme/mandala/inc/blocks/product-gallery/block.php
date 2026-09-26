@@ -20,6 +20,8 @@ function mandala_badges(WC_Product $product): string
     $out = '';
     if ($stock === 'out') {
         $out .= '<span class="badge badge-dark">' . esc_html__('Elfogyott', 'mandala') . '</span>';
+    } elseif (mandala_is_wholesale_user() && mandala_wholesale_price($product) !== null) {
+        $out .= '<span class="badge badge-sale">' . esc_html__('Nagyker ár', 'mandala') . '</span>';
     } elseif ($product->is_on_sale() && (float) $product->get_regular_price() > 0) {
         $out .= '<span class="badge badge-sale">−' . (int) round((1 - (float) $product->get_price() / (float) $product->get_regular_price()) * 100) . '%</span>';
     }

@@ -12,8 +12,23 @@ add_action('rest_api_init', function () {
         'methods' => 'GET',
         'permission_callback' => '__return_true',
         'callback' => function () {
-            $response = rest_ensure_response(mandala_product_index());
-            $response->header('Cache-Control', 'public, max-age=300');
+            $index = mandala_product_index();
+            if (mandala_is_wholesale_user()) {
+                // Viszonteladónak a nagyker ár (a közös index nem tartalmazza): ár = nagyker, áthúzva a bolti ár.
+                foreach ($index as &$row) {
+                    $product = wc_get_product($row['id']);
+                    $wholesale = $product ? mandala_wholesale_price($product) : null;
+                    if ($wholesale !== null) {
+                        $row['retail'] = $row['price'];
+                        $row['price'] = $wholesale;
+                        $row['compare'] = $row['retail'] > $wholesale ? $row['retail'] : null;
+                        $row['wholesale'] = true;
+                    }
+                }
+                unset($row);
+            }
+            $response = rest_ensure_response($index);
+            $response->header('Cache-Control', is_user_logged_in() ? 'private, no-store' : 'public, max-age=300');
             return $response;
         },
     ]);

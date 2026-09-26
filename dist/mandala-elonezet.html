@@ -1313,31 +1313,31 @@ const CONFIG = {
     instagram: '#',
   },
   bank: { name: '[Bank neve]', holder: 'Mandala [cégnév]', account: '12345678-12345678-12345678', iban: 'HU00 1234 5678 1234 5678 1234 5678', swift: 'XXXXHUHB' },
-  // WooCommerce szállítási módok (Magyarország zóna). Az árak bruttók.
+  // Szállítási módok. Élesben a GLS módokat és díjakat a GLS bővítmény adja; itt a prototípus mintája (bruttó árak).
   shipping: [
-    { id: 'gls', wc: 'flat_rate:1', label: 'GLS futárszolgálat', note: 'Házhoz szállítás 1–2 munkanap alatt', price: 1990, free: true, icon: 'truck' },
-    { id: 'foxpost', wc: 'foxpost:2', label: 'Foxpost csomagautomata', note: 'Átvétel 0–24, országszerte 1000+ ponton', price: 1290, free: true, icon: 'locker' },
-    { id: 'pickup', wc: 'local_pickup:3', label: 'Személyes átvétel', note: 'Budapesti bemutatótermünkben, értesítés után', price: 0, free: true, icon: 'store' },
+    { id: 'gls', wc: 'gls', label: 'GLS futárszolgálat', note: 'Házhoz szállítás 1–2 munkanap alatt', price: 1990, free: true, icon: 'truck' },
+    { id: 'glspoint', wc: 'gls_parcel', label: 'GLS CsomagPont vagy csomagautomata', note: 'Átvétel a választott GLS ponton, értesítés után', price: 1290, free: true, icon: 'locker' },
+    { id: 'pickup', wc: 'local_pickup', label: 'Személyes átvétel', note: 'Budapesti bemutatótermünkben, értesítés után', price: 0, free: true, icon: 'store' },
   ],
   // Fizetési módok. Az utánvét a személyes átvételnél „Fizetés átvételkor” díj nélkül.
   payment: [
-    { id: 'barion', label: 'Bankkártya, Apple Pay, Google Pay', note: 'Biztonságos fizetés a Barion rendszerén keresztül', marks: ['VISA', 'Mastercard', 'Apple Pay', 'Google Pay'] },
+    { id: 'teya', label: 'Bankkártya, Apple Pay, Google Pay', note: 'Biztonságos kártyás fizetés a Teya rendszerén keresztül', marks: ['VISA', 'Mastercard', 'Apple Pay', 'Google Pay'] },
     { id: 'bacs', label: 'Előre utalás', note: 'A banki adatokat a visszaigazolásban küldjük; a csomag a jóváírás után indul.' },
-    { id: 'cod', label: 'Utánvét', note: 'Fizetés készpénzzel vagy kártyával a futárnak / az automatánál.', fee: 490, pickupLabel: 'Fizetés átvételkor', pickupNote: 'Készpénzzel vagy bankkártyával a bemutatóteremben.' },
+    { id: 'cod', label: 'Utánvét', note: 'Fizetés készpénzzel vagy kártyával a futárnak / a GLS ponton.', fee: 490, pickupLabel: 'Fizetés átvételkor', pickupNote: 'Készpénzzel vagy bankkártyával a bemutatóteremben.' },
   ],
   coupons: {
     MANDALA10: { type: 'percent', amount: 10, label: '10% kedvezmény' },
     UDVOZLO: { type: 'fixed', amount: 1500, min: 10000, label: '1 500 Ft kedvezmény 10 000 Ft felett' },
   },
-  // Foxpost automaták – minta, élesben a szállítási bővítmény csomagpont-választója adja.
+  // GLS pontok – minta; élesben a GLS bővítmény térképes pontválasztója adja.
   lockers: [
-    { id: 'fx-1', name: 'Budapest, Allee bevásárlóközpont', address: '1117 Budapest, Október huszonharmadika u. 8–10.', hours: '0–24' },
-    { id: 'fx-2', name: 'Budapest, Nyugati tér', address: '1062 Budapest, Váci út 1–3.', hours: '0–24' },
-    { id: 'fx-3', name: 'Budapest, Árkád Örs vezér tere', address: '1106 Budapest, Örs vezér tere 25.', hours: '6–22' },
-    { id: 'fx-4', name: 'Debrecen, Fórum', address: '4025 Debrecen, Csapó u. 30.', hours: '0–24' },
-    { id: 'fx-5', name: 'Szeged, Árkád', address: '6724 Szeged, Londoni krt. 3.', hours: '0–24' },
-    { id: 'fx-6', name: 'Győr, Árkád', address: '9027 Győr, Budai út 1.', hours: '0–24' },
-    { id: 'fx-7', name: 'Pécs, Árkád', address: '7622 Pécs, Bajcsy-Zsilinszky u. 11.', hours: '0–24' },
+    { id: 'gls-1', name: 'Budapest, Allee bevásárlóközpont', address: '1117 Budapest, Október huszonharmadika u. 8–10.', hours: '0–24' },
+    { id: 'gls-2', name: 'Budapest, Nyugati tér', address: '1062 Budapest, Váci út 1–3.', hours: '0–24' },
+    { id: 'gls-3', name: 'Budapest, Árkád Örs vezér tere', address: '1106 Budapest, Örs vezér tere 25.', hours: '6–22' },
+    { id: 'gls-4', name: 'Debrecen, Fórum', address: '4025 Debrecen, Csapó u. 30.', hours: '0–24' },
+    { id: 'gls-5', name: 'Szeged, Árkád', address: '6724 Szeged, Londoni krt. 3.', hours: '0–24' },
+    { id: 'gls-6', name: 'Győr, Árkád', address: '9027 Győr, Budai út 1.', hours: '0–24' },
+    { id: 'gls-7', name: 'Pécs, Árkád', address: '7622 Pécs, Bajcsy-Zsilinszky u. 11.', hours: '0–24' },
   ],
 };
 
@@ -2931,7 +2931,7 @@ function footer(variant) {
     </div>
     <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="footer-bottom">
       <p>© <span data-year></span> Mandala. Minden jog fenntartva.</p>${legal}
-      <div class="payment-marks" aria-label="Elfogadott fizetési módok"><span>Barion</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span></div>
+      <div class="payment-marks" aria-label="Elfogadott fizetési módok"><span>Teya</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span></div>
     </div></div></div>
   </section>`;
 }
@@ -3530,7 +3530,7 @@ const root = $('[data-cart]');
 let couponMsg = null;
 
 function shippingRow(t) {
-  if (t.freeShipping) return '<td><strong style="color:var(--c-success)">Ingyenes</strong><span class="includes_tax">GLS, Foxpost vagy személyes átvétel</span></td>';
+  if (t.freeShipping) return '<td><strong style="color:var(--c-success)">Ingyenes</strong><span class="includes_tax">GLS vagy személyes átvétel</span></td>';
   return `<td><span class="includes_tax" style="margin:0">A pénztárban választod ki:</span>${CONFIG.shipping.map((s) => `<span class="includes_tax">${esc(s.label)}: ${s.price ? fmt(s.price) : 'ingyenes'}</span>`).join('')}</td>`;
 }
 
@@ -3586,7 +3586,7 @@ async function render(focusSel) {
       </tbody></table>
       <div class="wc-proceed-to-checkout">
         <a href="#penztar.html" class="checkout-button iu-button iu-button-large iu-button-block">${icon('lock', 'ico ico-s')} Tovább a pénztárhoz</a>
-        <div class="pay-marks" aria-label="Fizetési módok"><span>Barion</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span><span>Utánvét</span></div>
+        <div class="pay-marks" aria-label="Fizetési módok"><span>Teya</span><span>VISA</span><span>Mastercard</span><span>Apple Pay</span><span>Utalás</span><span>Utánvét</span></div>
       </div>
       <ul class="trust-mini" style="margin-top:var(--space-5)"><li>${icon('return', 'ico ico-s')}14 napos visszaküldés</li><li>${icon('store', 'ico ico-s')}Személyes átvétel Budapesten</li><li>${icon('hand', 'ico ico-s')}Kérdés esetén: ${esc(CONFIG.contact.phone)}</li></ul>
     </div></div>
@@ -3639,7 +3639,7 @@ const root = $('[data-checkout]');
 const ZIPS = { 2000: 'Szentendre', 2040: 'Budaörs', 2100: 'Gödöllő', 3300: 'Eger', 3525: 'Miskolc', 4024: 'Debrecen', 4025: 'Debrecen', 6000: 'Kecskemét', 6720: 'Szeged', 6724: 'Szeged', 7621: 'Pécs', 7622: 'Pécs', 8000: 'Székesfehérvár', 8200: 'Veszprém', 9021: 'Győr', 9027: 'Győr', 9400: 'Sopron' };
 const cityOf = (zip) => (/^1\d{3}$/.test(zip) ? 'Budapest' : ZIPS[zip] || '');
 
-const draft = { shipping: 'gls', payment: 'barion', ...storage.get(KEYS.draft, {}) };
+const draft = { shipping: 'gls', payment: 'teya', ...storage.get(KEYS.draft, {}) };
 const saveDraft = () => storage.set(KEYS.draft, draft);
 
 const V = {
@@ -3726,10 +3726,10 @@ async function start() {
       <ul class="wc_payment_methods payment_methods methods">
         ${CONFIG.payment.map((p) => `<li class="wc_payment_method payment_method_${p.id} method" data-pay="${p.id}"><label for="payment_method_${p.id}">
           <input id="payment_method_${p.id}" type="radio" class="input-radio" name="payment_method" value="${p.id}" ${draft.payment === p.id ? 'checked' : ''}>
-          ${methodIcon({ barion: 'card', bacs: 'bank', cod: 'cash' }[p.id])}<span class="method-text"><strong data-pay-label="${p.id}">${esc(p.label)}</strong><small data-pay-note="${p.id}">${esc(p.note)}</small></span>
+          ${methodIcon({ teya: 'card', bacs: 'bank', cod: 'cash' }[p.id])}<span class="method-text"><strong data-pay-label="${p.id}">${esc(p.label)}</strong><small data-pay-note="${p.id}">${esc(p.note)}</small></span>
           <span class="method-price" data-pay-fee="${p.id}"></span></label>
-          <div class="payment_box payment_method_${p.id}" data-pay-box="${p.id}" hidden>${p.id === 'barion'
-            ? `<p>A „Megrendelés” gomb után a Barion biztonságos fizetési oldalára irányítunk. Kártyaadataidat mi nem látjuk és nem tároljuk.</p><div class="pay-marks" style="justify-content:flex-start;margin-top:var(--space-3)">${p.marks.map((m) => `<span>${m}</span>`).join('')}</div>`
+          <div class="payment_box payment_method_${p.id}" data-pay-box="${p.id}" hidden>${p.id === 'teya'
+            ? `<p>A „Megrendelés” gomb után a Teya biztonságos fizetési oldalára irányítunk. Kártyaadataidat mi nem látjuk és nem tároljuk.</p><div class="pay-marks" style="justify-content:flex-start;margin-top:var(--space-3)">${p.marks.map((m) => `<span>${m}</span>`).join('')}</div>`
             : p.id === 'bacs' ? '<p>A visszaigazolásban és a köszönő oldalon megadjuk a bankszámlaszámot; közleménynek a rendelésszámot írd. A csomagot a jóváírás után adjuk fel (általában 1 munkanap).</p>'
             : '<p data-cod-box></p>'}</div></li>`).join('')}
       </ul></fieldset>
@@ -3784,21 +3784,21 @@ function syncConditional() {
   $('[data-ship-diff]').hidden = !(courier && draft.ship_to_different_address);
   $('[data-billing-title]').textContent = courier ? 'Szállítási és számlázási cím' : 'Számlázási adatok';
   $$('[data-ship-extra]').forEach((el) => { el.hidden = el.dataset.shipExtra !== ship || ship === 'gls'; });
-  const fox = $('[data-ship-extra="foxpost"]');
+  const fox = $('[data-ship-extra="glspoint"]');
   const locker = CONFIG.lockers.find((l) => l.id === draft.locker);
-  fox.innerHTML = `<div class="pickup-point ${fox.dataset.invalid ? 'is-invalid' : ''}" id="foxpost_point" tabindex="-1">${icon('locker', 'ico ico-l')}
-    <span>${locker ? `<strong>${esc(locker.name)}</strong>${esc(locker.address)} · Nyitva: ${esc(locker.hours)}` : `<strong>Még nem választottál automatát</strong>${fox.dataset.invalid ? '<span style="color:var(--c-error)">Válaszd ki, melyik automatába kéred a csomagot.</span>' : 'Keresés település vagy irányítószám szerint.'}`}</span>
-    <button type="button" class="iu-button ${locker ? 'iu-button-outline' : ''}" data-pick-locker>${locker ? 'Módosítás' : 'Automata választása'}</button></div>`;
+  fox.innerHTML = `<div class="pickup-point ${fox.dataset.invalid ? 'is-invalid' : ''}" id="gls_point" tabindex="-1">${icon('locker', 'ico ico-l')}
+    <span>${locker ? `<strong>${esc(locker.name)}</strong>${esc(locker.address)} · Nyitva: ${esc(locker.hours)}` : `<strong>Még nem választottál GLS pontot</strong>${fox.dataset.invalid ? '<span style="color:var(--c-error)">Válaszd ki, melyik GLS pontra kéred a csomagot.</span>' : 'Keresés település vagy irányítószám szerint.'}`}</span>
+    <button type="button" class="iu-button ${locker ? 'iu-button-outline' : ''}" data-pick-locker>${locker ? 'Módosítás' : 'GLS pont választása'}</button></div>`;
   $('[data-ship-extra="pickup"]').innerHTML = `<div class="pickup-point">${icon('store', 'ico ico-l')}<span><strong>Mandala bemutatóterem, Budapest</strong>${esc(CONFIG.contact.address)} · ${esc(CONFIG.contact.hours)}<br>E-mailben értesítünk, amikor átvehető (általában 1 munkanap).</span><span></span></div>`;
   // Utánvét felirata: személyes átvételnél „Fizetés átvételkor”, díj nélkül
   const cod = CONFIG.payment.find((p) => p.id === 'cod');
   const pickup = ship === 'pickup';
   $('[data-pay-label="cod"]').textContent = pickup ? cod.pickupLabel : cod.label;
   $('[data-pay-note="cod"]').textContent = pickup ? cod.pickupNote : cod.note;
-  $('[data-cod-box]').textContent = pickup ? 'A bemutatóteremben készpénzzel vagy bankkártyával fizethetsz.' : `Utánvét díja: ${fmt(cod.fee)}. ${ship === 'foxpost' ? 'Az automatánál bankkártyával fizethetsz.' : 'A futárnál készpénzzel vagy bankkártyával fizethetsz.'}`;
+  $('[data-cod-box]').textContent = pickup ? 'A bemutatóteremben készpénzzel vagy bankkártyával fizethetsz.' : `Utánvét díja: ${fmt(cod.fee)}. ${ship === 'glspoint' ? 'A GLS ponton kártyával vagy készpénzzel fizethetsz.' : 'A futárnál készpénzzel vagy bankkártyával fizethetsz.'}`;
   $('[data-pay-fee="cod"]').innerHTML = pickup ? '' : `+${fmt(cod.fee)}`;
   $$('[data-pay-box]').forEach((b) => { b.hidden = b.dataset.payBox !== draft.payment; });
-  $('[data-place-note]').textContent = draft.payment === 'barion' ? 'A gomb megnyomása után a Barion fizetési oldalára irányítunk.' : draft.payment === 'bacs' ? 'A banki adatokat a következő oldalon és e-mailben is megkapod.' : 'A megrendelés után e-mailben visszaigazoljuk a rendelést.';
+  $('[data-place-note]').textContent = draft.payment === 'teya' ? 'A gomb megnyomása után a Teya fizetési oldalára irányítunk.' : draft.payment === 'bacs' ? 'A banki adatokat a következő oldalon és e-mailben is megkapod.' : 'A megrendelés után e-mailben visszaigazoljuk a rendelést.';
 }
 
 async function refreshDynamic() {
@@ -3835,11 +3835,11 @@ async function refreshDynamic() {
   const done = (sel) => $$(`${sel} [data-validate]`).filter((el) => !el.closest('[hidden]')).every((el) => !fieldError(el));
   $('#section-contact').classList.toggle('is-complete', done('#section-contact'));
   $('#section-billing').classList.toggle('is-complete', done('#section-billing'));
-  $('#section-shipping').classList.toggle('is-complete', draft.shipping !== 'foxpost' || !!draft.locker);
+  $('#section-shipping').classList.toggle('is-complete', draft.shipping !== 'glspoint' || !!draft.locker);
   return t;
 }
 
-// ---------- Foxpost automata választó (élesben a szállítási bővítmény térképes választója) ----------
+// ---------- GLS pont választó (élesben a GLS bővítmény térképes választója) ----------
 function pickLocker() {
   const listHtml = (q) => {
     const t = q.trim().toLowerCase();
@@ -3847,17 +3847,17 @@ function pickLocker() {
     return hits.length ? hits.map((l) => `<li><button type="button" data-locker="${l.id}" aria-pressed="${draft.locker === l.id}">${icon('locker')}<span><strong>${esc(l.name)}</strong><small>${esc(l.address)}</small></span><small>${esc(l.hours)}</small></button></li>`).join('')
       : '<li class="text-muted">Nincs találat. Próbáld a település nevével vagy irányítószámmal.</li>';
   };
-  const m = modal({ id: 'locker-modal', title: 'Foxpost automata választása', body: `<label class="field-label" for="locker-q">Település, irányítószám vagy cím</label>
+  const m = modal({ id: 'locker-modal', title: 'GLS pont választása', body: `<label class="field-label" for="locker-q">Település, irányítószám vagy cím</label>
     <input class="input-text" id="locker-q" type="search" placeholder="pl. Budapest, 6724, Árkád" style="margin-top:var(--space-2)" value="${esc(draft.billing_city || '')}">
     <ul class="locker-list" data-locker-list aria-live="polite">${listHtml(draft.billing_city || '')}</ul>
-    <p class="field-hint" style="margin-top:var(--space-4)">Minta lista – élesben a Foxpost bővítmény teljes, térképes automatalistája jelenik meg.</p>` });
+    <p class="field-hint" style="margin-top:var(--space-4)">Minta lista – élesben a GLS bővítmény teljes, térképes pontlistája jelenik meg.</p>` });
   $('#locker-q', m).addEventListener('input', (e) => { $('[data-locker-list]', m).innerHTML = listHtml(e.target.value); });
   m.addEventListener('click', (e) => {
     const b = e.target.closest('[data-locker]');
     if (!b) return;
     draft.locker = b.dataset.locker;
     saveDraft();
-    delete $('[data-ship-extra="foxpost"]').dataset.invalid;
+    delete $('[data-ship-extra="glspoint"]').dataset.invalid;
     closeLayer(m);
     syncConditional();
     refreshDynamic();
@@ -3931,11 +3931,11 @@ async function applyCoupon() {
 async function placeOrder(form) {
   const notices = $('[data-notices]');
   const errors = validateForm(form);
-  const fox = $('[data-ship-extra="foxpost"]');
-  if (draft.shipping === 'foxpost' && !draft.locker) {
+  const fox = $('[data-ship-extra="glspoint"]');
+  if (draft.shipping === 'glspoint' && !draft.locker) {
     fox.dataset.invalid = '1';
     syncConditional();
-    errors.splice(1, 0, { el: $('#foxpost_point'), label: 'Foxpost automata', msg: 'Válaszd ki, melyik automatába kéred a csomagot.' });
+    errors.splice(1, 0, { el: $('#gls_point'), label: 'GLS pont', msg: 'Válaszd ki, melyik GLS pontra kéred a csomagot.' });
   }
   if (errors.length) {
     notices.innerHTML = `<div class="woocommerce-error" role="alert"><strong>${icon('alert')} ${errors.length === 1 ? 'Egy adatot még javítani kell:' : `${errors.length} adatot még javítani kell:`}</strong>
@@ -3957,10 +3957,10 @@ async function placeOrder(form) {
   const f = (k) => (draft[k] || '').trim();
   const order = {
     number, key: `wc_order_${Math.random().toString(36).slice(2, 12)}`, date: new Date().toISOString(),
-    status: draft.payment === 'barion' ? 'processing' : 'on-hold',
+    status: draft.payment === 'teya' ? 'processing' : 'on-hold',
     email: f('billing_email'), phone: normPhone(f('billing_phone')) || f('billing_phone'),
     billing: { name: `${f('billing_last_name')} ${f('billing_first_name')}`, first: f('billing_first_name'), company: draft.is_company ? f('billing_company') : '', tax: draft.is_company ? f('billing_tax_number') : '', address: `${f('billing_postcode')} ${f('billing_city')}, ${f('billing_address_1')}${f('billing_address_2') ? `, ${f('billing_address_2')}` : ''}` },
-    shipping: { method: ship.id, label: ship.label, locker: draft.shipping === 'foxpost' ? CONFIG.lockers.find((l) => l.id === draft.locker) : null,
+    shipping: { method: ship.id, label: ship.label, locker: draft.shipping === 'glspoint' ? CONFIG.lockers.find((l) => l.id === draft.locker) : null,
       address: draft.shipping !== 'gls' ? '' : draft.ship_to_different_address
         ? `${f('shipping_last_name')} ${f('shipping_first_name')}, ${f('shipping_postcode')} ${f('shipping_city')}, ${f('shipping_address_1')}${f('shipping_address_2') ? `, ${f('shipping_address_2')}` : ''}` : '' },
     payment: { id: pay.id, label: draft.shipping === 'pickup' && pay.id === 'cod' ? pay.pickupLabel : pay.label },
@@ -3968,13 +3968,13 @@ async function placeOrder(form) {
     totals: { subtotal: t.subtotal, discount: t.discount, code: t.code, shipping: t.shippingCost, fee: t.fee, total: t.total, vat: t.vat },
     notes: f('order_comments'), account: !!draft.createaccount, newsletter: !!draft.newsletter,
   };
-  // Élesben: a WooCommerce checkout végpont (wc-ajax=checkout) ‒ Barionnál átirányítás a fizetési oldalra.
+  // Élesben: a WooCommerce checkout végpont (wc-ajax=checkout) ‒ Teyánál átirányítás a fizetési oldalra.
   setTimeout(() => {
     orders.save(order);
     cart.clear();
     storage.set(KEYS.draft, { shipping: draft.shipping, payment: draft.payment });
     location.href = `#koszonjuk.html?order=${number}&key=${order.key}`;
-  }, draft.payment === 'barion' ? 1400 : 900);
+  }, draft.payment === 'teya' ? 1400 : 900);
 }
 
 start();
@@ -4062,7 +4062,7 @@ const { fmt } = __req("store");
 
 initPage();
 const FAQ = [
-  ['Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS és a Foxpost általában a feladást követő munkanapon kézbesít.'],
+  ['Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS általában a feladást követő munkanapon kézbesít.'],
   ['Meghallgathatom a hangtálat vásárlás előtt?', 'Igen: a bemutatóteremben előzetes egyeztetéssel, vagy a termékoldalon kérhetsz hangfelvételt.'],
   ['Kérhetek számlát cégnévre?', 'Igen, a pénztárban jelöld be a „Cégként vásárolok” lehetőséget, és add meg a cégnevet és az adószámot.'],
   ['Csomagoltok ajándékba?', 'Kérésre díszdobozba tesszük a terméket, és kézzel írt kártyát teszünk mellé – a pénztárban a megjegyzésnél írd meg a szöveget.'],
@@ -4102,7 +4102,7 @@ const DOCS = {
     ['A szerződés tárgya', 'A mandala.hu webáruházban kínált termékek adásvétele. A termékek főbb tulajdonságait a termékoldal tartalmazza.'],
     ['Árak', `A feltüntetett árak forintban értendők, és tartalmazzák a ${CONFIG.vatRate}% ÁFÁ-t. A szállítási díjat a pénztár külön sorban mutatja.`],
     ['A rendelés menete', 'Kosár → pénztár → a „Fizetési kötelezettséggel járó megrendelés” gomb megnyomása. A rendelésről automatikus visszaigazoló e-mailt küldünk.'],
-    ['Fizetés és szállítás', 'Bankkártya (Barion), előre utalás, utánvét; GLS futár, Foxpost csomagautomata vagy személyes átvétel.'],
+    ['Fizetés és szállítás', 'Bankkártya (Teya), előre utalás, utánvét; GLS futár, GLS CsomagPont / csomagautomata vagy személyes átvétel.'],
     ['Elállási jog', 'A fogyasztó a termék átvételétől számított 14 napon belül indoklás nélkül elállhat a szerződéstől (45/2014. Korm. rendelet).'],
     ['Szavatosság, jótállás', '[kitöltendő – jogászi átnézéssel]'],
     ['Panaszkezelés', 'Panaszodat e-mailben vagy postán jelezheted; 30 napon belül írásban válaszolunk. [Békéltető testület adatai – kitöltendő]'],
@@ -4110,7 +4110,7 @@ const DOCS = {
   adatkezeles: { title: 'Adatkezelési tájékoztató', sections: [
     ['Adatkezelő', '[Cégadatok – kitöltendő]'],
     ['Kezelt adatok', 'Rendelés teljesítéséhez: név, cím, e-mail, telefonszám, számlázási adatok. Hírlevélhez: e-mail-cím.'],
-    ['Adatfeldolgozók', 'Tárhelyszolgáltató, futárszolgálat (GLS, Foxpost), fizetési szolgáltató (Barion), számlázó (Számlázz.hu / Billingo) – [pontosítandó].'],
+    ['Adatfeldolgozók', 'Tárhelyszolgáltató, futárszolgálat (GLS), fizetési szolgáltató (Teya), számlázó (Számlázz.hu) – [pontosítandó].'],
     ['Sütik', 'A szükséges sütik a működéshez kellenek; statisztikai és marketing sütiket csak hozzájárulással használunk. A beállítás a lábléc „Sütibeállítások” linkjén módosítható.'],
     ['Jogaid', 'Hozzáférés, helyesbítés, törlés, korlátozás, adathordozhatóság, tiltakozás; panasz a NAIH-nál.'],
   ] },
@@ -4839,7 +4839,7 @@ if (!o) {
   const pickup = o.shipping.method === 'pickup';
 
   const paymentBlock = {
-    barion: `<div class="woocommerce-message" role="status">${icon('check-circle')}<span><strong>Sikeres fizetés.</strong> A Barion tranzakciót rögzítettük, a rendelésed feldolgozás alatt van. (Prototípus: a fizetés szimulált.)</span></div>`,
+    teya: `<div class="woocommerce-message" role="status">${icon('check-circle')}<span><strong>Sikeres fizetés.</strong> A Teya tranzakciót rögzítettük, a rendelésed feldolgozás alatt van. (Prototípus: a fizetés szimulált.)</span></div>`,
     bacs: `<section class="woocommerce-bacs-bank-details panel" aria-labelledby="bacs-title">
       <h2 class="wc-bacs-bank-details-heading" id="bacs-title" style="font-size:var(--fs-h3)">Utalási adatok</h2>
       <p class="text-muted">A csomagot a jóváírás után adjuk fel. Közleménynek pontosan a rendelésszámot írd.</p>
@@ -4851,13 +4851,13 @@ if (!o) {
         <li>Közlemény<strong class="num">${o.number} ${copy(o.number, 'Közlemény')}</strong></li>
         <li>Összeg<strong class="num">${fmt(T.total)} ${copy(String(T.total), 'Összeg')}</strong></li>
       </ul><p class="field-hint" style="margin-top:var(--space-4)">A banki adatok helykitöltők – élesítéskor a WooCommerce „Előre utalás” beállításából jönnek.</p></section>`,
-    cod: `<div class="woocommerce-info" role="status">${icon('cash')}<span><strong>${pickup ? 'Fizetés átvételkor' : 'Utánvét'}:</strong> ${fmt(T.total)} – ${pickup ? 'a bemutatóteremben készpénzzel vagy bankkártyával.' : o.shipping.method === 'foxpost' ? 'az automatánál bankkártyával.' : 'a futárnál készpénzzel vagy bankkártyával.'}</span></div>`,
+    cod: `<div class="woocommerce-info" role="status">${icon('cash')}<span><strong>${pickup ? 'Fizetés átvételkor' : 'Utánvét'}:</strong> ${fmt(T.total)} – ${pickup ? 'a bemutatóteremben készpénzzel vagy bankkártyával.' : o.shipping.method === 'glspoint' ? 'a GLS ponton kártyával vagy készpénzzel.' : 'a futárnál készpénzzel vagy bankkártyával.'}</span></div>`,
   }[o.payment.id];
 
-  const deliveryStep = pickup ? ['Átvehető a bemutatóteremben', 'E-mailben értesítünk, amikor készen áll'] : o.shipping.method === 'foxpost'
-    ? ['Az automatába kerül', `${esc(o.shipping.locker?.name || 'Foxpost automata')} – a nyitókódot SMS-ben kapod`] : ['Futárnak átadjuk', 'A GLS csomagkövető linkjét e-mailben küldjük'];
+  const deliveryStep = pickup ? ['Átvehető a bemutatóteremben', 'E-mailben értesítünk, amikor készen áll'] : o.shipping.method === 'glspoint'
+    ? ['A GLS pontra kerül', `${esc(o.shipping.locker?.name || 'GLS pont')} – az átvételi értesítőt SMS-ben és e-mailben kapod`] : ['Futárnak átadjuk', 'A GLS csomagkövető linkjét e-mailben küldjük'];
   const shipTo = pickup ? `Személyes átvétel<br>Mandala bemutatóterem, Budapest<br>${esc(CONFIG.contact.hours)}`
-    : o.shipping.method === 'foxpost' ? `Foxpost csomagautomata<br><strong>${esc(o.shipping.locker?.name || '')}</strong><br>${esc(o.shipping.locker?.address || '')}`
+    : o.shipping.method === 'glspoint' ? `GLS CsomagPont / csomagautomata<br><strong>${esc(o.shipping.locker?.name || '')}</strong><br>${esc(o.shipping.locker?.address || '')}`
       : `GLS futárszolgálat<br>${esc(o.shipping.address || `${o.billing.name}, ${o.billing.address}`)}`;
 
   root.innerHTML = `<div class="woocommerce-order">

@@ -28,8 +28,9 @@ $icon = 'mandala_icon';
         $shipping = $order->get_shipping_methods();
         $ship = $shipping ? reset($shipping) : null;
         $ship_id = $ship ? $ship->get_method_id() : '';
-        $pickup = $ship_id === 'local_pickup';
-        $foxpost = str_contains($ship_id, 'foxpost');
+        $kind = $ship ? mandala_shipping_kind($ship_id . ':' . $ship->get_instance_id(), $ship->get_name()) : 'courier';
+        $pickup = $kind === 'pickup';
+        $point = $kind === 'point';
         $total = wp_strip_all_tags($order->get_formatted_order_total());
         $copy = fn($value, $label) => '<button type="button" class="copy-btn" data-copy="' . esc_attr($value) . '" aria-label="' . esc_attr(sprintf(__('%s másolása', 'mandala'), $label)) . '">' . $icon('copy', 'ico ico-s') . ' ' . esc_html__('Másolás', 'mandala') . '</button>';
         ?>
@@ -66,7 +67,7 @@ $icon = 'mandala_icon';
     </ul>
   </section>
   <?php elseif ($method === 'cod') : ?>
-  <div class="woocommerce-info" role="status"><?php echo $icon('cash'); // phpcs:ignore ?><span><strong><?php echo esc_html($pickup ? __('Fizetés átvételkor', 'mandala') : __('Utánvét', 'mandala')); ?>:</strong> <?php echo esc_html($total); ?> – <?php echo esc_html($pickup ? __('a bemutatóteremben készpénzzel vagy bankkártyával.', 'mandala') : ($foxpost ? __('az automatánál bankkártyával.', 'mandala') : __('a futárnál készpénzzel vagy bankkártyával.', 'mandala'))); ?></span></div>
+  <div class="woocommerce-info" role="status"><?php echo $icon('cash'); // phpcs:ignore ?><span><strong><?php echo esc_html($pickup ? __('Fizetés átvételkor', 'mandala') : __('Utánvét', 'mandala')); ?>:</strong> <?php echo esc_html($total); ?> – <?php echo esc_html($pickup ? __('a bemutatóteremben készpénzzel vagy bankkártyával.', 'mandala') : ($point ? __('a GLS ponton kártyával vagy készpénzzel.', 'mandala') : __('a futárnál készpénzzel vagy bankkártyával.', 'mandala'))); ?></span></div>
   <?php elseif ($order->is_paid()) : ?>
   <div class="woocommerce-message" role="status"><?php echo $icon('check-circle'); // phpcs:ignore ?><span><strong><?php esc_html_e('Sikeres fizetés.', 'mandala'); ?></strong> <?php esc_html_e('A rendelésed feldolgozás alatt van.', 'mandala'); ?></span></div>
   <?php endif; ?>
@@ -125,7 +126,7 @@ $icon = 'mandala_icon';
         <ol class="timeline">
           <li class="is-done"><span class="dot"><?php echo $icon('check', 'ico ico-s'); // phpcs:ignore ?></span><span><strong><?php esc_html_e('Visszaigazolás elküldve', 'mandala'); ?></strong><span><?php echo esc_html($order->get_billing_email()); ?></span></span></li>
           <li><span class="dot">2</span><span><strong><?php echo esc_html($method === 'bacs' ? __('Várjuk az utalást', 'mandala') : __('Csomagoljuk', 'mandala')); ?></strong><span><?php echo esc_html($method === 'bacs' ? __('A jóváírás után azonnal csomagolunk', 'mandala') : __('Általában 1 munkanapon belül', 'mandala')); ?></span></span></li>
-          <li><span class="dot">3</span><span><strong><?php echo esc_html($pickup ? __('Átvehető a bemutatóteremben', 'mandala') : ($foxpost ? __('Az automatába kerül', 'mandala') : __('Futárnak átadjuk', 'mandala'))); ?></strong><span><?php echo esc_html($pickup ? __('E-mailben értesítünk, amikor készen áll', 'mandala') : ($foxpost ? __('A nyitókódot SMS-ben kapod', 'mandala') : __('A csomagkövető linket e-mailben küldjük', 'mandala'))); ?></span></span></li>
+          <li><span class="dot">3</span><span><strong><?php echo esc_html($pickup ? __('Átvehető a bemutatóteremben', 'mandala') : ($point ? __('A GLS pontra kerül', 'mandala') : __('Futárnak átadjuk', 'mandala'))); ?></strong><span><?php echo esc_html($pickup ? __('E-mailben értesítünk, amikor készen áll', 'mandala') : ($point ? __('Az átvételi értesítőt SMS-ben és e-mailben kapod', 'mandala') : __('A csomagkövető linket e-mailben küldjük', 'mandala'))); ?></span></span></li>
           <li><span class="dot">4</span><span><strong><?php echo esc_html($pickup ? __('Átveszed', 'mandala') : __('Megérkezik', 'mandala')); ?></strong><span><?php esc_html_e('Jó elcsendesedést!', 'mandala'); ?></span></span></li>
         </ol>
       </section>

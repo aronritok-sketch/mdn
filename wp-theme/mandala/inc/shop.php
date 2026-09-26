@@ -59,7 +59,12 @@ function mandala_cart_goods_total(): float
 }
 
 add_filter('woocommerce_package_rates', function ($rates) {
-    $free = mandala_cart_goods_total() >= (float) mandala_config('freeShippingFrom', 25000);
+    // 0 = kikapcsolva (pl. ha az ingyenes szállítást a GLS bővítményben állítod be).
+    $threshold = (float) mandala_config('freeShippingFrom', 25000);
+    if ($threshold <= 0) {
+        return $rates;
+    }
+    $free = mandala_cart_goods_total() >= $threshold;
     foreach ($rates as $rate) {
         if ($free && $rate->get_method_id() !== 'local_pickup' && (float) $rate->get_cost() > 0) {
             // Az eredeti díj megmarad a meta adatban: a pénztár áthúzva mutatja.
@@ -83,7 +88,7 @@ function mandala_chosen_shipping_id(): string
 }
 function mandala_is_pickup(): bool
 {
-    return str_starts_with(mandala_chosen_shipping_id(), 'local_pickup');
+    return mandala_shipping_kind(mandala_chosen_shipping_id()) === 'pickup';
 }
 
 add_action('woocommerce_cart_calculate_fees', function (WC_Cart $cart) {
@@ -117,8 +122,8 @@ add_filter('woocommerce_gateway_description', function ($description, $id) {
         return __('A bemutatóteremben készpénzzel vagy bankkártyával fizethetsz.', 'mandala');
     }
     $fee = mandala_fmt(mandala_config('payment')[2]['fee'] ?? 490);
-    $foxpost = str_contains(mandala_chosen_shipping_id(), 'foxpost');
-    return sprintf(__('Utánvét díja: %s.', 'mandala'), $fee) . ' ' . ($foxpost ? __('Az automatánál bankkártyával fizethetsz.', 'mandala') : __('A futárnál készpénzzel vagy bankkártyával fizethetsz.', 'mandala'));
+    $point = mandala_shipping_kind(mandala_chosen_shipping_id()) === 'point';
+    return sprintf(__('Utánvét díja: %s.', 'mandala'), $fee) . ' ' . ($point ? __('A GLS ponton kártyával vagy készpénzzel fizethetsz.', 'mandala') : __('A futárnál készpénzzel vagy bankkártyával fizethetsz.', 'mandala'));
 }, 10, 2);
 
 /* ---------- Pénztár mezők: magyar sorrend, elérhetőség elöl, cég + adószám ---------- */
@@ -311,6 +316,13 @@ add_action('woocommerce_after_checkout_validation', function ($data, WP_Error $e
 }, 10, 2);
 
 add_action('woocommerce_checkout_create_order', function (WC_Order $order) {
+    // Adószám a számlázónak: a Számlázz.hu bővítmény által olvasott meta kulcs(ok) itt adhatók meg.
+    $tax = $order->get_meta('_billing_tax_number');
+    foreach ((array) apply_filters('mandala_tax_number_meta_keys', []) as $key) {
+        if ($tax && is_string($key) && $key !== '_billing_tax_number') {
+            $order->update_meta_data($key, $tax);
+        }
+    }
     $order->update_meta_data('_mandala_newsletter', empty($_POST['mandala_newsletter']) ? 'no' : 'yes'); // phpcs:ignore
     $order->update_meta_data('_mandala_is_company', empty($_POST['is_company']) ? 'no' : 'yes'); // phpcs:ignore
 });
@@ -367,10 +379,11 @@ function mandala_minicart_content(): void
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
     $goods = mandala_cart_goods_total();
     $pct = min(100, $threshold ? $goods / $threshold * 100 : 100);
+    $meter = $threshold > 0;
     $done = $goods >= $threshold;
-    echo '<div class="drawer-body"><div class="ship-meter' . ($done ? ' is-done' : '') . '"><p>'
+    echo '<div class="drawer-body">' . ($meter ? '' : '<!--') . '<div class="ship-meter' . ($done ? ' is-done' : '') . '"><p>'
         . ($done ? $icon('check', 'ico ico-s') . ' ' . esc_html__('A szállítás ingyenes.', 'mandala') : sprintf(esc_html__('Még %s, és ingyen szállítunk.', 'mandala'), '<strong>' . esc_html(mandala_fmt($threshold - $goods)) . '</strong>')) // phpcs:ignore
-        . '</p><div class="meter" role="progressbar" aria-label="' . esc_attr__('Ingyenes szállításig', 'mandala') . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . (int) $pct . '"><span style="width:' . esc_attr((string) $pct) . '%"></span></div></div>';
+        . '</p><div class="meter" role="progressbar" aria-label="' . esc_attr__('Ingyenes szállításig', 'mandala') . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . (int) $pct . '"><span style="width:' . esc_attr((string) $pct) . '%"></span></div></div>' . ($meter ? '' : '-->');
     echo '<ul class="review-items woocommerce-mini-cart" style="border:0">';
     foreach ($cart->get_cart() as $key => $item) {
         $p = $item['data'];
@@ -436,11 +449,12 @@ function mandala_checkout_shipping_html(): string
     $packages = WC()->shipping() ? WC()->shipping()->get_packages() : [];
     $chosen = (array) (WC()->session ? WC()->session->get('chosen_shipping_methods') : []);
     $contact = mandala_config('contact', []);
-    $icons = ['flat_rate' => 'truck', 'foxpost' => 'locker', 'local_pickup' => 'store', 'free_shipping' => 'truck'];
-    $notes = [];
-    foreach (mandala_config('shipping', []) as $s) {
-        $notes[strtok($s['wc'], ':')] = $s['note'];
-    }
+    $icons = ['courier' => 'truck', 'point' => 'locker', 'pickup' => 'store'];
+    $notes = [
+        'courier' => __('Házhoz szállítás 1–2 munkanap alatt', 'mandala'),
+        'point' => __('Átvétel a választott GLS CsomagPontban vagy csomagautomatában', 'mandala'),
+        'pickup' => __('Budapesti bemutatótermünkben, értesítés után', 'mandala'),
+    ];
     ob_start();
     echo '<div id="mandala-shipping">';
     if (!WC()->cart->needs_shipping()) {
@@ -458,27 +472,23 @@ function mandala_checkout_shipping_html(): string
         foreach ($rates as $rate) {
             $id = sanitize_title($rate->get_id());
             $method = $rate->get_method_id();
-            // A Foxpost bővítmény nélkül fix díjas módként fut: a címke alapján ismerjük fel.
-            foreach (mandala_config('shipping', []) as $cfg) {
-                if ($cfg['label'] === $rate->get_label()) {
-                    $method = $method === 'flat_rate' && str_starts_with($cfg['wc'], 'foxpost') ? 'foxpost' : $method;
-                    $notes[$method] = $cfg['note'];
-                }
-            }
+            $kind = mandala_shipping_kind($method . ':' . $rate->get_id(), $rate->get_label());
+            // A szállítási bővítmény (GLS) saját leírása, ha van; különben a típus szerinti szöveg.
+            $note = (string) apply_filters('mandala_shipping_note', $rate->get_meta_data()['description'] ?? $notes[$kind], $rate, $kind);
             $cost = (float) $rate->get_cost() + array_sum($rate->get_taxes());
-            $base = $method === 'local_pickup' ? 0 : (float) ($rate->get_meta_data()['mandala_regular'] ?? 0);
+            $base = $kind === 'pickup' ? 0 : (float) ($rate->get_meta_data()['mandala_regular'] ?? 0);
             $price = $cost > 0 ? esc_html(mandala_fmt($cost)) : ($base > 0 ? '<s>' . esc_html(mandala_fmt($base)) . '</s>' : '') . '<span class="is-free">' . esc_html__('Ingyenes', 'mandala') . '</span>';
-            echo '<li class="method" data-method="' . esc_attr($method) . '"><label for="shipping_method_' . (int) $i . '_' . esc_attr($id) . '">'
+            echo '<li class="method" data-method="' . esc_attr($method) . '" data-kind="' . esc_attr($kind) . '"><label for="shipping_method_' . (int) $i . '_' . esc_attr($id) . '">'
                 . '<input type="radio" name="shipping_method[' . (int) $i . ']" data-index="' . (int) $i . '" id="shipping_method_' . (int) $i . '_' . esc_attr($id) . '" value="' . esc_attr($rate->get_id()) . '" class="shipping_method" ' . checked($rate->get_id(), $current, false) . '>'
-                . '<span class="method-icon" aria-hidden="true">' . mandala_icon($icons[$method] ?? 'truck') . '</span>'
-                . '<span class="method-text"><strong>' . esc_html($rate->get_label()) . '</strong><small>' . esc_html($notes[$method] ?? '') . '</small></span>'
+                . '<span class="method-icon" aria-hidden="true">' . mandala_icon($icons[$kind]) . '</span>'
+                . '<span class="method-text"><strong>' . esc_html($rate->get_label()) . '</strong><small>' . esc_html($note) . '</small></span>'
                 . '<span class="method-price' . ($cost > 0 ? '' : ' is-free') . '">' . $price . '</span></label>';
             if ($rate->get_id() === $current) {
-                if ($method === 'local_pickup') {
+                if ($kind === 'pickup') {
                     echo '<div class="method-extra" style="padding:0 var(--space-5) var(--space-5)"><div class="pickup-point">' . mandala_icon('store', 'ico ico-l') . '<span><strong>' . esc_html__('Mandala bemutatóterem, Budapest', 'mandala') . '</strong>'
                         . esc_html(($contact['address'] ?? '') . ' · ' . ($contact['hours'] ?? '')) . '<br>' . esc_html__('E-mailben értesítünk, amikor átvehető (általában 1 munkanap).', 'mandala') . '</span><span></span></div></div>';
                 }
-                // A csomagpont-választót (Foxpost) a szállítási bővítmény teszi ide.
+                // A csomagpont-választót (GLS térkép) a szállítási bővítmény teszi ide.
                 ob_start();
                 do_action('woocommerce_after_shipping_rate', $rate, $i);
                 $extra = trim((string) ob_get_clean());
@@ -505,6 +515,9 @@ add_filter('woocommerce_update_order_review_fragments', function ($fragments) {
 
 add_action('woocommerce_before_cart_table', function () {
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
+    if ($threshold <= 0) {
+        return;
+    }
     $goods = mandala_cart_goods_total();
     $pct = min(100, $goods / max(1, $threshold) * 100);
     echo '<div class="ship-meter' . ($goods >= $threshold ? ' is-done' : '') . '"><p>'

@@ -19,7 +19,7 @@
  "shipping": [
   {
    "id": "gls",
-   "wc": "flat_rate:1",
+   "wc": "gls",
    "label": "GLS futárszolgálat",
    "note": "Házhoz szállítás 1–2 munkanap alatt",
    "price": 1990,
@@ -27,17 +27,17 @@
    "icon": "truck"
   },
   {
-   "id": "foxpost",
-   "wc": "foxpost:2",
-   "label": "Foxpost csomagautomata",
-   "note": "Átvétel 0–24, országszerte 1000+ ponton",
+   "id": "glspoint",
+   "wc": "gls_parcel",
+   "label": "GLS CsomagPont vagy csomagautomata",
+   "note": "Átvétel a választott GLS ponton, értesítés után",
    "price": 1290,
    "free": true,
    "icon": "locker"
   },
   {
    "id": "pickup",
-   "wc": "local_pickup:3",
+   "wc": "local_pickup",
    "label": "Személyes átvétel",
    "note": "Budapesti bemutatótermünkben, értesítés után",
    "price": 0,
@@ -47,9 +47,9 @@
  ],
  "payment": [
   {
-   "id": "barion",
+   "id": "teya",
    "label": "Bankkártya, Apple Pay, Google Pay",
-   "note": "Biztonságos fizetés a Barion rendszerén keresztül",
+   "note": "Biztonságos kártyás fizetés a Teya rendszerén keresztül",
    "marks": [
     "VISA",
     "Mastercard",
@@ -65,7 +65,7 @@
   {
    "id": "cod",
    "label": "Utánvét",
-   "note": "Fizetés készpénzzel vagy kártyával a futárnak / az automatánál.",
+   "note": "Fizetés készpénzzel vagy kártyával a futárnak / a GLS ponton.",
    "fee": 490,
    "pickupLabel": "Fizetés átvételkor",
    "pickupNote": "Készpénzzel vagy bankkártyával a bemutatóteremben."

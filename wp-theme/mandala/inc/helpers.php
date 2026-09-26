@@ -130,8 +130,11 @@ function mandala_product_index_row(WC_Product $product): array
     $id = $product->get_id();
     [$cat, $sub] = mandala_product_cats($id);
     [$stock, $qty] = mandala_stock($product);
-    $regular = (float) $product->get_regular_price();
-    $price = (float) $product->get_price();
+    // „edit” kontextus: a nyers árak, a felhasználófüggő szűrők (pl. nagyker ár) nélkül –
+    // az index közös gyorsítótárba kerül, nem tartalmazhat viszonteladói árat.
+    $regular = (float) $product->get_regular_price('edit');
+    $on_sale = $product->is_on_sale('edit') && $product->get_sale_price('edit') !== '';
+    $price = $on_sale ? (float) $product->get_sale_price('edit') : $regular;
     $attrs = array_filter([
         'hang' => mandala_attr($product, 'pa_hang')[0] ?? null,
         'hz' => ($hz = get_post_meta($id, '_mandala_hz', true)) !== '' ? (float) $hz : null,
@@ -158,7 +161,7 @@ function mandala_product_index_row(WC_Product $product): array
         'cat' => $cat,
         'sub' => $sub,
         'price' => $price,
-        'compare' => $product->is_on_sale() && $regular > $price ? $regular : null,
+        'compare' => $on_sale && $regular > $price ? $regular : null,
         'stock' => $stock,
         'stockQty' => $qty,
         'isNew' => mandala_is_new($product),
@@ -190,6 +193,8 @@ function mandala_card(WC_Product $product): string
     $badges = '';
     if ($out) {
         $badges .= '<span class="badge badge-dark">' . esc_html__('Elfogyott', 'mandala') . '</span>';
+    } elseif (mandala_is_wholesale_user() && mandala_wholesale_price($product) !== null) {
+        $badges .= '<span class="badge badge-sale">' . esc_html__('Nagyker ár', 'mandala') . '</span>';
     } elseif ($product->is_on_sale() && (float) $product->get_regular_price() > 0) {
         $pct = round((1 - (float) $product->get_price() / (float) $product->get_regular_price()) * 100);
         $badges .= '<span class="badge badge-sale">−' . (int) $pct . '%</span>';
@@ -319,3 +324,46 @@ function mandala_url(array $atts): string
     return $id ? (string) get_permalink($id) : home_url('/');
 }
 add_shortcode('mandala_url', fn($atts) => esc_url(mandala_url((array) $atts)));
+
+/**
+ * Szállítási mód típusa: 'pickup' (személyes átvétel), 'point' (GLS CsomagPont / automata vagy
+ * más csomagpont), 'courier' (házhozszállítás). A GLS módokat a GLS bővítmény adja: az azonosító
+ * és a címke alapján ismerjük fel, így a bővítmény belső neveitől független.
+ */
+function mandala_shipping_kind(string $method_id, string $label = ''): string
+{
+    if (str_starts_with($method_id, 'local_pickup') || str_starts_with($method_id, 'pickup_location')) {
+        return 'pickup';
+    }
+    $hay = strtolower($method_id . ' ' . remove_accents($label));
+    if (preg_match('/parcel|locker|shop|point|pont|automat|csomagpont/', $hay)) {
+        return 'point';
+    }
+    return 'courier';
+}
+
+/* ---------- Viszonteladói (nagyker) árak ---------- */
+
+/**
+ * Viszonteladó-e a bejelentkezett vásárló. Alapértelmezés: a WooCommerce Wholesale Prices
+ * bővítmény „wholesale_customer” szerepe (a mandala.hu-n ez fut).
+ */
+function mandala_is_wholesale_user(): bool
+{
+    if (!is_user_logged_in()) {
+        return false;
+    }
+    $roles = (array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']);
+    return (bool) array_intersect($roles, (array) wp_get_current_user()->roles);
+}
+
+/**
+ * A termék viszonteladói ára (bruttó), ha van. A Wholesale Prices bővítmény mezőjéből
+ * („wholesale_customer_wholesale_price”) – ide kerül termékfelvételkor a JUTA „Akciós ár”-a.
+ */
+function mandala_wholesale_price(WC_Product $product): ?float
+{
+    $key = (string) apply_filters('mandala_wholesale_meta_key', 'wholesale_customer_wholesale_price');
+    $value = $product->get_meta($key, true, 'edit');
+    return is_numeric($value) && (float) $value > 0 ? (float) $value : null;
+}

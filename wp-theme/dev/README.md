@@ -20,8 +20,9 @@ shortcode-ok, `iu/form` feldolgozás az `iu_form_submit_{formId}` szűrővel. **
 ln -s $PWD/wp-theme/dev/iu_theme-stub  <wp>/wp-content/themes/iu_theme
 ln -s $PWD/wp-theme/mandala            <wp>/wp-content/themes/mandala
 wp plugin activate woocommerce && wp theme activate mandala && wp mandala setup --demo
-BASE=http://localhost:8080 node tests/wp-e2e.mjs      # 60 ellenőrzés: szűrő, kosár, pénztár, rendelés, űrlapok, mobil
+BASE=http://localhost:8080 node tests/wp-e2e.mjs      # 67 ellenőrzés: szűrő, kosár, pénztár, rendelés, űrlapok, mobil
 ```
 
-SQLite alatt a WooCommerce készletfoglaló lekérdezése (`LOCK IN SHARE MODE`) nem fut: a tesztben
-`add_filter('woocommerce_hold_stock_for_checkout', '__return_false')` kell (MySQL-en nem).
+`test-mu-plugin.php` (a teszt WordPress `wp-content/mu-plugins/` mappájába): levelek fájlba, GLS bővítmény
+helyettesítő szállítási módok (futár + csomagpont), `wholesale_customer` szerep, és SQLite alatt a WooCommerce
+készletfoglalásának kikapcsolása (a `LOCK IN SHARE MODE` lekérdezés MySQL-es; élesben nem kell).

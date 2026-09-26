@@ -43,7 +43,8 @@ export const subLabel = (cat, sub) => categoryBySlug(cat)?.subs.find(([s]) => s 
 let productsPromise;
 /** A teljes kínálat indexe (mandala/v1/products, gyorsítótárazott REST végpont). */
 export function loadProducts() {
-  productsPromise ??= fetch(`${M.rest}products`, { credentials: 'same-origin' })
+  // A nonce azonosítja a belépett vásárlót: viszonteladónak a nagyker árakkal jön az index.
+  productsPromise ??= fetch(`${M.rest}products`, { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} })
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then((list) => list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] })))
     .catch((err) => { console.warn('Mandala: a termékindex nem tölthető be.', err); return []; });
@@ -82,11 +83,11 @@ function media(p) {
 export function productCard(p) {
   const out = p.stock === 'out';
   const badges = [
-    out ? '<span class="badge badge-dark">Elfogyott</span>' : saleOf(p) ? `<span class="badge badge-sale">−${saleOf(p)}%</span>` : '',
+    out ? '<span class="badge badge-dark">Elfogyott</span>' : p.wholesale ? '<span class="badge badge-sale">Nagyker ár</span>' : saleOf(p) ? `<span class="badge badge-sale">−${saleOf(p)}%</span>` : '',
     !out && p.isNew ? '<span class="badge">Új</span>' : '',
   ].join('');
   const add = (cls, inner, label) => `<a href="${esc(p.addUrl)}" data-quantity="1" data-product_id="${p.id}" data-product_sku="${esc(p.sku || '')}" rel="nofollow" class="${cls} add_to_cart_button ajax_add_to_cart"${label ? ` aria-label="${esc(label)}"` : ''}>${inner}</a>`;
-  const price = p.priceHtml || (p.compare > p.price ? `<del aria-label="Eredeti ár">${priceHtml(p.compare)}</del> <ins aria-label="Akciós ár">${priceHtml(p.price)}</ins>` : priceHtml(p.price));
+  const price = p.compare > p.price ? `<del aria-label="${p.wholesale ? 'Bolti ár' : 'Eredeti ár'}">${priceHtml(p.compare)}</del> <ins aria-label="${p.wholesale ? 'Nagyker ár' : 'Akciós ár'}">${priceHtml(p.price)}</ins>` : priceHtml(p.price);
   return `<li class="product type-product ${out ? 'outofstock' : 'instock'}" data-id="${p.id}">
     <div class="product-card">
       <div class="loop-product-image">

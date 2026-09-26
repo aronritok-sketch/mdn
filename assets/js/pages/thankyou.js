@@ -17,7 +17,7 @@ if (!o) {
   const pickup = o.shipping.method === 'pickup';
 
   const paymentBlock = {
-    barion: `<div class="woocommerce-message" role="status">${icon('check-circle')}<span><strong>Sikeres fizetés.</strong> A Barion tranzakciót rögzítettük, a rendelésed feldolgozás alatt van. (Prototípus: a fizetés szimulált.)</span></div>`,
+    teya: `<div class="woocommerce-message" role="status">${icon('check-circle')}<span><strong>Sikeres fizetés.</strong> A Teya tranzakciót rögzítettük, a rendelésed feldolgozás alatt van. (Prototípus: a fizetés szimulált.)</span></div>`,
     bacs: `<section class="woocommerce-bacs-bank-details panel" aria-labelledby="bacs-title">
       <h2 class="wc-bacs-bank-details-heading" id="bacs-title" style="font-size:var(--fs-h3)">Utalási adatok</h2>
       <p class="text-muted">A csomagot a jóváírás után adjuk fel. Közleménynek pontosan a rendelésszámot írd.</p>
@@ -29,13 +29,13 @@ if (!o) {
         <li>Közlemény<strong class="num">${o.number} ${copy(o.number, 'Közlemény')}</strong></li>
         <li>Összeg<strong class="num">${fmt(T.total)} ${copy(String(T.total), 'Összeg')}</strong></li>
       </ul><p class="field-hint" style="margin-top:var(--space-4)">A banki adatok helykitöltők – élesítéskor a WooCommerce „Előre utalás” beállításából jönnek.</p></section>`,
-    cod: `<div class="woocommerce-info" role="status">${icon('cash')}<span><strong>${pickup ? 'Fizetés átvételkor' : 'Utánvét'}:</strong> ${fmt(T.total)} – ${pickup ? 'a bemutatóteremben készpénzzel vagy bankkártyával.' : o.shipping.method === 'foxpost' ? 'az automatánál bankkártyával.' : 'a futárnál készpénzzel vagy bankkártyával.'}</span></div>`,
+    cod: `<div class="woocommerce-info" role="status">${icon('cash')}<span><strong>${pickup ? 'Fizetés átvételkor' : 'Utánvét'}:</strong> ${fmt(T.total)} – ${pickup ? 'a bemutatóteremben készpénzzel vagy bankkártyával.' : o.shipping.method === 'glspoint' ? 'a GLS ponton kártyával vagy készpénzzel.' : 'a futárnál készpénzzel vagy bankkártyával.'}</span></div>`,
   }[o.payment.id];
 
-  const deliveryStep = pickup ? ['Átvehető a bemutatóteremben', 'E-mailben értesítünk, amikor készen áll'] : o.shipping.method === 'foxpost'
-    ? ['Az automatába kerül', `${esc(o.shipping.locker?.name || 'Foxpost automata')} – a nyitókódot SMS-ben kapod`] : ['Futárnak átadjuk', 'A GLS csomagkövető linkjét e-mailben küldjük'];
+  const deliveryStep = pickup ? ['Átvehető a bemutatóteremben', 'E-mailben értesítünk, amikor készen áll'] : o.shipping.method === 'glspoint'
+    ? ['A GLS pontra kerül', `${esc(o.shipping.locker?.name || 'GLS pont')} – az átvételi értesítőt SMS-ben és e-mailben kapod`] : ['Futárnak átadjuk', 'A GLS csomagkövető linkjét e-mailben küldjük'];
   const shipTo = pickup ? `Személyes átvétel<br>Mandala bemutatóterem, Budapest<br>${esc(CONFIG.contact.hours)}`
-    : o.shipping.method === 'foxpost' ? `Foxpost csomagautomata<br><strong>${esc(o.shipping.locker?.name || '')}</strong><br>${esc(o.shipping.locker?.address || '')}`
+    : o.shipping.method === 'glspoint' ? `GLS CsomagPont / csomagautomata<br><strong>${esc(o.shipping.locker?.name || '')}</strong><br>${esc(o.shipping.locker?.address || '')}`
       : `GLS futárszolgálat<br>${esc(o.shipping.address || `${o.billing.name}, ${o.billing.address}`)}`;
 
   root.innerHTML = `<div class="woocommerce-order">

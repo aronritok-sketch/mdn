@@ -20,31 +20,31 @@ export const CONFIG = {
     instagram: '#',
   },
   bank: { name: '[Bank neve]', holder: 'Mandala [cégnév]', account: '12345678-12345678-12345678', iban: 'HU00 1234 5678 1234 5678 1234 5678', swift: 'XXXXHUHB' },
-  // WooCommerce szállítási módok (Magyarország zóna). Az árak bruttók.
+  // Szállítási módok. Élesben a GLS módokat és díjakat a GLS bővítmény adja; itt a prototípus mintája (bruttó árak).
   shipping: [
-    { id: 'gls', wc: 'flat_rate:1', label: 'GLS futárszolgálat', note: 'Házhoz szállítás 1–2 munkanap alatt', price: 1990, free: true, icon: 'truck' },
-    { id: 'foxpost', wc: 'foxpost:2', label: 'Foxpost csomagautomata', note: 'Átvétel 0–24, országszerte 1000+ ponton', price: 1290, free: true, icon: 'locker' },
-    { id: 'pickup', wc: 'local_pickup:3', label: 'Személyes átvétel', note: 'Budapesti bemutatótermünkben, értesítés után', price: 0, free: true, icon: 'store' },
+    { id: 'gls', wc: 'gls', label: 'GLS futárszolgálat', note: 'Házhoz szállítás 1–2 munkanap alatt', price: 1990, free: true, icon: 'truck' },
+    { id: 'glspoint', wc: 'gls_parcel', label: 'GLS CsomagPont vagy csomagautomata', note: 'Átvétel a választott GLS ponton, értesítés után', price: 1290, free: true, icon: 'locker' },
+    { id: 'pickup', wc: 'local_pickup', label: 'Személyes átvétel', note: 'Budapesti bemutatótermünkben, értesítés után', price: 0, free: true, icon: 'store' },
   ],
   // Fizetési módok. Az utánvét a személyes átvételnél „Fizetés átvételkor” díj nélkül.
   payment: [
-    { id: 'barion', label: 'Bankkártya, Apple Pay, Google Pay', note: 'Biztonságos fizetés a Barion rendszerén keresztül', marks: ['VISA', 'Mastercard', 'Apple Pay', 'Google Pay'] },
+    { id: 'teya', label: 'Bankkártya, Apple Pay, Google Pay', note: 'Biztonságos kártyás fizetés a Teya rendszerén keresztül', marks: ['VISA', 'Mastercard', 'Apple Pay', 'Google Pay'] },
     { id: 'bacs', label: 'Előre utalás', note: 'A banki adatokat a visszaigazolásban küldjük; a csomag a jóváírás után indul.' },
-    { id: 'cod', label: 'Utánvét', note: 'Fizetés készpénzzel vagy kártyával a futárnak / az automatánál.', fee: 490, pickupLabel: 'Fizetés átvételkor', pickupNote: 'Készpénzzel vagy bankkártyával a bemutatóteremben.' },
+    { id: 'cod', label: 'Utánvét', note: 'Fizetés készpénzzel vagy kártyával a futárnak / a GLS ponton.', fee: 490, pickupLabel: 'Fizetés átvételkor', pickupNote: 'Készpénzzel vagy bankkártyával a bemutatóteremben.' },
   ],
   coupons: {
     MANDALA10: { type: 'percent', amount: 10, label: '10% kedvezmény' },
     UDVOZLO: { type: 'fixed', amount: 1500, min: 10000, label: '1 500 Ft kedvezmény 10 000 Ft felett' },
   },
-  // Foxpost automaták – minta, élesben a szállítási bővítmény csomagpont-választója adja.
+  // GLS pontok – minta; élesben a GLS bővítmény térképes pontválasztója adja.
   lockers: [
-    { id: 'fx-1', name: 'Budapest, Allee bevásárlóközpont', address: '1117 Budapest, Október huszonharmadika u. 8–10.', hours: '0–24' },
-    { id: 'fx-2', name: 'Budapest, Nyugati tér', address: '1062 Budapest, Váci út 1–3.', hours: '0–24' },
-    { id: 'fx-3', name: 'Budapest, Árkád Örs vezér tere', address: '1106 Budapest, Örs vezér tere 25.', hours: '6–22' },
-    { id: 'fx-4', name: 'Debrecen, Fórum', address: '4025 Debrecen, Csapó u. 30.', hours: '0–24' },
-    { id: 'fx-5', name: 'Szeged, Árkád', address: '6724 Szeged, Londoni krt. 3.', hours: '0–24' },
-    { id: 'fx-6', name: 'Győr, Árkád', address: '9027 Győr, Budai út 1.', hours: '0–24' },
-    { id: 'fx-7', name: 'Pécs, Árkád', address: '7622 Pécs, Bajcsy-Zsilinszky u. 11.', hours: '0–24' },
+    { id: 'gls-1', name: 'Budapest, Allee bevásárlóközpont', address: '1117 Budapest, Október huszonharmadika u. 8–10.', hours: '0–24' },
+    { id: 'gls-2', name: 'Budapest, Nyugati tér', address: '1062 Budapest, Váci út 1–3.', hours: '0–24' },
+    { id: 'gls-3', name: 'Budapest, Árkád Örs vezér tere', address: '1106 Budapest, Örs vezér tere 25.', hours: '6–22' },
+    { id: 'gls-4', name: 'Debrecen, Fórum', address: '4025 Debrecen, Csapó u. 30.', hours: '0–24' },
+    { id: 'gls-5', name: 'Szeged, Árkád', address: '6724 Szeged, Londoni krt. 3.', hours: '0–24' },
+    { id: 'gls-6', name: 'Győr, Árkád', address: '9027 Győr, Budai út 1.', hours: '0–24' },
+    { id: 'gls-7', name: 'Pécs, Árkád', address: '7622 Pécs, Bajcsy-Zsilinszky u. 11.', hours: '0–24' },
   ],
 };
 

@@ -12,14 +12,17 @@ A jóváhagyott prototípus (repó gyökere) WordPress-megvalósítása.
 | Szülő téma | `iu_theme` (a téma `Template: iu_theme`) |
 | mu-pluginek | `iu_custom_blocks` (saját blokkok), `iu_woocommerce`, `iu_settings` |
 | WooCommerce | 9.x–11.x, **klasszikus** (shortcode-os) kosár és pénztár |
-| Fizetés / szállítás | Barion és Foxpost bővítmény (külön telepítendő; lásd lent) |
+| Szállítás | GLS bővítmény: a GLS módok, díjak és a pontválasztó onnan jönnek |
+| Fizetés | Teya bővítmény / fizetőoldal (kártya, Apple Pay, Google Pay); előre utalás és utánvét a WooCommerce-ből |
+| Számlázás | Számlázz.hu bővítmény |
+| Viszonteladók | WooCommerce Wholesale Prices (a mandala.hu-n már fut) |
 | Nyelv | `hu_HU` nyelvi csomag a WordPresshez és a WooCommerce-hez (a pénztár mezőcímkéit a téma nélküle is magyarul adja) |
 
 ## Telepítés
 
 1. **Megjelenés → Témák → Új hozzáadása → Téma feltöltése:** `mandala-tema.zip`, majd *Bekapcsolás*.
 2. Az első admin-betöltéskor lefut a telepítő (**Megjelenés → Mandala telepítő**):
-   ÁFA (27%, bruttó árak), forint formátum, Magyarország szállítási zóna (GLS, Foxpost, személyes átvétel),
+   ÁFA (27%, bruttó árak), forint formátum, Magyarország szállítási zóna személyes átvétellel (a GLS módokat a GLS bővítmény adja),
    előre utalás és utánvét, szűrő attribútumok (`pa_*`), kategóriák, oldalak, menük.
    - Meglévő tartalmat nem ír felül: ha egy oldalt kézzel szerkesztettek, figyelmeztet (md5 manifest).
    - Élő boltban a termék- és kategória-URL-ek nem változnak (a magyar `termek/`, `kategoria/` alap csak üres boltban áll be).
@@ -81,6 +84,25 @@ csak `--content` kapcsolóval). Kézzel a `src/wp.css`-t, az `inc/`, a `woocomme
 Belső linkek a tartalomban: `[mandala_url page=kapcsolat]`, `[mandala_url cat=hangtalak]`,
 `[mandala_url post=hangtal-valasztas]` – telepítésenként eltérő URL-ek mellett is jók.
 
+## Szállítás, fizetés, számla, viszonteladók
+
+- **GLS:** minden a GLS bővítményből jön (módok, díjak, pontválasztó). A téma a módokat a pénztár 2. lépésében
+  mutatja, és az azonosítójuk/címkéjük alapján típust rendel hozzájuk (futár, CsomagPont/automata, átvétel):
+  pontnál nincs szállítási cím, az utánvét szövege és a köszönő oldal idővonala ehhez igazodik.
+- **Ingyenes szállítás** 25 000 Ft felett (kedvezmény után, bruttó) – a téma szabálya, a közlemény sáv és a
+  kosár mérője is ebből dolgozik. Módosítás: `mandala_freeShippingFrom` opció; `0` = kikapcsolva (ha a GLS
+  bővítményben állítjátok be).
+- **Teya:** a fizetési módot a Teya bővítmény adja; a téma a kártya ikont és a köszönő oldali „Sikeres fizetés”
+  üzenetet teszi hozzá.
+- **Számlázz.hu:** a pénztár adószám mezője a rendelésben `_billing_tax_number`. Ha a Számlázz.hu bővítmény
+  más meta kulcsból olvassa: `add_filter('mandala_tax_number_meta_keys', fn() => ['<kulcs>']);` – a tesztszerveren
+  ellenőrizendő.
+- **Viszonteladói ár:** a Wholesale Prices bővítmény „Wholesale Price” mezője (termékfelvételkor ide kerül a JUTA
+  „Akciós ár”-a), szerep: `wholesale_customer`. A pénztári és kosárárakat a bővítmény számolja; a téma a
+  terméklistán, a szűrőben és a keresőben is a nagyker árat mutatja „Nagyker ár” jelvénnyel. A közös
+  (gyorsítótárazott) termékindex soha nem tartalmaz nagyker árat: viszonteladónak a REST végpont személyre
+  szabottan (`Cache-Control: private`) adja. Oldalgyorsítótár esetén a belépett felhasználókat ki kell hagyni.
+
 ## Keretrendszer-hibák és kerülőutak (child témában, a keretrendszer érintetlen)
 
 - **iu/form e-mail:** csak a fix `message` szöveget küldené, `From` nélkül → az űrlapok `email` attribútuma üres,
@@ -99,6 +121,7 @@ Belső linkek a tartalomban: `[mandala_url page=kapcsolat]`, `[mandala_url cat=h
 - Cégadatok, bankszámla, bemutatóterem címe, nyitvatartás: `setup/data/config.json` (vagy a
   WooCommerce → Fizetés → Előre utalás beállítás) – jelenleg helykitöltők.
 - Jogi szövegek (ÁSZF, adatkezelés, impresszum): helykitöltők, jogászi átnézés kell.
-- Barion és Foxpost bővítmény: a telepítő amíg nincs Foxpost bővítmény, fix díjas „Foxpost csomagautomata”
-  módot hoz létre; a bővítmény után a zóna módját cserélni kell (a téma a csomagpont-választót a módhoz jeleníti meg).
+- Bővítmények: GLS, Teya, Számlázz.hu, Wholesale Prices. A telepítő oldala (Megjelenés → Mandala telepítő)
+  mutatja, melyik aktív, és keresőlinket ad a hiányzókhoz. A GLS módokat a bővítmény telepítése után a
+  Magyarország zónához kell adni; a személyes átvétel a lista végére kerül, így alapból GLS van kiválasztva.
 - A JUTA-Soft szinkron csak árat és készletet ír: a szűrő indexe a készlet- és árváltozásra magától frissül.

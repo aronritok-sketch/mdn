@@ -21,7 +21,7 @@ final class Mandala_Setup
         'site' => 1,
         'woocommerce' => 1,
         'tax' => 1,
-        'shipping' => 1,
+        'shipping' => 2,
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
@@ -178,6 +178,8 @@ final class Mandala_Setup
 
     private function step_shipping(): void
     {
+        // Magyarország zóna + személyes átvétel. A GLS módokat (házhoz, CsomagPont, automata),
+        // díjaikat és a pontválasztót a GLS bővítmény adja – azokat ott kell beállítani.
         $zone = null;
         foreach (WC_Shipping_Zones::get_zones() as $z) {
             foreach ($z['zone_locations'] as $loc) {
@@ -193,22 +195,20 @@ final class Mandala_Setup
             $zone->add_location('HU', 'country');
             $zone->save();
         }
-        $existing = array_map(fn($m) => $m->get_title(), $zone->get_shipping_methods());
-        $rate = 1 + (float) mandala_config('vatRate', 27) / 100;
-        foreach (mandala_config('shipping', []) as $s) {
-            if (in_array($s['label'], $existing, true)) {
-                continue;
-            }
-            // A Foxpost bővítmény saját módot ad; amíg nincs telepítve, fix díjas módként jön létre.
-            $type = str_starts_with($s['wc'], 'local_pickup') ? 'local_pickup' : (str_starts_with($s['wc'], 'foxpost') && isset(WC()->shipping()->get_shipping_methods()['foxpost']) ? 'foxpost' : 'flat_rate');
-            $instance_id = $zone->add_shipping_method($type);
-            $settings = [
-                'title' => $s['label'],
-                'tax_status' => $s['price'] ? 'taxable' : 'none',
-                // A díjak bruttók; a WooCommerce a szállítási díjat nettóban várja.
-                'cost' => $s['price'] ? (string) round($s['price'] / $rate, 4) : '0',
-            ];
-            update_option("woocommerce_{$type}_{$instance_id}_settings", $settings);
+        $has_pickup = false;
+        foreach ($zone->get_shipping_methods() as $method) {
+            $has_pickup = $has_pickup || $method->id === 'local_pickup';
+        }
+        if (!$has_pickup) {
+            $instance_id = $zone->add_shipping_method('local_pickup');
+            update_option("woocommerce_local_pickup_{$instance_id}_settings", ['title' => 'Személyes átvétel', 'tax_status' => 'none', 'cost' => '0']);
+            // A pénztár az első módot választja ki: a GLS módok (bővítmény) kerüljenek elé.
+            global $wpdb;
+            $wpdb->update("{$wpdb->prefix}woocommerce_shipping_zone_methods", ['method_order' => 99], ['instance_id' => $instance_id]);
+            WC_Cache_Helper::invalidate_cache_group('shipping_zones');
+        }
+        if (!mandala_plugin_status()['gls']['active']) {
+            $this->log[] = '! A GLS bővítmény nincs aktív: telepítsd, és a Magyarország zónában add hozzá a GLS szállítási módokat.';
         }
     }
 
@@ -238,7 +238,7 @@ final class Mandala_Setup
             'enable_for_virtual' => 'no',
         ]));
         update_option('woocommerce_cheque_settings', array_merge(get_option('woocommerce_cheque_settings', []), ['enabled' => 'no']));
-        update_option('woocommerce_gateway_order', ['barion' => 0, 'bacs' => 1, 'cod' => 2]);
+        update_option('woocommerce_gateway_order', array_merge((array) get_option('woocommerce_gateway_order', []), ['bacs' => 10, 'cod' => 11]));
     }
 
     /** Szűrő attribútumok (docs/SZURO.md) és kifejezéseik. */
@@ -624,6 +624,40 @@ add_action('init', function () {
     }
 }, 99);
 
+/**
+ * A bolt működéséhez szükséges bővítmények. Felismerés az aktív bővítmények és a regisztrált
+ * szállítási/fizetési módok alapján (a pontos bővítménynév telepítésenként eltérhet).
+ */
+function mandala_plugin_status(): array
+{
+    $active = implode(' ', array_merge((array) get_option('active_plugins', []), array_keys((array) get_site_option('active_sitewide_plugins', []))));
+    $has = fn(string $needle) => stripos($active, $needle) !== false;
+    $shipping = function_exists('WC') && WC()->shipping() ? implode(' ', array_keys(WC()->shipping()->get_shipping_methods())) : '';
+    $gateways = function_exists('WC') && WC()->payment_gateways() ? implode(' ', array_keys(WC()->payment_gateways()->payment_gateways())) : '';
+    return [
+        'gls' => ['name' => 'GLS szállítás', 'why' => 'Házhozszállítás, GLS CsomagPont és csomagautomata, díjak, térképes pontválasztó.', 'search' => 'GLS WooCommerce',
+            'active' => $has('gls') || stripos($shipping, 'gls') !== false],
+        'teya' => ['name' => 'Teya kártyás fizetés', 'why' => 'Bankkártya, Apple Pay, Google Pay – a Teya bővítménye vagy fizetőoldala.', 'search' => 'Teya',
+            'active' => $has('teya') || stripos($gateways, 'teya') !== false],
+        'szamlazz' => ['name' => 'Számlázz.hu', 'why' => 'Automatikus számla a rendelésekhez (NAV online számla).', 'search' => 'Számlázz.hu WooCommerce',
+            'active' => $has('szamlazz')],
+        'wholesale' => ['name' => 'WooCommerce Wholesale Prices', 'why' => 'Viszonteladói szerep és nagyker ár (a JUTA „Akciós ár”-a termékfelvételkor).', 'search' => 'Wholesale Prices',
+            'active' => $has('wholesale') || (bool) get_role('wholesale_customer')],
+    ];
+}
+
+/** Admin értesítés, ha egy szükséges bővítmény hiányzik. */
+add_action('admin_notices', function () {
+    if (!current_user_can('manage_options') || (get_current_screen()->id ?? '') === 'appearance_page_mandala-setup') {
+        return;
+    }
+    $missing = array_filter(mandala_plugin_status(), fn($p) => !$p['active']);
+    if ($missing) {
+        echo '<div class="notice notice-warning"><p><strong>Mandala:</strong> hiányzó bővítmény: ' . esc_html(implode(', ', array_column($missing, 'name')))
+            . '. <a href="' . esc_url(admin_url('themes.php?page=mandala-setup')) . '">Részletek</a></p></div>';
+    }
+});
+
 /** Automatikus futtatás adminisztrátornak (egyszer lépésenként; AJAX és cron alatt nem). */
 add_action('admin_init', function () {
     if (wp_doing_ajax() || wp_doing_cron() || !current_user_can('manage_options') || !Mandala_Setup::pending()) {
@@ -641,7 +675,13 @@ add_action('admin_menu', function () {
         if (!function_exists('iucb_add_block')) {
             echo '<div class="notice notice-warning"><p>Az <strong>iu_custom_blocks</strong> mu-plugin nem aktív: a saját blokkok tartalék módon, szerkesztői beállítások nélkül működnek.</p></div>';
         }
-        echo '<table class="widefat striped" style="max-width:720px"><thead><tr><th>Lépés</th><th>Verzió</th><th>Állapot</th></tr></thead><tbody>';
+        echo '<h2>Szükséges bővítmények</h2><table class="widefat striped" style="max-width:720px;margin-bottom:24px"><tbody>';
+        foreach (mandala_plugin_status() as $p) {
+            echo '<tr><td><strong>' . esc_html($p['name']) . '</strong><br><span class="description">' . esc_html($p['why']) . '</span></td><td>'
+                . ($p['active'] ? '✓ aktív' : '<a class="button" href="' . esc_url(admin_url('plugin-install.php?s=' . rawurlencode($p['search']) . '&tab=search&type=term')) . '">Keresés és telepítés</a>') . '</td></tr>';
+        }
+        echo '</tbody></table>';
+        echo '<h2>Telepítő lépések</h2><table class="widefat striped" style="max-width:720px"><thead><tr><th>Lépés</th><th>Verzió</th><th>Állapot</th></tr></thead><tbody>';
         foreach (Mandala_Setup::STEPS + Mandala_Setup::DEMO_STEPS as $step => $v) {
             $ok = ($done[$step] ?? 0) >= $v;
             echo '<tr><td>' . esc_html($step) . (isset(Mandala_Setup::DEMO_STEPS[$step]) ? ' <em>(bemutató)</em>' : '') . '</td><td>' . (int) $v . '</td><td>' . ($ok ? '✓ kész' : '–') . '</td></tr>';

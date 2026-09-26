@@ -60,9 +60,9 @@ Közös elemek: megamenü, mobilmenü, élő kereső (`/` billentyű, nyilas nav
 ## A pénztár
 
 1. **Elérhetőség:** e-mail (elírás-javaslat, pl. gmial.com → gmail.com), telefon (+36 formázás).
-2. **Szállítási mód:** GLS, Foxpost (automata választó kereséssel), személyes átvétel. Ingyenes 25 000 Ft felett.
+2. **Szállítási mód:** GLS futár, GLS CsomagPont / csomagautomata (pontválasztó kereséssel), személyes átvétel. Ingyenes 25 000 Ft felett.
 3. **Cím:** irányítószámból település, céges vásárlás adószámmal (formátum + ellenőrző számjegy), szállítás másik címre.
-4. **Fizetés:** Barion kártya, előre utalás, utánvét (+490 Ft; személyes átvételnél „Fizetés átvételkor”, díj nélkül).
+4. **Fizetés:** bankkártya (Teya), előre utalás, utánvét (+490 Ft; személyes átvételnél „Fizetés átvételkor”, díj nélkül).
 5. **Megrendelés:** megjegyzés vagy ajándékkártya szövege, fiók létrehozása, hírlevél, ÁSZF elfogadása; „Fizetési kötelezettséggel járó megrendelés” gomb a végösszeggel.
 
 További jellemzők:
@@ -101,7 +101,7 @@ wp-theme/dev             kanonizáló szkript és iu_theme teszt-helyettesítő 
 ```bash
 python3 -m http.server 8000 &
 node tests/smoke.mjs      # minden oldal asztalon és mobilon: JS-hiba, H1, túlcsordulás, érintési méret
-node tests/checkout.mjs   # vásárlás végig: készletkorlát, kupon, hibák, adószám, Foxpost, utánvét, piszkozat, köszönő oldal
+node tests/checkout.mjs   # vásárlás végig: készletkorlát, kupon, hibák, adószám, GLS pont, utánvét, piszkozat, köszönő oldal
 node tests/filter.mjs     # szűrő: darabszámok, VAGY/ÉS logika, tartományok, gyors szűrések, üres állapot, URL, vissza gomb, mobil
 ```
 

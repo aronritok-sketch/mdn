@@ -16,8 +16,8 @@ mandala_add_block('mandala/notice', [
             return '';
         }
         $free = (int) mandala_config('freeShippingFrom', 25000);
-        $out = '<p class="mandala-notice"><span>' . mandala_icon('truck', 'ico ico-s') . '</span><span>'
-            . sprintf(esc_html__('Ingyenes szállítás %s felett', 'mandala'), '<strong>' . esc_html(mandala_fmt($free)) . '</strong>') . '</span>';
+        $out = '<p class="mandala-notice">' . ($free > 0 ? '<span>' . mandala_icon('truck', 'ico ico-s') . '</span><span>'
+            . sprintf(esc_html__('Ingyenes szállítás %s felett', 'mandala'), '<strong>' . esc_html(mandala_fmt($free)) . '</strong>') . '</span>' : '');
         foreach (array_filter(array_map('trim', explode("\n", (string) ($attributes['items'] ?? '')))) as $item) {
             $out .= '<span class="sep hide-mobile">·</span><span class="hide-mobile">' . esc_html($item) . '</span>';
         }

@@ -10,7 +10,7 @@ mandala_add_block('mandala/logo', [
 
 mandala_add_block('mandala/footer-bottom', [
     'title' => 'Lábléc alsó sáv',
-    'attributes' => ['marks' => mandala_attr_def('Barion, VISA, Mastercard, Apple Pay, Utalás')],
+    'attributes' => ['marks' => mandala_attr_def('Teya, VISA, Mastercard, Apple Pay, Google Pay')],
     'fields' => [['panel' => 'Beállítások', 'fields' => [
         'marks' => ['type' => 'text', 'label' => 'Fizetési módok (vesszővel)'],
     ]]],

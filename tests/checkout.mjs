@@ -62,16 +62,16 @@ ok('invalid tax number rejected', (await p.locator('#billing_tax_number-error').
 await p.fill('#billing_tax_number', '12345676241'); await p.press('#billing_tax_number', 'Tab'); await p.waitForTimeout(150);
 ok('valid tax number accepted + formatted', (await p.locator('#billing_tax_number-error').innerText()) === '' , await p.inputValue('#billing_tax_number'));
 
-// Foxpost automata nélkül
-await p.check('#shipping_method_foxpost'); await p.waitForTimeout(200);
+// GLS pont választása nélkül
+await p.check('#shipping_method_glspoint'); await p.waitForTimeout(200);
 await p.check('#terms');
 await p.click('#place_order'); await p.waitForTimeout(300);
-ok('foxpost without locker blocked', (await p.locator('[data-notices]').innerText()).includes('automat'));
+ok('GLS point without selection blocked', (await p.locator('[data-notices]').innerText()).includes('GLS pont'));
 await p.click('[data-pick-locker]'); await p.waitForTimeout(400);
 await p.fill('#locker-q', 'szeged'); await p.waitForTimeout(100);
 ok('locker search filters', await p.locator('[data-locker]').count() === 1);
 await p.click('[data-locker]'); await p.waitForTimeout(400);
-ok('locker chosen', (await p.locator('#foxpost_point').innerText()).includes('Szeged'));
+ok('locker chosen', (await p.locator('#gls_point').innerText()).includes('Szeged'));
 
 // Utánvét díj + személyes átvétel felirat
 await p.check('#payment_method_cod'); await p.waitForTimeout(250);

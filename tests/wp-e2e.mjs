@@ -108,7 +108,8 @@ ok((await page.textContent('#billing_last_name_field label')).includes('Vezeték
 ok(await page.isVisible('form.mandala-checkout'), 'pénztár: saját 5 lépéses sablon');
 const SHOTS = process.env.SHOTS;
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/wp-checkout.png`, fullPage: true });
-ok((await page.$$('#shipping_method li')).length === 3, 'pénztár: 3 szállítási mód a 2. lépésben');
+ok((await page.$$('#shipping_method li')).length === 3, 'pénztár: 3 szállítási mód a 2. lépésben (GLS bővítmény + átvétel)');
+ok((await page.$$eval('#shipping_method li', (l) => l.map((x) => x.dataset.kind).sort().join(','))) === 'courier,pickup,point', 'szállítási típusok felismerése (futár, pont, átvétel)');
 ok((await page.$$('.wc_payment_methods li')).length >= 2, 'pénztár: fizetési módok a 4. lépésben');
 const order = await page.$$eval('.woocommerce-billing-fields__field-wrapper .form-row input', (l) => l.filter((i) => i.type !== 'hidden').map((i) => i.id));
 ok(order.indexOf('billing_last_name') < order.indexOf('billing_first_name') && order.indexOf('billing_postcode') < order.indexOf('billing_city'), 'magyar mezősorrend (vezetéknév, irsz → település)', order.slice(0, 6).join(','));
@@ -148,7 +149,12 @@ const waitUpdate = () => page.waitForFunction(() => !document.querySelector('.bl
 await page.check('#payment_method_cod');
 await waitUpdate();
 ok(await page.isVisible('.woocommerce-checkout-review-order-table tr.fee'), 'utánvét díja megjelenik (GLS)');
-await page.click('#shipping_method li[data-method="local_pickup"] label');
+await page.click('#shipping_method li[data-kind="point"] label');
+await waitUpdate();
+ok(await page.isVisible('#shipping_method li[data-kind="point"] .method-extra'), 'GLS pont: a bővítmény pontválasztója a mód alatt');
+ok((await page.textContent('[data-billing-title]')).includes('Számlázási adatok'), 'GLS pont: számlázási cím (nincs szállítási cím)');
+ok((await page.textContent('.payment_method_cod .payment_box')).includes('GLS ponton'), 'GLS pont: utánvét szövege');
+await page.click('#shipping_method li[data-kind="pickup"] label');
 await waitUpdate();
 ok(!(await page.isVisible('.woocommerce-checkout-review-order-table tr.fee')), 'személyes átvétel: nincs utánvét díj');
 ok((await page.textContent('.payment_method_cod label')).includes('Fizetés átvételkor'), 'személyes átvétel: „Fizetés átvételkor”');
@@ -198,6 +204,25 @@ await page.check('form[data-form-id="kapcsolat"] [name="adatkezeles"]');
 await page.click('form[data-form-id="kapcsolat"] button[type="submit"]');
 await page.waitForTimeout(1500);
 ok((await page.getAttribute('form[data-form-id="kapcsolat"] .form-message', 'class')).includes('is-success'), 'kapcsolat: sikeres beküldés');
+
+// ---------- Viszonteladói ár ----------
+const publicIndex = await page.evaluate(async () => (await (await fetch(window.MANDALA.rest + 'products')).json()).find((p) => p.sku === 'MND-HT-0490'));
+ok(publicIndex && publicIndex.price === 37340 && !publicIndex.wholesale, 'nyilvános index: bolti ár, nagyker ár nélkül', JSON.stringify({ price: publicIndex?.price }));
+const b2b = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
+await b2b.addInitScript(() => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify({ stats: false })); } catch {} });
+const bp = await b2b.newPage();
+await bp.goto(`${BASE}/wp-login.php`);
+await bp.fill('#user_login', 'viszontelado');
+await bp.fill('#user_pass', 'b2b');
+await bp.click('#wp-submit');
+await bp.waitForLoadState('networkidle');
+await bp.goto(`${BASE}/kategoria/szakralis-targyak/hangtalak/`, { waitUntil: 'networkidle' });
+await bp.waitForSelector('[data-results] li.product');
+const card = bp.locator('[data-results] li.product', { hasText: 'G#, torokcsakra' });
+ok((await card.textContent()).includes('Nagyker ár') && (await card.textContent()).includes('29 000'), 'viszonteladó: nagyker ár a kártyán (szűrő)');
+const again = await page.evaluate(async () => (await (await fetch(window.MANDALA.rest + 'products')).json()).find((p) => p.sku === 'MND-HT-0490'));
+ok(again.price === 37340, 'viszonteladó látogatása után is bolti ár a nyilvános indexben');
+await b2b.close();
 
 // ---------- Mobil ----------
 const m = await browser.newContext({ viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true });

@@ -535,7 +535,7 @@ def page_contact():
 
 
 FAQ = [
-    ('Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS és a Foxpost általában a feladást követő munkanapon kézbesít.'),
+    ('Mennyi idő alatt érkezik meg a csomag?', 'A raktáron lévő termékeket 1–2 munkanapon belül feladjuk; a GLS általában a feladást követő munkanapon kézbesít.'),
     ('Meghallgathatom a hangtálat vásárlás előtt?', 'Igen: a bemutatóteremben előzetes egyeztetéssel, vagy a termékoldalon kérhetsz hangfelvételt.'),
     ('Kérhetek számlát cégnévre?', 'Igen, a pénztárban jelöld be a „Cégként vásárolok” lehetőséget, és add meg a cégnevet és az adószámot.'),
     ('Csomagoltok ajándékba?', 'Kérésre díszdobozba tesszük a terméket, és kézzel írt kártyát teszünk mellé – a pénztárban a megjegyzésnél írd meg a szöveget.'),
@@ -566,7 +566,7 @@ LEGAL = {
         ('A szerződés tárgya', 'A webáruházban kínált termékek adásvétele. A termékek főbb tulajdonságait a termékoldal tartalmazza.'),
         ('Árak', 'A feltüntetett árak forintban értendők, és tartalmazzák a 27% ÁFÁ-t. A szállítási díjat a pénztár külön sorban mutatja.'),
         ('A rendelés menete', 'Kosár → pénztár → a „Fizetési kötelezettséggel járó megrendelés” gomb megnyomása. A rendelésről automatikus visszaigazoló e-mailt küldünk.'),
-        ('Fizetés és szállítás', 'Bankkártya (Barion), előre utalás, utánvét; GLS futár, Foxpost csomagautomata vagy személyes átvétel.'),
+        ('Fizetés és szállítás', 'Bankkártya (Teya), előre utalás, utánvét; GLS futár, GLS CsomagPont / csomagautomata vagy személyes átvétel.'),
         ('Elállási jog', 'A fogyasztó a termék átvételétől számított 14 napon belül indoklás nélkül elállhat a szerződéstől (45/2014. Korm. rendelet).'),
         ('Szavatosság, jótállás', '[kitöltendő – jogászi átnézéssel]'),
         ('Panaszkezelés', 'Panaszodat e-mailben vagy postán jelezheted; 30 napon belül írásban válaszolunk. [Békéltető testület adatai – kitöltendő]'),
@@ -574,7 +574,7 @@ LEGAL = {
     'adatkezelesi-tajekoztato': ('Adatkezelési tájékoztató', [
         ('Adatkezelő', '[Cégadatok – kitöltendő]'),
         ('Kezelt adatok', 'Rendelés teljesítéséhez: név, cím, e-mail, telefonszám, számlázási adatok. Hírlevélhez: e-mail-cím.'),
-        ('Adatfeldolgozók', 'Tárhelyszolgáltató, futárszolgálat (GLS, Foxpost), fizetési szolgáltató (Barion), számlázó – [pontosítandó].'),
+        ('Adatfeldolgozók', 'Tárhelyszolgáltató, futárszolgálat (GLS), fizetési szolgáltató (Teya), számlázó (Számlázz.hu) – [pontosítandó].'),
         ('Sütik', 'A szükséges sütik a működéshez kellenek; statisztikai és marketing sütiket csak hozzájárulással használunk. A beállítás a lábléc „Sütibeállítások” linkjén módosítható.'),
         ('Jogaid', 'Hozzáférés, helyesbítés, törlés, korlátozás, adathordozhatóság, tiltakozás; panasz a NAIH-nál.'),
     ]),

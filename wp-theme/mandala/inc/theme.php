@@ -86,6 +86,7 @@ function mandala_js_data(): array
         'categories' => mandala_category_tree(),
         'icons' => mandala_data('icons'),
         'siteName' => get_bloginfo('name'),
+        'loggedIn' => is_user_logged_in(),
         'contactPage' => get_permalink((int) get_option('mandala_page_kapcsolat')) ?: '',
         'privacy' => get_privacy_policy_url(),
         'colors' => mandala_swatch_colors(),

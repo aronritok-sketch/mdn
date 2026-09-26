@@ -35,7 +35,9 @@ if (form) {
   // Szállítási módtól függő szövegek (futár: cím; automata/átvétel: számlázási adatok)
   function syncShipping() {
     const chosen = $('input.shipping_method:checked')?.value || $('input.shipping_method[type="hidden"]')?.value || '';
-    const pickupOrLocker = /^local_pickup|foxpost/i.test(chosen) || /foxpost|automata/i.test($('input.shipping_method:checked')?.closest('label')?.textContent || '');
+    // A típust a szerver adja (data-kind: courier | point | pickup) – a GLS bővítmény módjaitól független.
+    const kind = $('input.shipping_method:checked')?.closest('[data-kind]')?.dataset.kind || (/^local_pickup/.test(chosen) ? 'pickup' : 'courier');
+    const pickupOrLocker = kind !== 'courier';
     const title = $('[data-billing-title]');
     if (title) title.textContent = pickupOrLocker ? 'Számlázási adatok' : 'Szállítási és számlázási cím';
     const diff = $('[data-ship-diff-row]');
