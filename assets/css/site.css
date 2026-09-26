@@ -210,6 +210,7 @@ a:hover .go .ico { transform: translateX(4px); }
 .cat-tile-tall { min-height: 620px; }
 .cat-tile-half { min-height: 294px; }
 .cat-tile-wide { min-height: 240px; background: var(--c-accent-soft); color: var(--c-ink); }
+.cat-tile .eyebrow { opacity: 1; } /* a p átlátszósága alatt a kontraszt 4.5:1 alá esne */
 .cat-tile-wide::after { display: none; }
 .cat-tile-wide h3, .cat-tile-wide:hover { color: var(--c-ink); }
 .cat-tile-wide .art { position: absolute; right: 4%; top: 50%; transform: translateY(-50%); width: min(260px, 36%); height: auto; z-index: -1; background: none; }

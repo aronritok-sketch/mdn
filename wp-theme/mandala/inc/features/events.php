@@ -60,7 +60,10 @@ add_action('save_post_mandala_event', function ($post_id, $post) {
         $raw = sanitize_text_field(wp_unslash($_POST[$key] ?? ''));
         update_post_meta($post_id, $key, $type === 'number' ? ($raw === '' ? '' : (string) max(0, (int) $raw)) : $raw);
     }
-    mandala_sync_event_ticket($post_id);
+    // Fordított eseménynél (WPML) nincs külön jegy: a helyek száma közös, az eredeti esemény jegyét árusítjuk.
+    if (mandala_original_id($post_id, 'mandala_event') === $post_id) {
+        mandala_sync_event_ticket($post_id);
+    }
 }, 10, 2);
 
 /** A jegy termék létrehozása / frissítése az esemény adataiból. */
@@ -113,7 +116,7 @@ function mandala_event_date(string $value, string $format = 'Y. F j., l H:i'): s
 
 function mandala_event_ticket(int $event_id): ?WC_Product
 {
-    $p = wc_get_product((int) get_post_meta($event_id, '_mandala_event_product', true));
+    $p = wc_get_product((int) get_post_meta(mandala_original_id($event_id, 'mandala_event'), '_mandala_event_product', true));
     return $p ?: null;
 }
 

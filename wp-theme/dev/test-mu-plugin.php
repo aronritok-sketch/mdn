@@ -49,3 +49,13 @@ add_action('init', function () {
         add_role('wholesale_customer', 'Wholesale Customer', ['read' => true]);
     }
 });
+
+// Meta Conversions API helyettesítő végpont: a kérést elmentjük, a válasz „sikeres”.
+add_filter('mandala_capi_endpoint', fn() => 'https://capi.test/events');
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    if (str_starts_with((string) $url, 'https://capi.test/')) {
+        update_option('mandala_capi_mock', ['url' => $url, 'body' => $args['body']], false);
+        return ['headers' => [], 'body' => '{"events_received":1}', 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+    }
+    return $pre;
+}, 10, 3);

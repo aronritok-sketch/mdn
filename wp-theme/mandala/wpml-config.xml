@@ -1,0 +1,51 @@
+<wpml-config>
+  <!--
+    WPML beállítások a Mandala témához (a WPML automatikusan beolvassa a téma gyökeréből).
+    translate: nyelvenként külön érték · copy: az eredetiből másolódik · ignore: nem kezeli.
+  -->
+  <custom-types>
+    <custom-type translate="1">mandala_workshop</custom-type>
+    <custom-type translate="1">mandala_event</custom-type>
+    <custom-type translate="0">mandala_review</custom-type>
+    <custom-type translate="0">mandala_voucher</custom-type>
+  </custom-types>
+  <custom-fields>
+    <!-- Termék: szöveg -->
+    <custom-field action="translate">_mandala_place</custom-field>
+    <custom-field action="translate">_mandala_ritual</custom-field>
+    <custom-field action="translate">_mandala_incoming_from</custom-field>
+    <!-- Termék: mérések, jelzők, hivatkozások (nyelvtől független) -->
+    <custom-field action="copy">_mandala_hz</custom-field>
+    <custom-field action="copy">_mandala_suly</custom-field>
+    <custom-field action="copy">_mandala_art</custom-field>
+    <custom-field action="copy">_mandala_tone</custom-field>
+    <custom-field action="copy">_mandala_audio</custom-field>
+    <custom-field action="copy">_mandala_unique</custom-field>
+    <custom-field action="copy">_mandala_group</custom-field>
+    <custom-field action="copy">_mandala_incoming</custom-field>
+    <custom-field action="copy">_mandala_incoming_auto</custom-field>
+    <custom-field action="copy">_mandala_workshop</custom-field>
+    <custom-field action="copy">_mandala_voucher</custom-field>
+    <custom-field action="copy">_mandala_giftbox</custom-field>
+    <custom-field action="copy">_mandala_ticket_for</custom-field>
+    <custom-field action="copy">wholesale_customer_wholesale_price</custom-field>
+    <!-- Műhely -->
+    <custom-field action="translate">_mandala_craft</custom-field>
+    <custom-field action="translate">_mandala_country</custom-field>
+    <custom-field action="copy">_mandala_since</custom-field>
+    <!-- Esemény: a helyszín szöveg, az időpont és a helyek közösek -->
+    <custom-field action="translate">_mandala_event_place</custom-field>
+    <custom-field action="copy">_mandala_event_start</custom-field>
+    <custom-field action="copy">_mandala_event_end</custom-field>
+    <custom-field action="copy">_mandala_event_capacity</custom-field>
+    <custom-field action="copy">_mandala_event_price</custom-field>
+    <custom-field action="copy">_mandala_event_product</custom-field>
+    <!-- Gyorsítótár / belső állapot -->
+    <custom-field action="ignore">_mandala_review_stats</custom-field>
+    <custom-field action="ignore">_mandala_stock_notify</custom-field>
+    <custom-field action="ignore">_mandala_demo</custom-field>
+  </custom-fields>
+  <admin-texts>
+    <key name="mandala_contact" />
+  </admin-texts>
+</wpml-config>

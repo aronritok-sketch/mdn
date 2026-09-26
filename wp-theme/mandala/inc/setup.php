@@ -25,7 +25,7 @@ final class Mandala_Setup
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 4,
+        'pages' => 5,
         'menus' => 1,
     ];
     public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
@@ -335,6 +335,7 @@ final class Mandala_Setup
             'aszf' => ['Általános Szerződési Feltételek', '', 'woocommerce_terms_page_id'],
             'adatkezelesi-tajekoztato' => ['Adatkezelési tájékoztató', '', 'wp_page_for_privacy_policy'],
             'impresszum' => ['Impresszum', '', 'mandala_page_impresszum'],
+            'akadalymentesseg' => ['Akadálymentességi nyilatkozat', '', 'mandala_page_akadalymentesseg'],
             'magazin' => ['Magazin', '', 'page_for_posts'],
         ];
         $manifest = get_option(self::MANIFEST, []);
@@ -426,6 +427,7 @@ final class Mandala_Setup
                 ['ÁSZF', 'page', $page('woocommerce_terms_page_id')],
                 ['Adatkezelés', 'page', $page('wp_page_for_privacy_policy')],
                 ['Impresszum', 'page', $page('mandala_page_impresszum')],
+                ['Akadálymentesség', 'page', $page('mandala_page_akadalymentesseg')],
                 ['Sütibeállítások', 'custom', '#sutik', ['cookie-settings']],
             ]],
         ];

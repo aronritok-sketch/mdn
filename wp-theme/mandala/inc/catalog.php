@@ -11,7 +11,8 @@ const MANDALA_INDEX_KEY = 'mandala_product_index_v1';
 /** A teljes kínálat kompakt indexe a böngészőbeli szűrőhöz és a kereséshez. */
 function mandala_product_index(): array
 {
-    $cached = get_transient(MANDALA_INDEX_KEY);
+    $key = mandala_lang_key(MANDALA_INDEX_KEY);
+    $cached = get_transient($key);
     if (is_array($cached)) {
         return $cached;
     }
@@ -36,12 +37,18 @@ function mandala_product_index(): array
             $index[] = $row;
         }
     }
-    set_transient(MANDALA_INDEX_KEY, $index, 12 * HOUR_IN_SECONDS);
+    set_transient($key, $index, 12 * HOUR_IN_SECONDS);
     return $index;
 }
 
 function mandala_flush_index(): void
 {
+    // Minden nyelv változata (WPML nélkül csak az alap).
+    $langs = array_keys((array) apply_filters('wpml_active_languages', null, ['skip_missing' => 0])) ?: [''];
+    foreach ($langs as $lang) {
+        delete_transient(mandala_lang_key(MANDALA_INDEX_KEY, (string) $lang));
+        delete_transient(mandala_lang_key('mandala_cat_tree', (string) $lang));
+    }
     delete_transient(MANDALA_INDEX_KEY);
     delete_transient('mandala_cat_tree');
 }

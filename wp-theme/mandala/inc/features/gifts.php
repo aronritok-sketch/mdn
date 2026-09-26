@@ -184,9 +184,9 @@ add_action('mandala_cart_form_fields', function (WC_Product $product) {
         echo '<label class="chip"><input type="radio" name="mandala_voucher_amount" value="' . (int) $a . '"' . checked($a, $chosen, false) . '><span>' . esc_html(mandala_fmt($a)) . '</span></label>';
     }
     echo '</div></fieldset><div class="voucher-fields">'
-        . '<div class="iu-form-field"><label for="voucher-to-name">' . esc_html__('Kinek szól? (a kártyára kerül)', 'mandala') . '</label><input type="text" id="voucher-to-name" name="mandala_voucher_to_name" maxlength="60" autocomplete="off"></div>'
-        . '<div class="iu-form-field"><label for="voucher-to-email">' . esc_html__('Címzett e-mail-címe (nem kötelező)', 'mandala') . '</label><input type="email" id="voucher-to-email" name="mandala_voucher_to_email" autocomplete="off" aria-describedby="voucher-to-email-help"><p class="text-small text-muted" id="voucher-to-email-help" style="margin:var(--space-2) 0 0">' . esc_html__('Ha megadod, fizetés után neki is elküldjük. Az utalványt mindenképp megkapod te is, nyomtatható formában.', 'mandala') . '</p></div>'
-        . '<div class="iu-form-field"><label for="voucher-message">' . esc_html__('Üzenet (nem kötelező)', 'mandala') . '</label><textarea id="voucher-message" name="mandala_voucher_message" rows="3" maxlength="240"></textarea></div>'
+        . '<div class="iu-form-field"><label for="voucher-to-name">' . esc_html__('Kinek szól? (a kártyára kerül)', 'mandala') . '</label><input type="text" class="input-text" id="voucher-to-name" name="mandala_voucher_to_name" maxlength="60" autocomplete="off"></div>'
+        . '<div class="iu-form-field"><label for="voucher-to-email">' . esc_html__('Címzett e-mail-címe (nem kötelező)', 'mandala') . '</label><input type="email" class="input-text" id="voucher-to-email" name="mandala_voucher_to_email" autocomplete="off" aria-describedby="voucher-to-email-help"><p class="text-small text-muted" id="voucher-to-email-help" style="margin:var(--space-2) 0 0">' . esc_html__('Ha megadod, fizetés után neki is elküldjük. Az utalványt mindenképp megkapod te is, nyomtatható formában.', 'mandala') . '</p></div>'
+        . '<div class="iu-form-field"><label for="voucher-message">' . esc_html__('Üzenet (nem kötelező)', 'mandala') . '</label><textarea class="input-text" id="voucher-message" name="mandala_voucher_message" rows="3" maxlength="240"></textarea></div>'
         . '</div><p class="text-small text-muted">' . esc_html(sprintf(__('Érvényes %d hónapig, a teljes kínálatra, részletekben is beváltható. Az utalvány vásárlása nem ÁFA-köteles; az ÁFA a beváltáskor, a megvásárolt termékek után keletkezik.', 'mandala'), (int) mandala_gift_settings()['voucher_months'])) . '</p>';
 });
 
@@ -298,6 +298,7 @@ function mandala_issue_vouchers($order_id): void
     if (!$order) {
         return;
     }
+    do_action('mandala_before_order_mail', $order);
     foreach ($order->get_items() as $line) {
         $v = $line->get_meta('_mandala_voucher');
         if (!is_array($v) || $line->get_meta('_mandala_voucher_codes')) {
@@ -659,7 +660,7 @@ add_action('init', function () {
     </div>
   </fieldset>
   <fieldset class="gift-step"><legend><span class="step-no">3</span> <?php esc_html_e('Kézzel írt kártya', 'mandala'); ?></legend>
-    <div class="iu-form-field"><label for="gift-message"><?php esc_html_e('Mit írjunk a kártyára? (nem kötelező)', 'mandala'); ?></label><textarea id="gift-message" name="message" rows="3" maxlength="200" aria-describedby="gift-message-count"></textarea><p class="text-small text-muted" id="gift-message-count" data-gift-chars style="margin:var(--space-2) 0 0">0 / 200</p></div>
+    <div class="iu-form-field"><label for="gift-message"><?php esc_html_e('Mit írjunk a kártyára? (nem kötelező)', 'mandala'); ?></label><textarea class="input-text" id="gift-message" name="message" rows="3" maxlength="200" aria-describedby="gift-message-count"></textarea><p class="text-small text-muted" id="gift-message-count" data-gift-chars style="margin:var(--space-2) 0 0">0 / 200</p></div>
     <p class="text-small text-muted"><?php esc_html_e('A csomagba nem teszünk árat tartalmazó papírt; a számlát e-mailben küldjük.', 'mandala'); ?></p>
   </fieldset>
   <div class="gift-summary" aria-live="polite"><div><span class="text-muted text-small"><?php esc_html_e('A csomag ára', 'mandala'); ?></span><strong class="num" data-gift-total>–</strong></div>

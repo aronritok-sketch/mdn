@@ -72,7 +72,8 @@ function mandala_js_data(): array
         'shop' => function_exists('wc_get_page_permalink') ? wc_get_page_permalink('shop') : home_url('/'),
         'cart' => function_exists('wc_get_cart_url') ? wc_get_cart_url() : '',
         'checkout' => function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : '',
-        'wishlistPage' => get_permalink(get_option('mandala_page_kedvencek')) ?: '',
+        'wishlistPage' => get_permalink(mandala_translate_id((int) get_option('mandala_page_kedvencek'))) ?: '',
+        'lang' => mandala_lang(),
         'search' => home_url('/'),
         // Az iu_theme egyedi REST prefixet használ: az URL-t mindig rest_url() adja.
         'rest' => esc_url_raw(rest_url('mandala/v1/')),
@@ -87,7 +88,7 @@ function mandala_js_data(): array
         'icons' => mandala_data('icons'),
         'siteName' => get_bloginfo('name'),
         'loggedIn' => is_user_logged_in(),
-        'contactPage' => get_permalink((int) get_option('mandala_page_kapcsolat')) ?: '',
+        'contactPage' => get_permalink(mandala_translate_id((int) get_option('mandala_page_kapcsolat'))) ?: '',
         'privacy' => get_privacy_policy_url(),
         'colors' => mandala_swatch_colors(),
     ];
@@ -103,7 +104,7 @@ function mandala_category_tree(): array
     if (!taxonomy_exists('product_cat')) {
         return [];
     }
-    $cached = get_transient('mandala_cat_tree');
+    $cached = get_transient(mandala_lang_key('mandala_cat_tree'));
     if (is_array($cached)) {
         return $cached;
     }
@@ -124,11 +125,11 @@ function mandala_category_tree(): array
             'subs' => array_map(fn($s) => [$s->slug, $s->name, get_term_link($s)], is_wp_error($subs) ? [] : $subs),
         ];
     }
-    set_transient('mandala_cat_tree', $tree, DAY_IN_SECONDS);
+    set_transient(mandala_lang_key('mandala_cat_tree'), $tree, DAY_IN_SECONDS);
     return $tree;
 }
 foreach (['created_product_cat', 'edited_product_cat', 'delete_product_cat'] as $hook) {
-    add_action($hook, fn() => delete_transient('mandala_cat_tree'));
+    add_action($hook, 'mandala_flush_index');
 }
 
 /** A pa_szin kifejezések színkódjai a szűrő színmintáihoz (név → CSS szín). */

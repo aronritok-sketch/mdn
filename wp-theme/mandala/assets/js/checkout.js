@@ -2,7 +2,7 @@
 // irányítószám → település, kupon az összesítőben, fizetési módtól függő díj frissítése,
 // hibaösszesítő, mobil összesítő. A frissítéseket a WooCommerce checkout.js végzi.
 import { $, $$, esc, icon, fmt } from './env.js';
-import { bindValidation, validateForm, showFieldState } from './validate.js';
+import { bindValidation, validateForm, showFieldState, countryOf } from './validate.js';
 
 const form = $('form.checkout.mandala-checkout');
 const jq = window.jQuery;
@@ -18,13 +18,33 @@ if (form) {
   const cityOf = (zip) => (/^1\d{3}$/.test(zip) ? 'Budapest' : ZIPS[zip] || '');
   form.addEventListener('input', (e) => {
     const el = e.target;
-    if (el.name?.endsWith('_postcode') && /^\d{4}$/.test(el.value)) {
+    if (el.name?.endsWith('_postcode') && /^\d{4}$/.test(el.value) && countryOf(el) === 'HU') {
       const cityEl = $(`#${el.name.replace('postcode', 'city')}`);
       const city = cityOf(el.value);
       if (cityEl && city && (!cityEl.value || cityEl.dataset.auto)) { cityEl.value = city; cityEl.dataset.auto = '1'; showFieldState(cityEl, ''); }
     }
     if (el.name?.endsWith('_city')) delete el.dataset.auto;
   });
+
+  // Külföldi cím (EU-s szállításnál): irányítószám hossza, adószám címkéje
+  function syncCountry() {
+    const hu = ($('#billing_country')?.value || 'HU') === 'HU';
+    ['#billing_postcode', '#shipping_postcode'].forEach((sel) => {
+      const el = $(sel);
+      if (!el) return;
+      const huZip = countryOf(el) === 'HU';
+      if (huZip) { el.maxLength = 4; el.inputMode = 'numeric'; } else { el.removeAttribute('maxlength'); el.inputMode = 'text'; }
+    });
+    const tax = $('#billing_tax_number');
+    const label = $('label[for="billing_tax_number"]');
+    if (tax && label) {
+      label.firstChild.textContent = hu ? 'Adószám ' : 'Közösségi adószám (EU VAT) ';
+      tax.placeholder = hu ? '12345676-2-41' : 'ATU12345678';
+      tax.inputMode = hu ? 'numeric' : 'text';
+    }
+  }
+  $body?.on('country_to_state_changed', syncCountry);
+  syncCountry();
 
   // Cégként vásárlás
   const company = $('#is_company');

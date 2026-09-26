@@ -66,7 +66,7 @@ add_filter('mandala_product_meta_fields', function ($fields) {
 
 function mandala_product_workshop(WC_Product $product): ?WP_Post
 {
-    $id = (int) $product->get_meta('_mandala_workshop', true, 'edit');
+    $id = mandala_translate_id((int) $product->get_meta('_mandala_workshop', true, 'edit'), 'mandala_workshop');
     $post = $id ? get_post($id) : null;
     return $post && $post->post_type === 'mandala_workshop' && $post->post_status === 'publish' ? $post : null;
 }
@@ -114,7 +114,7 @@ add_action('init', function () {
             $out = '<div class="workshop-grid">';
             foreach ($posts as $w) {
                 $country = get_post_meta($w->ID, '_mandala_country', true);
-                $count = count(get_posts(['post_type' => 'product', 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_mandala_workshop', 'meta_value' => $w->ID]));
+                $count = count(get_posts(['post_type' => 'product', 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_mandala_workshop', 'meta_value' => mandala_original_id($w->ID, 'mandala_workshop')]));
                 $img = has_post_thumbnail($w) ? get_the_post_thumbnail($w, 'medium_large', ['loading' => 'lazy', 'alt' => '']) : mandala_art_img((string) get_post_meta($w->ID, '_mandala_art', true) ?: 'bowl', 'sand');
                 $out .= '<a class="workshop-card reveal" href="' . esc_url(get_permalink($w)) . '"><div class="workshop-media">' . $img . '</div><div class="workshop-body">'
                     . '<p class="post-meta"><span class="origin origin-' . esc_attr($country) . '">' . esc_html(get_post_meta($w->ID, '_mandala_place', true)) . '</span></p>'
@@ -148,7 +148,7 @@ add_filter('mandala_product_selection', function ($ids, $mode, $limit) {
     if ($mode !== 'workshop') {
         return $ids;
     }
-    return wc_get_products(['status' => 'publish', 'limit' => $limit, 'return' => 'ids', 'meta_key' => '_mandala_workshop', 'meta_value' => get_queried_object_id()]);
+    return wc_get_products(['status' => 'publish', 'limit' => $limit, 'return' => 'ids', 'meta_key' => '_mandala_workshop', 'meta_value' => mandala_original_id(get_queried_object_id(), 'mandala_workshop')]);
 }, 10, 3);
 
 /* ---------- Kísérőkártya (nyomtatás a rendelés adminból) ---------- */

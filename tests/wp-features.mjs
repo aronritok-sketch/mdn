@@ -6,6 +6,7 @@
 import { createRequire } from 'module';
 import { execSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
+import { createHash } from 'crypto';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PWPATH || 'playwright');
 const BASE = (process.env.BASE || 'http://localhost:8080').replace(/\/$/, '');
@@ -18,6 +19,9 @@ let fails = 0;
 const ok = (cond, label, extra = '') => { console.log(`${cond ? '✓' : '✗'} ${label}${extra ? ` – ${extra}` : ''}`); if (!cond) fails++; };
 const errors = [];
 const num = (s) => Number(String(s).replace(/[^\d-]/g, '')) || 0;
+
+// A tesztben vásárolt termék készlete (ismételt futtatásnál ne fogyjon el).
+wp('$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(true); $p->set_stock_quantity(50); $p->save();');
 
 const browser = await chromium.launch();
 async function newPage() {
@@ -183,6 +187,122 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp(`wc_get_order(${orderId})->update_status("refunded");`);
   ok(wp(`echo mandala_points(${uid});`) === '1200', 'visszatérítés: beváltott pont vissza, gyűjtött pont levonva');
   await page.context().close();
+}
+
+// ======================= EU-s szállítás =======================
+{
+  execSync(`${WP} mandala eu-shipping`, { encoding: 'utf8' });
+  const page = await newPage();
+  const mala = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  await page.goto(`${BASE}/?add-to-cart=${mala}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('#billing_country'), 'EU: országválasztó a pénztárban');
+  await page.selectOption('#billing_country', 'AT').catch(async () => { await page.evaluate(() => { const s = document.querySelector('#billing_country'); s.value = 'AT'; window.jQuery?.(s).trigger('change'); }); });
+  await waitUpdate(page);
+  await page.fill('#billing_postcode', '1010');
+  await page.locator('#billing_postcode').blur();
+  ok((await page.inputValue('#billing_city')) === '', 'EU: osztrák 1010 nem tölti ki „Budapest”-tel');
+  ok((await page.getAttribute('#billing_postcode', 'aria-invalid')) === null, 'EU: osztrák irányítószám elfogadva');
+  await page.fill('#billing_phone', '0660 1234567');
+  await page.locator('#billing_phone').blur();
+  ok((await page.getAttribute('#billing_phone', 'aria-invalid')) === 'true' && (await page.textContent('#billing_phone_field')).includes('Nemzetközi'), 'EU: országhívó nélküli külföldi számnál nemzetközi formátumot kér');
+  await page.fill('#billing_phone', '+43 660 1234567');
+  await page.locator('#billing_phone').blur();
+  ok((await page.getAttribute('#billing_phone', 'aria-invalid')) === null, 'EU: +43 szám elfogadva');
+  await page.check('#is_company');
+  ok((await page.textContent('label[for="billing_tax_number"]')).includes('Közösségi'), 'EU: közösségi adószám címke');
+  await page.fill('#billing_tax_number', '12345676-2-41');
+  await page.locator('#billing_tax_number').blur();
+  ok((await page.getAttribute('#billing_tax_number', 'aria-invalid')) === 'true', 'EU: magyar adószám külföldi cégnél hibás');
+  await page.fill('#billing_tax_number', 'ATU12345678');
+  await page.locator('#billing_tax_number').blur();
+  ok((await page.getAttribute('#billing_tax_number', 'aria-invalid')) === null, 'EU: ATU közösségi adószám elfogadva');
+  ok(wp('echo (int) mandala_valid_vat_id("ATU12345678", "AT") . (int) mandala_valid_vat_id("DE123456789", "AT") . (int) mandala_valid_vat_id("EL123456789", "GR");') === '101', 'EU: közösségi adószám országkód-egyezés (GR → EL)');
+  await page.context().close();
+  execSync(`${WP} mandala eu-shipping --off`, { encoding: 'utf8' });
+}
+
+// ======================= Viszonteladói felület =======================
+{
+  const page = await newPage();
+  await page.goto(`${BASE}/wp-login.php`);
+  await page.fill('#user_login', 'viszontelado');
+  await page.fill('#user_pass', 'b2b');
+  await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
+  await page.goto(`${BASE}/fiokom/nagyker/`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('.woocommerce-MyAccount-navigation')).includes('Viszonteladói felület'), 'B2B: menüpont a fiókban');
+  await page.waitForSelector('[data-b2b-rows] tr');
+  ok((await page.$$('[data-b2b-rows] tr')).length > 3, 'B2B: gyorsrendelő táblázat', String((await page.$$('[data-b2b-rows] tr')).length));
+  await page.fill('[data-b2b-q]', 'MND-HT-0490');
+  const rows = await page.$$('[data-b2b-rows] tr');
+  ok(rows.length === 1 && (await rows[0].textContent()).includes('29 000'), 'B2B: keresés cikkszámra, nagyker ár a sorban');
+  await page.fill('[data-b2b-rows] input[data-id]', '2');
+  ok((await page.textContent('[data-b2b-sum]')).includes('2 db') && (await page.textContent('[data-b2b-sum]')).includes('58 000'), 'B2B: összesítő (2 db · 58 000 Ft)');
+  await page.click('[data-b2b-add]');
+  await page.waitForFunction(() => document.querySelector('[data-b2b-msg]')?.textContent.trim(), null, { timeout: 8000 });
+  ok((await page.textContent('[data-b2b-msg]')).includes('2 db a kosárban'), 'B2B: tömeges kosárba');
+  const csvUrl = await page.getAttribute('.b2b-tools a[href*="mandala_b2b_pricelist"]', 'href');
+  const csv = await (await page.request.get(csvUrl)).text();
+  ok(csv.startsWith('﻿') && csv.includes('MND-HT-0490') && /;29000;/.test(csv), 'B2B: árlista CSV (BOM, pontosvessző, nagyker ár)');
+  // Termékfotó a ZIP-hez (1×1 PNG a feltöltések közé).
+  wp('$pid = wc_get_product_id_by_sku("MND-HT-0490"); if (!get_post_thumbnail_id($pid)) { $u = wp_upload_dir(); $f = $u["path"] . "/teszt-foto.png"; file_put_contents($f, base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")); $a = wp_insert_attachment(["post_mime_type" => "image/png", "post_title" => "teszt"], $f, $pid); set_post_thumbnail($pid, $a); mandala_flush_index(); }');
+  const zip = await page.request.get(`${BASE}/wp-admin/admin-post.php?action=mandala_b2b_images&cat=szakralis-targyak&_wpnonce=${new URL(csvUrl, BASE).searchParams.get('_wpnonce')}`);
+  const zipBody = await zip.body();
+  ok(zip.status() === 200 && zip.headers()['content-type'].includes('zip') && zipBody.includes(Buffer.from('MND-HT-0490.png')), 'B2B: kategória fotói ZIP-ben, cikkszám szerint elnevezve', String(zip.status()));
+  await page.check('.b2b-arrivals input[type="checkbox"]');
+  await page.waitForLoadState('networkidle');
+  const uid = wp('echo get_user_by("login", "viszontelado")->ID;');
+  ok(wp(`echo get_user_meta(${uid}, "_mandala_b2b_arrivals", true);`) === 'yes', 'B2B: feliratkozás az új érkezésekre');
+  const before = mails().length;
+  wp('do_action("mandala_b2b_weekly");');
+  ok(/TO: b2b@example\.com[\s\S]*Új érkezések/.test(mails().slice(before)), 'B2B: heti új érkezés levél');
+  await page.context().close();
+
+  const guest = await newPage();
+  const res = await guest.request.post(`${BASE}/?wc-ajax=mandala_bulk_add`, { form: { security: 'x', items: '[[1,1]]' } });
+  ok(res.status() >= 400, 'B2B: tömeges kosárba viszonteladó nélkül tiltott', String(res.status()));
+  await guest.context().close();
+}
+
+// ======================= Mérés: Consent Mode, GA4 események, Meta CAPI =======================
+{
+  const page = await newPage();
+  await page.addInitScript(() => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify({ stats: true, marketing: true })); } catch {} });
+  await page.context().addCookies([{ name: '_fbp', value: 'fb.1.1700000000.123456789', url: BASE }]);
+  await page.goto(`${BASE}/kategoria/szakralis-targyak/hangtalak/`, { waitUntil: 'networkidle' });
+  const consent = await page.evaluate(() => window.dataLayer.filter((e) => e[0] === 'consent').map((e) => `${e[1]}:${e[2].analytics_storage}`));
+  ok(consent[0] === 'default:denied' && consent[1] === 'update:granted', 'Consent Mode v2: alapból elutasítva, a mentett választás azonnal visszaállítva', consent.join(' '));
+  await page.waitForFunction(() => window.dataLayer.some((e) => e.event === 'view_item_list'), null, { timeout: 5000 }).catch(() => {});
+  const list = await page.evaluate(() => window.dataLayer.find((e) => e.event === 'view_item_list'));
+  ok(list && list.ecommerce.items.length > 0 && list.ecommerce.items[0].item_id, 'GA4: view_item_list a szűrt listára', list ? `${list.ecommerce.items.length} tétel` : '');
+  const mala = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  await page.goto(wp(`echo get_permalink(${mala});`), { waitUntil: 'networkidle' });
+  await page.click('.product-summary .single_add_to_cart_button');
+  await page.waitForFunction(() => window.dataLayer.some((e) => e.event === 'add_to_cart'), null, { timeout: 5000 }).catch(() => {});
+  const atc = await page.evaluate(() => window.dataLayer.find((e) => e.event === 'add_to_cart'));
+  ok(atc && atc.ecommerce.items[0].item_id === 'MND-HT-0490' && atc.ecommerce.currency === 'HUF', 'GA4: add_to_cart a termékoldalról (cikkszám, pénznem)');
+  ok(await page.evaluate(() => window.dataLayer.some((e) => e.event === 'view_item')), 'GA4: view_item (GTM4WP nélkül a téma küldi)');
+
+  wp('update_option("mandala_analytics", ["capi" => "yes", "pixel_id" => "123", "capi_token" => "tok"]); delete_option("mandala_capi_mock");');
+  const orderId = await checkout(page, { email: 'Meres.Teszt@Example.com' });
+  ok(wp(`echo wc_get_order(${orderId})->get_meta("_mandala_marketing_consent");`) === 'yes', 'CAPI: a pénztár menti a marketing-hozzájárulást');
+  wp(`wc_get_order(${orderId})->update_status("completed"); do_action("mandala_capi_purchase", ${orderId});`);
+  const body = JSON.parse(JSON.parse(wp('echo wp_json_encode(get_option("mandala_capi_mock")["body"] ?? "{}");')) || '{}');
+  const ev = body.data?.[0] || {};
+  ok(ev.event_name === 'Purchase' && ev.event_id === `order_${orderId}`, 'CAPI: Purchase esemény, deduplikációs azonosítóval');
+  ok(ev.user_data?.em?.[0] === createHash('sha256').update('meres.teszt@example.com').digest('hex'), 'CAPI: e-mail kisbetűsítve, SHA-256 hash-elve');
+  ok(ev.user_data?.fbp === 'fb.1.1700000000.123456789', 'CAPI: _fbp süti továbbítva');
+  await page.context().close();
+
+  const noConsent = await newPage();
+  await noConsent.addInitScript(() => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify({ stats: false, marketing: false })); } catch {} });
+  await noConsent.goto(`${BASE}/?add-to-cart=${mala}`, { waitUntil: 'networkidle' });
+  const page2 = noConsent;
+  const order2 = await checkout(page2, { email: 'nincs@example.com' });
+  wp(`wc_get_order(${order2})->update_status("completed");`);
+  ok(wp(`echo wc_get_order(${order2})->get_meta("_mandala_capi_queued");`) === '', 'CAPI: hozzájárulás nélkül nem küld');
+  wp('delete_option("mandala_analytics");');
+  await noConsent.context().close();
 }
 
 ok(errors.length === 0, 'nincs JS / szerver hiba', errors.slice(0, 5).join(' | '));

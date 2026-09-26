@@ -44,7 +44,7 @@ let productsPromise;
 /** A teljes kínálat indexe (mandala/v1/products, gyorsítótárazott REST végpont). */
 export function loadProducts() {
   // A nonce azonosítja a belépett vásárlót: viszonteladónak a nagyker árakkal jön az index.
-  productsPromise ??= fetch(`${M.rest}products`, { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} })
+  productsPromise ??= fetch(`${M.rest}products${M.lang ? `${M.rest.includes('?') ? '&' : '?'}lang=${M.lang}` : ''}`, { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} })
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then((list) => list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] })))
     .catch((err) => { console.warn('Mandala: a termékindex nem tölthető be.', err); return []; });

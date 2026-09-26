@@ -80,7 +80,7 @@ function mandala_product_cats(int $product_id): array
 function mandala_attr(WC_Product $product, string $taxonomy, string $field = 'name'): array
 {
     $terms = wc_get_product_terms($product->get_id(), $taxonomy, ['fields' => 'all']);
-    return array_values(array_map(fn($t) => $field === 'slug' ? $t->slug : $t->name, $terms ?: []));
+    return array_values(array_map(fn($t) => $field === 'slug' ? mandala_term_slug($t) : $t->name, $terms ?: []));
 }
 
 /** Készletállapot a szűrőhöz és a kártyához: in | low | out. */
@@ -312,16 +312,19 @@ function mandala_url(array $atts): string
 {
     $atts = shortcode_atts(['page' => '', 'cat' => '', 'post' => '', 'sku' => ''], $atts, 'mandala_url');
     if ($atts['sku'] && function_exists('wc_get_product_id_by_sku')) {
-        $id = wc_get_product_id_by_sku(sanitize_text_field($atts['sku']));
+        $id = mandala_translate_id((int) wc_get_product_id_by_sku(sanitize_text_field($atts['sku'])), 'product');
         return $id ? (string) get_permalink($id) : mandala_shop_url();
     }
     if ($atts['cat']) {
         $term = get_term_by('slug', sanitize_title($atts['cat']), 'product_cat');
+        if ($term && ($tid = (int) apply_filters('wpml_object_id', $term->term_id, 'product_cat', true)) && $tid !== $term->term_id) {
+            $term = get_term($tid, 'product_cat');
+        }
         return $term ? (string) get_term_link($term) : mandala_shop_url();
     }
     if ($atts['post']) {
         $post = get_page_by_path(sanitize_title($atts['post']), OBJECT, 'post');
-        return $post ? (string) get_permalink($post) : (string) get_permalink((int) get_option('page_for_posts'));
+        return $post ? (string) get_permalink(mandala_translate_id($post->ID, 'post')) : (string) get_permalink(mandala_translate_id((int) get_option('page_for_posts')));
     }
     $roles = [
         'shop' => 'woocommerce_shop_page_id', 'cart' => 'woocommerce_cart_page_id', 'checkout' => 'woocommerce_checkout_page_id',
@@ -335,7 +338,7 @@ function mandala_url(array $atts): string
     if ($slug === 'esemenyek' && post_type_exists('mandala_event')) {
         return (string) get_post_type_archive_link('mandala_event');
     }
-    $id = isset($roles[$slug]) ? (int) get_option($roles[$slug]) : (int) get_option('mandala_page_' . $slug);
+    $id = mandala_translate_id(isset($roles[$slug]) ? (int) get_option($roles[$slug]) : (int) get_option('mandala_page_' . $slug));
     if (!$id && $slug && ($page = get_page_by_path($slug))) {
         $id = $page->ID;
     }
@@ -385,4 +388,65 @@ function mandala_wholesale_price(WC_Product $product): ?float
     $key = (string) apply_filters('mandala_wholesale_meta_key', 'wholesale_customer_wholesale_price');
     $value = $product->get_meta($key, true, 'edit');
     return is_numeric($value) && (float) $value > 0 ? (float) $value : null;
+}
+
+/* ---------- Többnyelvűség (WPML) – bővítmény nélkül hatástalan ---------- */
+
+/** Az aktuális nyelv kódja ('' ha nincs WPML). */
+function mandala_lang(): string
+{
+    return (string) apply_filters('wpml_current_language', '');
+}
+
+/** Az alapértelmezett nyelv kódja ('' ha nincs WPML). */
+function mandala_default_lang(): string
+{
+    return (string) apply_filters('wpml_default_language', '');
+}
+
+/** Nyelvenként külön gyorsítótár kulcs (az alapnyelvé változatlan). */
+function mandala_lang_key(string $key, ?string $lang = null): string
+{
+    $lang ??= mandala_lang();
+    return $lang && $lang !== mandala_default_lang() ? $key . '_' . $lang : $key;
+}
+
+/** Bejegyzés / oldal / kifejezés azonosítója az aktuális nyelven (ha van fordítás). */
+function mandala_translate_id(int $id, string $type = 'page'): int
+{
+    return $id ? (int) apply_filters('wpml_object_id', $id, $type, true) : 0;
+}
+
+/** Bejegyzés azonosítója az alapnyelven (értékelések, jegyek: nyelvtől független adat). */
+function mandala_original_id(int $id, string $type = 'product'): int
+{
+    $default = mandala_default_lang();
+    return $id && $default ? (int) apply_filters('wpml_object_id', $id, $type, true, $default) : $id;
+}
+
+/** Kifejezés slugja az alapnyelven: a szűrő értékei (pa_*) így minden nyelven azonosak. */
+function mandala_term_slug(WP_Term $term): string
+{
+    $default = mandala_default_lang();
+    if (!$default || $default === mandala_lang()) {
+        return $term->slug;
+    }
+    $orig = (int) apply_filters('wpml_object_id', $term->term_id, $term->taxonomy, true, $default);
+    if ($orig && $orig !== $term->term_id) {
+        do_action('wpml_switch_language', $default);
+        $t = get_term($orig, $term->taxonomy);
+        do_action('wpml_switch_language', null);
+        return $t instanceof WP_Term ? $t->slug : $term->slug;
+    }
+    return $term->slug;
+}
+
+/** Nyelvválasztó adatai: [[kód, rövid név, url, aktív]] – WPML nélkül üres. */
+function mandala_languages(): array
+{
+    $langs = apply_filters('wpml_active_languages', null, ['skip_missing' => 0, 'orderby' => 'custom']);
+    if (!is_array($langs) || count($langs) < 2) {
+        return [];
+    }
+    return array_values(array_map(fn($l) => [$l['code'], strtoupper($l['code']), $l['url'], !empty($l['active'])], $langs));
 }

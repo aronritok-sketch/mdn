@@ -115,6 +115,7 @@ mandala_add_block('mandala/header', [
       endforeach; ?>
     </ul>
     <div class="mobile-menu-foot d-none m-block">
+      <?php foreach (mandala_languages() as [$code, $short, $url, $active]) : if (!$active) : ?><a class="iu-button iu-button-outline" href="<?php echo esc_url($url); ?>" lang="<?php echo esc_attr($code); ?>" hreflang="<?php echo esc_attr($code); ?>"><?php echo mandala_icon('globe', 'ico ico-s'); // phpcs:ignore ?> <?php echo esc_html($short); ?></a><?php endif; endforeach; ?>
       <a class="iu-button iu-button-outline" href="<?php echo esc_url($account); ?>"><?php echo $icon('user', 'ico ico-s'); // phpcs:ignore ?> <?php esc_html_e('Fiókom', 'mandala'); ?></a>
       <?php if ($wish_url) : ?><a class="iu-button iu-button-outline" href="<?php echo esc_url($wish_url); ?>"><?php echo $icon('heart', 'ico ico-s'); // phpcs:ignore ?> <?php esc_html_e('Kedvencek', 'mandala'); ?></a><?php endif; ?>
       <?php if (!empty($contact['phone'])) : ?><p><?php echo $icon('phone', 'ico ico-s'); // phpcs:ignore ?> <?php echo esc_html($contact['phone'] . ' · ' . ($contact['hours'] ?? '')); ?></p><?php endif; ?>
@@ -122,8 +123,10 @@ mandala_add_block('mandala/header', [
   </nav>
   <div class="header-actions">
     <button type="button" class="icon-button" data-open-search aria-label="<?php esc_attr_e('Keresés (/)', 'mandala'); ?>"><?php echo $icon('search'); // phpcs:ignore ?></button>
-    <?php if (mandala_bool($attributes['languages'] ?? true)) : ?>
-    <div class="lang-switch hide-mobile" role="group" aria-label="<?php esc_attr_e('Nyelv', 'mandala'); ?>"><span aria-current="true">HU</span><a href="#" data-lang="en" lang="en">EN</a></div>
+    <?php $languages = mandala_bool($attributes['languages'] ?? true) ? mandala_languages() : []; if ($languages) : ?>
+    <div class="lang-switch hide-mobile" role="group" aria-label="<?php esc_attr_e('Nyelv', 'mandala'); ?>"><?php foreach ($languages as [$code, $short, $url, $active]) {
+        echo $active ? '<span aria-current="true" lang="' . esc_attr($code) . '">' . esc_html($short) . '</span>' : '<a href="' . esc_url($url) . '" lang="' . esc_attr($code) . '" hreflang="' . esc_attr($code) . '">' . esc_html($short) . '</a>';
+    } ?></div>
     <?php endif; ?>
     <a class="icon-button hide-mobile" href="<?php echo esc_url($account); ?>" aria-label="<?php esc_attr_e('Fiókom', 'mandala'); ?>"<?php echo function_exists('is_account_page') && is_account_page() ? ' aria-current="page"' : ''; ?>><?php echo $icon('user'); // phpcs:ignore ?></a>
     <?php if ($wish_url) : ?>

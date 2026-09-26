@@ -203,3 +203,41 @@ tr.voucher th a { font-weight: 400; margin-left: var(--space-2); }
   .gift-summary { border-radius: var(--radius-l) var(--radius-l) 0 0; margin: 0 calc(-1 * var(--gutter, 16px)); }
   .gift-summary .iu-button { flex: 1; }
 }
+
+/* ---------- Viszonteladói felület ---------- */
+.b2b-tools { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-6); }
+.b2b-images { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.b2b-images select { min-height: 44px; width: auto; max-width: 240px; flex: 1 1 160px; }
+.b2b-arrivals { margin-left: auto; }
+.b2b-filters { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--space-4); align-items: end; margin-bottom: var(--space-3); }
+.b2b-filters .check { min-height: 44px; align-items: center; }
+.b2b-table-wrap { overflow-x: auto; border: var(--border); border-radius: var(--radius-m); }
+.b2b-table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); margin: 0; }
+.b2b-table th, .b2b-table td { padding: var(--space-2) var(--space-3); border-bottom: var(--border); text-align: left; vertical-align: middle; }
+.b2b-table thead th { position: sticky; top: 0; background: var(--c-sand); font-weight: 600; white-space: nowrap; }
+.b2b-table tbody th { font-weight: 400; }
+.b2b-table tbody th a { color: inherit; }
+.b2b-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.b2b-table .sku { font-family: ui-monospace, monospace; font-size: .8125rem; color: var(--c-muted); white-space: nowrap; }
+.b2b-table input { width: 84px; min-height: 40px; padding: var(--space-1) var(--space-2); text-align: right; }
+.b2b-table tbody tr:hover { background: #FFFCF6; }
+.b2b-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--c-paper); border: var(--border); border-radius: var(--radius-l); box-shadow: 0 -8px 24px rgba(28, 25, 22, .06); }
+.b2b-bar .form-message { flex-basis: 100%; margin: 0; display: flex; gap: var(--space-2); align-items: center; }
+.b2b-bar .form-message:empty { display: none; }
+.b2b-welcome { display: grid; gap: var(--space-3); justify-items: start; }
+@media (max-width: 767.8px) {
+  .b2b-filters { grid-template-columns: minmax(0, 1fr); }
+  .b2b-arrivals { margin-left: 0; }
+}
+@media (max-width: 599.8px) {
+  .b2b-table-wrap { border: 0; overflow: visible; }
+  .b2b-order table.b2b-table.shop_table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .b2b-order table.b2b-table.shop_table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 84px; gap: var(--space-1) var(--space-3); padding: var(--space-3) 0; border-bottom: var(--border); }
+  .b2b-order table.b2b-table.shop_table th, .b2b-order table.b2b-table.shop_table td { padding: 0; border: 0; }
+  .b2b-order table.b2b-table.shop_table tbody th { grid-column: 1 / -1; font-weight: 600; }
+  .b2b-order table.b2b-table.shop_table .sku { grid-column: 1 / -1; }
+  .b2b-order table.b2b-table.shop_table td[data-label] { text-align: left; font-size: .8125rem; }
+  .b2b-order table.b2b-table.shop_table td[data-label]::before { content: attr(data-label); display: block; color: var(--c-muted); font-size: .75rem; }
+  .b2b-order table.b2b-table.shop_table td:last-child { grid-column: 4; grid-row: 3; align-self: end; }
+  .b2b-order table.b2b-table.shop_table input { width: 100%; }
+}

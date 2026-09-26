@@ -37,7 +37,12 @@ if (form) {
     try {
       const res = await fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_gift_add'), { method: 'POST', credentials: 'same-origin', body });
       const data = await res.json();
-      if (data.ok) { location.href = data.cart; return; }
+      if (data.ok) {
+        const added = items().map((i) => [Number(i.value), 1]).concat([[Number($('input[name="box"]:checked', form).value), 1]]);
+        document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: added, source: 'gift_builder' } }));
+        setTimeout(() => { location.href = data.cart; }, 150);
+        return;
+      }
       error.innerHTML = `${icon('alert', 'ico ico-s')}<span>${esc(data.error || 'Most nem sikerült – próbáld újra.')}</span>`;
     } catch {
       error.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem sikerült – próbáld újra.</span>`;

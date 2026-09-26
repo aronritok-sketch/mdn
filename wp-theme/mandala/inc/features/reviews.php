@@ -29,6 +29,7 @@ function mandala_review_url(int $order_id, int $product_id): string
 /** Egy termék jóváhagyott értékelései és összesítése (gyorsítótárazva). */
 function mandala_review_stats(int $product_id): array
 {
+    $product_id = mandala_original_id($product_id);
     $cached = get_post_meta($product_id, '_mandala_review_stats', true);
     if (is_array($cached)) {
         return $cached;
@@ -93,7 +94,7 @@ add_filter('woocommerce_structured_data_product', function ($markup, $product) {
             '@type' => 'Review', 'reviewRating' => ['@type' => 'Rating', 'ratingValue' => (int) get_post_meta($r->ID, '_rating', true)],
             'author' => ['@type' => 'Person', 'name' => (string) get_post_meta($r->ID, '_author', true)], 'reviewBody' => wp_strip_all_tags($r->post_content),
             'datePublished' => get_the_date('c', $r),
-        ], get_posts(['post_type' => 'mandala_review', 'numberposts' => 5, 'meta_key' => '_product', 'meta_value' => $product->get_id()]));
+        ], get_posts(['post_type' => 'mandala_review', 'numberposts' => 5, 'meta_key' => '_product', 'meta_value' => mandala_original_id($product->get_id())]));
     }
     return $markup;
 }, 10, 2);
@@ -105,6 +106,7 @@ add_action('mandala_mail_review', function ($order_id) {
     if (!$order || !mandala_automation_on('review')) {
         return;
     }
+    do_action('mandala_before_order_mail', $order);
     $rows = '';
     foreach ($order->get_items() as $item) {
         $product = $item->get_product();
@@ -148,7 +150,7 @@ function mandala_handle_review(): void
         wp_safe_redirect(add_query_arg('review', 'error', $back));
         exit;
     }
-    update_post_meta($id, '_product', $product_id);
+    update_post_meta($id, '_product', mandala_original_id($product_id));
     update_post_meta($id, '_order', $order_id);
     update_post_meta($id, '_rating', $rating);
     update_post_meta($id, '_author', $name);
@@ -228,7 +230,7 @@ add_action('init', function () {
                 $out .= '<li><span>' . (int) $star . ' ★</span><span class="meter"><span style="width:' . ($s['count'] ? round($n / $s['count'] * 100) : 0) . '%"></span></span><span class="text-muted">' . (int) $n . '</span></li>';
             }
             $out .= '</ul><ul class="review-list">';
-            foreach (get_posts(['post_type' => 'mandala_review', 'numberposts' => 20, 'meta_key' => '_product', 'meta_value' => $product_id]) as $r) {
+            foreach (get_posts(['post_type' => 'mandala_review', 'numberposts' => 20, 'meta_key' => '_product', 'meta_value' => mandala_original_id($product_id)]) as $r) {
                 $photos = '';
                 foreach ((array) get_post_meta($r->ID, '_photos', true) as $att) {
                     $photos .= '<a href="' . esc_url(wp_get_attachment_image_url((int) $att, 'large')) . '" target="_blank" rel="noopener">' . wp_get_attachment_image((int) $att, 'thumbnail', false, ['loading' => 'lazy', 'alt' => esc_attr__('Vásárlói fotó', 'mandala')]) . '</a>';

@@ -171,6 +171,7 @@ async function addToCart(id, qty = 1) {
   if (!data || data.error) { if (data?.product_url) location.href = data.product_url; return null; }
   applyFragments(data.fragments);
   jq()?.(document.body).trigger('added_to_cart', [data.fragments, data.cart_hash, null]);
+  document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[Number(id), Number(qty)]], source: 'product' } }));
   return data;
 }
 export { addToCart, applyFragments };

@@ -147,6 +147,7 @@ add_action('mandala_mail_care', function ($order_id) {
     if (!$order || !mandala_automation_on('care')) {
         return;
     }
+    do_action('mandala_before_order_mail', $order);
     $rows = '';
     foreach ($order->get_items() as $item) {
         $product = $item->get_product();
@@ -169,6 +170,7 @@ add_action('mandala_mail_reorder', function ($order_id) {
     if (!$order || !mandala_automation_on('reorder')) {
         return;
     }
+    do_action('mandala_before_order_mail', $order);
     $cats = array_map('trim', explode(',', mandala_automation_settings()['reorder_cats']));
     $rows = '';
     foreach ($order->get_items() as $item) {

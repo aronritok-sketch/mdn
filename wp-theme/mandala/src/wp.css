@@ -145,3 +145,24 @@ ul.products li.product { position: relative; }
 select.country_to_state--single { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 0; min-height: 0; pointer-events: none; font-weight: 500; color: var(--c-ink); }
 .footer-bottom p { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .display-title { font-size: var(--fs-h1); max-width: 16ch; }
+
+/* ---------- Fiókom (belépve): navigáció + tartalom ---------- */
+.woocommerce-account .woocommerce:has(> .woocommerce-MyAccount-navigation) { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--space-8); align-items: start; }
+.woocommerce-MyAccount-navigation { position: sticky; top: calc(var(--header-h, 72px) + var(--space-5)); }
+.woocommerce-MyAccount-navigation ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.woocommerce-MyAccount-navigation a { display: flex; align-items: center; min-height: var(--tap); padding: 0 var(--space-4); border-radius: var(--radius-s); color: var(--c-ink); text-decoration: none; transition: background var(--dur); }
+.woocommerce-MyAccount-navigation a:hover { background: var(--c-sand); }
+.woocommerce-MyAccount-navigation .is-active a { background: var(--c-ink); color: var(--c-white); font-weight: 600; }
+.woocommerce-MyAccount-navigation-link--customer-logout a { color: var(--c-muted); }
+.woocommerce-MyAccount-content { min-width: 0; }
+.woocommerce-MyAccount-content > p:first-child { margin-top: 0; }
+.woocommerce-MyAccount-content table.shop_table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+.woocommerce-MyAccount-content table.shop_table th, .woocommerce-MyAccount-content table.shop_table td { padding: var(--space-3); border-bottom: var(--border); text-align: left; }
+.woocommerce-MyAccount-content .woocommerce-orders-table__cell-order-actions .button { display: inline-flex; min-height: 36px; align-items: center; padding: 0 var(--space-4); border-radius: var(--radius-pill); border: 1px solid var(--c-ink); color: var(--c-ink); text-decoration: none; }
+.woocommerce-MyAccount-content .woocommerce-Addresses { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-5); }
+@media (max-width: 991.8px) {
+  .woocommerce-account .woocommerce:has(> .woocommerce-MyAccount-navigation) { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .woocommerce-MyAccount-navigation { position: static; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 0 var(--gutter, 16px); overflow-x: auto; scrollbar-width: none; }
+  .woocommerce-MyAccount-navigation ul { display: flex; gap: var(--space-2); width: max-content; }
+  .woocommerce-MyAccount-navigation a { white-space: nowrap; border: var(--border); border-radius: var(--radius-pill); min-height: 40px; }
+}

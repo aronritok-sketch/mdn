@@ -25,13 +25,26 @@ const RULES = {
   taxno: (v) => !v || validTaxNumber(v),
   min8: (v) => !v || v.length >= 8,
 };
+// Külföldi (EU) cím: a magyar irányítószám / telefonszám / adószám szabály helyett ezek.
+const VAT_RE = /^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|HR|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK|XI)[0-9A-Z+*]{2,12}$/;
+const INTL = {
+  zip: [(v) => !v || /^[A-Za-z0-9][A-Za-z0-9 -]{1,9}$/.test(v.trim()), 'Ellenőrizd az irányítószámot.'],
+  phone: [(v) => !v || (/^\+[1-9]/.test(v.trim()) && v.replace(/\D/g, '').length >= 7 && v.replace(/\D/g, '').length <= 15), 'Nemzetközi formátumban add meg, pl. +43 660 1234567.'],
+  taxno: [(v) => !v || VAT_RE.test(v.replace(/[\s.-]/g, '').toUpperCase()), 'A cég közösségi adószámát add meg országkóddal, pl. ATU12345678.'],
+};
+/** A mezőhöz tartozó ország (számlázási vagy szállítási), alapból HU. */
+export function countryOf(el) {
+  const scope = el.name?.startsWith('shipping_') ? 'shipping' : 'billing';
+  return (el.form || el.closest('form'))?.querySelector(`[name="${scope}_country"]`)?.value || 'HU';
+}
 const TYPO_DOMAINS = { 'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmail.hu': 'gmail.com', 'gamil.com': 'gmail.com', 'gmail.co': 'gmail.com', 'freemal.hu': 'freemail.hu', 'fremail.hu': 'freemail.hu', 'citromal.hu': 'citromail.hu', 'hotmial.com': 'hotmail.com', 'yahho.com': 'yahoo.com', 'outlok.com': 'outlook.com' };
 
 export function fieldError(el) {
   for (const line of (el.dataset.validate || '').split('\n').map((l) => l.trim()).filter(Boolean)) {
     const [rule, msg] = line.split('|');
-    const fn = RULES[rule];
-    if (fn && !fn(el.value || '', el)) return msg || 'Hibás érték.';
+    const intl = INTL[rule] && countryOf(el) !== 'HU' ? INTL[rule] : null;
+    const fn = intl ? intl[0] : RULES[rule];
+    if (fn && !fn(el.value || '', el)) return intl ? intl[1] : msg || 'Hibás érték.';
   }
   return '';
 }
@@ -73,10 +86,10 @@ function suggestEmail(el) {
 }
 
 function format(el) {
-  if (el.dataset.format === 'phone') {
+  if (el.dataset.format === 'phone' && countryOf(el) === 'HU') {
     const n = normPhone(el.value);
     if (n) el.value = n.replace(/^\+36(\d)(\d)(\d{3})(\d{3,4})$/, (_, a, b, c, d) => (a === '1' ? `+36 1 ${b}${c.slice(0, 2)} ${c.slice(2)}${d}` : `+36 ${a}${b} ${c} ${d}`));
-  } else if (el.dataset.format === 'taxno') {
+  } else if (el.dataset.format === 'taxno' && countryOf(el) === 'HU') {
     const d = el.value.replace(/\D/g, '');
     if (d.length === 11) el.value = `${d.slice(0, 8)}-${d[8]}-${d.slice(9)}`;
   } else return;

@@ -284,13 +284,13 @@ add_filter('woocommerce_checkout_posted_data', function ($data) {
     if (!$company) {
         $data['billing_company'] = '';
         $data['billing_tax_number'] = '';
-    } elseif (!empty($data['billing_tax_number'])) {
+    } elseif (!empty($data['billing_tax_number']) && ($data['billing_country'] ?? 'HU') === 'HU') {
         $digits = preg_replace('/\D/', '', $data['billing_tax_number']);
         if (strlen($digits) === 11) {
             $data['billing_tax_number'] = substr($digits, 0, 8) . '-' . $digits[8] . '-' . substr($digits, 9, 2);
         }
     }
-    if (!empty($data['billing_phone']) && ($phone = mandala_norm_phone($data['billing_phone']))) {
+    if (!empty($data['billing_phone']) && ($data['billing_country'] ?? 'HU') === 'HU' && ($phone = mandala_norm_phone($data['billing_phone']))) {
         $data['billing_phone'] = $phone;
     }
     return $data;
@@ -303,11 +303,11 @@ add_action('woocommerce_after_checkout_validation', function ($data, WP_Error $e
         }
         if (empty($data['billing_tax_number'])) {
             $errors->add('billing_tax_number_required', __('<strong>Adószám</strong>: céges számlához add meg az adószámot.', 'mandala'), ['id' => 'billing_tax_number']);
-        } elseif (!mandala_valid_tax_number($data['billing_tax_number'])) {
+        } elseif (($data['billing_country'] ?? 'HU') === 'HU' && !mandala_valid_tax_number($data['billing_tax_number'])) {
             $errors->add('billing_tax_number_validation', __('<strong>Adószám</strong>: ez nem érvényes magyar adószám (8-1-2 számjegy).', 'mandala'), ['id' => 'billing_tax_number']);
         }
     }
-    if (!empty($data['billing_phone']) && !mandala_norm_phone($data['billing_phone'])) {
+    if (!empty($data['billing_phone']) && ($data['billing_country'] ?? 'HU') === 'HU' && !mandala_norm_phone($data['billing_phone'])) {
         $errors->add('billing_phone_validation', __('<strong>Telefonszám</strong>: magyar telefonszámot adj meg, pl. +36 30 123 4567.', 'mandala'), ['id' => 'billing_phone']);
     }
     if (!empty($data['billing_postcode']) && ($data['billing_country'] ?? 'HU') === 'HU' && !preg_match('/^[1-9]\d{3}$/', $data['billing_postcode'])) {

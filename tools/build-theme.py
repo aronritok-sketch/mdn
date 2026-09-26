@@ -620,6 +620,14 @@ LEGAL = {
         ('Sütik', 'A szükséges sütik a működéshez kellenek; statisztikai és marketing sütiket csak hozzájárulással használunk. A beállítás a lábléc „Sütibeállítások” linkjén módosítható.'),
         ('Jogaid', 'Hozzáférés, helyesbítés, törlés, korlátozás, adathordozhatóság, tiltakozás; panasz a NAIH-nál.'),
     ]),
+    'akadalymentesseg': ('Akadálymentességi nyilatkozat', [
+        ('Célunk', 'Azt szeretnénk, hogy a webáruházat mindenki használni tudja – képernyőolvasóval, csak billentyűzettel, nagyítással vagy mobilon is. A megfelelés célja a WCAG 2.1 AA szint (EN 301 549), az európai akadálymentesítési irányelv (EU) 2019/882 és a hazai végrehajtási szabályok szerint.'),
+        ('Megfelelési állapot', 'Részben megfelel. A saját fejlesztésű oldalakat automatikus (axe-core) és kézi ellenőrzéssel vizsgáltuk: billentyűzettel bejárható menü, kereső, szűrő és pénztár; látható fókusz; címkézett űrlapmezők mezőnkénti hibaüzenettel és hibaösszesítővel; szöveges alternatívák; legalább 4.5:1 kontraszt; mozgáscsökkentési beállítás tiszteletben tartása; „Ugrás a tartalomra” link.'),
+        ('Ismert korlátok', 'Külső szolgáltatások felületei, amelyeket nem mi fejlesztünk: a GLS csomagpont-választó térképe, a Teya bankkártyás fizetőoldala és a beágyazott videók. A régebbi termékfotók egy részének leírása hiányos – folyamatosan pótoljuk. [A lista az éles ellenőrzés után pontosítandó.]'),
+        ('Visszajelzés és segítség', 'Ha valamit nem tudsz elérni vagy használni, írj nekünk vagy hívj – a rendelést telefonon vagy e-mailben is felvesszük, és 5 munkanapon belül válaszolunk az akadálymentességgel kapcsolatos jelzésekre. [e-mail] · [telefon]'),
+        ('Jogérvényesítés', 'Ha a válaszunkkal nem vagy elégedett, a piacfelügyeleti hatósághoz fordulhatsz. [A hatóság neve és elérhetősége – kitöltendő a hatályos szabályozás szerint.]'),
+        ('A nyilatkozat készítése', 'A nyilatkozat 2026 szeptemberében készült, a legutóbbi ellenőrzés dátuma: [kitöltendő]. Évente és minden jelentős fejlesztés után felülvizsgáljuk.'),
+    ]),
     'impresszum': ('Impresszum', [
         ('Üzemeltető', '[Cégnév, székhely, cégjegyzékszám, adószám – kitöltendő]'),
         ('Kapcsolat', '[e-mail] · [telefon]'),
