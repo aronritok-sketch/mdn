@@ -13,7 +13,7 @@ Mit csinál:
      FIGYELEM (iu-theme skill): a statikus iu blokkok (section, row, column, group,
      button, form…) HTML-je vázlat; élesítés előtt a valódi szerkesztőben kanonizálni
      kell (dev/canon.mjs), amíg a szerkesztő „invalid”-ot jelez.
-  5. dist/mandala-tema.zip
+  5. dist/mandala-tema.zip és dist/mandala-telepito-csomag.zip (téma + TELEPITES.md + UJ-TERMEKEK.md + wp-config kiegészítés)
 """
 import json
 import re
@@ -733,6 +733,23 @@ def build_zip():
     print(f'{DIST.relative_to(ROOT)}  {DIST.stat().st_size / 1024:.0f} KB')
 
 
+PACKAGE = ROOT / 'dist' / 'mandala-telepito-csomag.zip'
+
+
+def build_package():
+    """Telepítő csomag: a téma zip, a telepítési útmutató, a munkafolyamat és a wp-config kiegészítés."""
+    files = {
+        'mandala-tema.zip': DIST,
+        'TELEPITES.md': ROOT / 'docs/TELEPITES.md',
+        'UJ-TERMEKEK.md': ROOT / 'docs/UJ-TERMEKEK.md',
+        'wp-config-kiegeszites.php': ROOT / 'tools/package/wp-config-kiegeszites.php',
+    }
+    with zipfile.ZipFile(PACKAGE, 'w', zipfile.ZIP_DEFLATED) as z:
+        for name, path in files.items():
+            z.write(path, Path('mandala-telepito-csomag') / name)
+    print(f'{PACKAGE.relative_to(ROOT)}  {PACKAGE.stat().st_size / 1024:.0f} KB')
+
+
 if __name__ == '__main__':
     import sys
     build_assets()
@@ -744,3 +761,4 @@ if __name__ == '__main__':
     else:
         print('blokk-markup: változatlan (újragenerálás: --content, utána dev/canon.mjs)')
     build_zip()
+    build_package()

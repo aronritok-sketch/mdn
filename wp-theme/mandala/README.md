@@ -21,7 +21,11 @@ A jóváhagyott prototípus (repó gyökere) WordPress-megvalósítása.
 ## Telepítés
 
 1. **Megjelenés → Témák → Új hozzáadása → Téma feltöltése:** `mandala-tema.zip`, majd *Bekapcsolás*.
-2. Az első admin-betöltéskor lefut a telepítő (**Megjelenés → Mandala telepítő**):
+   Lépésről lépésre, élő bolthoz: [`docs/TELEPITES.md`](../../docs/TELEPITES.md) (a `dist/mandala-telepito-csomag.zip` is tartalmazza).
+2. Üres boltban az első admin-betöltéskor lefut a telepítő (**Megjelenés → Mandala telepítő**). **Élő boltban
+   (vannak termékek) nem fut magától:** lépésenként megmutatja, mit állít be, és csak a kijelölteket futtatja.
+   Minden felülírt beállítás eredeti értékét elmenti (visszaállítás gombbal), és egy későbbi újrafuttatás nem írja
+   felül, amit azóta kézzel módosítottak. Helykitöltő bankszámlaszámot csak a bemutató tartalom kap.
    ÁFA (27%, bruttó árak), forint formátum, Magyarország szállítási zóna személyes átvétellel (a GLS módokat a GLS bővítmény adja),
    előre utalás és utánvét, szűrő attribútumok (`pa_*`), kategóriák, oldalak, menük.
    - Meglévő tartalmat nem ír felül: ha egy oldalt kézzel szerkesztettek, figyelmeztet (md5 manifest).
@@ -115,6 +119,7 @@ nyelvenként) eltérő URL-ek mellett is jók.
 | `onboarding.php` | Új termékek jóváhagyási sora: az importból (JUTA) érkező termék piszkozat, ellenőrzőlista (kategória, kép, leírás, ár, cikkszám, kötelező szűrők), élesítés csak teljes adatokkal; értesítő és napi emlékeztető levél, jelvény | Termékek → Új termékek (Beállítások fül) |
 | `catalog-schema.php` | A szűrők adatleírása (mely szűrő hol kötelező) – az ellenőrzőlista és a Claude közös forrása | `mandala_filter_schema` szűrő |
 | `ai-catalog.php` | Claude-alapú kategorizálás: a meglévő termékek migrálása az új kategóriafára és szűrőkre (próbafuttatás, becslés, visszavonás), javaslat az új termékekhez | Termékek → Új termékek → Claude migráció; `wp mandala ai-migrate` |
+| `store-settings.php` | Bolt adatai adminból (elérhetőség, nyitvatartás, ingyenes szállítás, utánvét díja) | WooCommerce → Mandala bolt adatai |
 | `a11y.php` | Címke–mező összekapcsolás az iu/form mezőkön, fókuszálható táblázatok; az akadálymentességi nyilatkozat oldal a telepítőből | – |
 
 ### Ajándékutalvány és ÁFA
@@ -171,8 +176,9 @@ könyvelővel egyeztetve a tesztszerveren ellenőrizni kell. Lemondáskor az egy
 
 ## Élesítés előtt kitöltendő
 
-- Cégadatok, bankszámla, bemutatóterem címe, nyitvatartás: `setup/data/config.json` (vagy a
-  WooCommerce → Fizetés → Előre utalás beállítás) – jelenleg helykitöltők.
+- Elérhetőség, nyitvatartás, közösségi linkek, ingyenes szállítás határa, utánvét díja: **WooCommerce → Mandala bolt
+  adatai** (a témafrissítés nem írja felül; alapértékek: `setup/data/config.json`). Bankszámla: WooCommerce →
+  Fizetés → Előre utalás.
 - Jogi szövegek (ÁSZF, adatkezelés, impresszum): helykitöltők, jogászi átnézés kell.
 - Bővítmények: GLS, Teya, Számlázz.hu, Wholesale Prices. A telepítő oldala (Megjelenés → Mandala telepítő)
   mutatja, melyik aktív, és keresőlinket ad a hiányzókhoz. A GLS módokat a bővítmény telepítése után a

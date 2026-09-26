@@ -374,6 +374,45 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp('delete_option("mandala_ai");');
 }
 
+// ======================= Telepítő élő boltban =======================
+{
+  const W = (cmd) => execSync(`${WP} ${cmd}`, { encoding: 'utf8' });
+  // Kézzel módosított beállítást egy újrafuttatás nem ír felül.
+  wp('update_option("woocommerce_specific_allowed_countries", ["HU", "AT"]);');
+  W('mandala setup --step=woocommerce --force');
+  ok(wp('echo implode(",", get_option("woocommerce_specific_allowed_countries"));') === 'HU,AT', 'telepítő: a kézzel módosított beállítást nem írja felül');
+  wp('update_option("woocommerce_specific_allowed_countries", ["HU"]);');
+  // Élő bolt szimuláció: termékek vannak, a telepítő még nem futott.
+  const saved = wp('echo wp_json_encode([get_option("mandala_setup_steps"), get_option("mandala_setup_skipped", []), get_option("mandala_setup_confirmed", 0)]);');
+  wp('delete_option("mandala_setup_steps"); delete_option("mandala_setup_confirmed"); delete_option("mandala_setup_skipped");');
+  const page = await newPage();
+  await page.goto(`${BASE}/wp-login.php`);
+  await page.fill('#user_login', 'admin');
+  await page.fill('#user_pass', 'admin');
+  await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
+  await page.goto(`${BASE}/wp-admin/`);
+  ok(wp('echo wp_json_encode(get_option("mandala_setup_steps", []));') === '[]' && (await page.textContent('#wpbody-content')).includes('élő boltot talált'), 'telepítő élő boltban: nem fut magától, értesít');
+  await page.goto(`${BASE}/wp-admin/themes.php?page=mandala-setup`);
+  ok((await page.$$('input[name="steps[]"]')).length === 9, 'telepítő élő boltban: lépésenkénti áttekintés, mit állít be');
+  await page.uncheck('#st-woocommerce');
+  await page.uncheck('#st-tax');
+  await Promise.all([page.waitForNavigation(), page.click('button:has-text("A kijelölt lépések futtatása")')]);
+  const done = JSON.parse(wp('echo wp_json_encode(get_option("mandala_setup_steps", []));'));
+  ok(done.pages && done.menus && !done.woocommerce && !done.tax, 'telepítő élő boltban: csak a kijelölt lépések futnak');
+  ok((await page.textContent('#wpbody-content')).includes('kihagyva') && (await page.$$('button[form="mandala-step"]')).length >= 2, 'telepítő: a kihagyott lépés később egyenként futtatható');
+  ok((await page.textContent('#wpbody-content')).includes('Eredeti beállítások visszaállítása'), 'telepítő: az eredeti beállítások visszaállíthatók');
+  // Bolt adatai adminból (a témafrissítés nem írja felül)
+  await page.goto(`${BASE}/wp-admin/admin.php?page=mandala-store`);
+  await page.fill('#ms-phone', '+36 1 999 8888');
+  await page.fill('#ms-free', '30000');
+  await Promise.all([page.waitForNavigation(), page.click('#submit')]);
+  await page.goto(`${BASE}/kapcsolat/`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('body')).includes('+36 1 999 8888') && wp('echo mandala_config("freeShippingFrom");') === '30000', 'Mandala bolt adatai: telefon és ingyenes szállítás határa adminból');
+  wp('delete_option("mandala_contact"); delete_option("mandala_freeShippingFrom"); delete_option("mandala_payment");');
+  wp(`$s = json_decode('${saved}', true); update_option("mandala_setup_steps", $s[0]); update_option("mandala_setup_skipped", $s[1]); update_option("mandala_setup_confirmed", $s[2]);`);
+  await page.context().close();
+}
+
 {
   const [manage, qty] = JSON.parse(origStock);
   wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(${manage ? 'true' : 'false'}); $p->set_stock_quantity(${Number(qty) || 0}); $p->set_stock_status("instock"); $p->save();`);

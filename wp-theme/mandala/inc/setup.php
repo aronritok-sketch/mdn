@@ -40,7 +40,8 @@ final class Mandala_Setup
     public static function pending(): array
     {
         $done = get_option(self::OPTION, []);
-        return array_keys(array_filter(self::STEPS, fn($v, $k) => ($done[$k] ?? 0) < $v, ARRAY_FILTER_USE_BOTH));
+        $skipped = (array) get_option('mandala_setup_skipped', []);
+        return array_keys(array_filter(self::STEPS, fn($v, $k) => ($done[$k] ?? 0) < $v && !in_array($k, $skipped, true), ARRAY_FILTER_USE_BOTH));
     }
 
     /** @return string[] napló */
@@ -49,6 +50,9 @@ final class Mandala_Setup
         $this->log = [];
         // A telepítő / bemutató termékei nem importból jönnek: nem kerülnek az „Új termékek” sorba.
         $GLOBALS['mandala_onboarding_skip'] = true;
+        if ($only) {
+            update_option('mandala_setup_skipped', array_values(array_diff((array) get_option('mandala_setup_skipped', []), $only)), false);
+        }
         if (!class_exists('WooCommerce')) {
             $this->log[] = 'A WooCommerce nincs bekapcsolva: a bolti lépések kimaradnak.';
         }
@@ -79,23 +83,86 @@ final class Mandala_Setup
         return $this->log;
     }
 
+    /**
+     * Beállítás írása úgy, hogy
+     *  - az eredeti érték mentésre kerül (Megjelenés → Mandala telepítő → visszaállítás),
+     *  - egy későbbi újrafuttatás ne írja felül azt, amit azóta kézzel módosítottak
+     *    (pl. `wp mandala eu-shipping` után az engedélyezett országokat).
+     */
+    private function set(string $key, $value): void
+    {
+        $norm = function ($v) use (&$norm) {
+            return is_array($v) ? array_map($norm, $v) : (is_bool($v) ? ($v ? '1' : '') : (string) $v);
+        };
+        $written = (array) get_option('mandala_setup_written', []);
+        $current = get_option($key, null);
+        if (array_key_exists($key, $written) && $current !== null && $norm($current) !== $norm($written[$key])) {
+            if ($norm($current) !== $norm($value)) {
+                $this->log[] = "! {$key}: kézzel módosították – nem írtam felül.";
+            }
+            return;
+        }
+        $backup = (array) get_option('mandala_setup_backup', []);
+        if (!array_key_exists($key, $backup)) {
+            $backup[$key] = $current === null ? ['missing' => true] : ['value' => $current];
+            update_option('mandala_setup_backup', $backup, false);
+        }
+        update_option($key, $value);
+        $written[$key] = $value;
+        update_option('mandala_setup_written', $written, false);
+    }
+
+    /** Az eredeti (a telepítő előtti) beállítások visszaállítása. */
+    public static function restore_backup(): int
+    {
+        $backup = (array) get_option('mandala_setup_backup', []);
+        foreach ($backup as $key => $row) {
+            !empty($row['missing']) ? delete_option($key) : update_option($key, $row['value']);
+        }
+        delete_option('mandala_setup_backup');
+        delete_option('mandala_setup_written');
+        return count($backup);
+    }
+
+    /** Élő bolt (vannak termékek, és a telepítő még nem futott): csak megerősítés után fut. */
+    public static function needs_confirmation(): bool
+    {
+        if (get_option(self::OPTION) || get_option('mandala_setup_confirmed') || !post_type_exists('product')) {
+            return false;
+        }
+        return (bool) get_posts(['post_type' => 'product', 'post_status' => 'publish', 'numberposts' => 1, 'fields' => 'ids']);
+    }
+
+    /** Mit állít át az egyes lépés (a megerősítő oldalhoz). */
+    public const STEP_INFO = [
+        'site' => 'Időzóna (Budapest), dátumformátum, hét első napja; permalink csak ha nincs beállítva; magyar termék-URL-alap csak üres boltban.',
+        'woocommerce' => 'Ország, pénznem és árformátum (Ft), súly/méret egység, vendégvásárlás, regisztráció, készletkezelés, pénztári mezők, levelek feladója és színei. FIGYELEM: az engedélyezett és a szállítási országot Magyarországra állítja.',
+        'tax' => 'ÁFA: bruttó árak, 27%-os kulcs (ha még nincs), megjelenítés ÁFÁ-val.',
+        'shipping' => 'Magyarország szállítási zóna (ha még nincs) személyes átvétellel; a GLS módokat a GLS bővítmény adja.',
+        'payments' => 'Előre utalás és utánvét bekapcsolása, a csekk kikapcsolása.',
+        'attributes' => 'A szűrők tulajdonságai (pa_szandek, pa_hang, pa_csakra…) – csak a hiányzók jönnek létre.',
+        'categories' => 'Az új kategóriafa – csak a hiányzó kategóriák jönnek létre; a meglévőkhöz nem nyúl.',
+        'pages' => 'Az új oldalak (kezdőlap, eredetünk, kapcsolat…); a kezdőlapot a Mandala kezdőlapra állítja. A kézzel szerkesztett oldalakat nem írja felül.',
+        'menus' => 'Menük – csak ha az adott menühelyen még nincs menü.',
+    ];
+
     /* ---------------------------------------------------------------- lépések */
 
     private function step_site(): void
     {
-        update_option('blogname', get_option('blogname') && get_option('blogname') !== 'My WordPress Website' && get_option('blogname') !== 'Saját WordPress honlap' ? get_option('blogname') : 'Mandala');
+        $this->set('blogname', get_option('blogname') && get_option('blogname') !== 'My WordPress Website' && get_option('blogname') !== 'Saját WordPress honlap' ? get_option('blogname') : 'Mandala');
         if (!get_option('blogdescription') || get_option('blogdescription') === 'Just another WordPress site') {
-            update_option('blogdescription', 'Hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából');
+            $this->set('blogdescription', 'Hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából');
         }
-        update_option('timezone_string', 'Europe/Budapest');
-        update_option('date_format', 'Y. F j.');
-        update_option('time_format', 'H:i');
-        update_option('start_of_week', 1);
+        $this->set('timezone_string', 'Europe/Budapest');
+        $this->set('date_format', 'Y. F j.');
+        $this->set('time_format', 'H:i');
+        $this->set('start_of_week', 1);
         $structure = (string) get_option('permalink_structure');
         if (!$structure || ($structure === '/%year%/%monthnum%/%day%/%postname%/' && wp_count_posts('post')->publish <= 1)) {
-            update_option('permalink_structure', '/%postname%/');
+            $this->set('permalink_structure', '/%postname%/');
         }
-        update_option('posts_per_page', 9);
+        $this->set('posts_per_page', 9);
         $sample = get_page_by_path('sample-page');
         if ($sample && (int) $sample->ID === 2) {
             wp_trash_post($sample->ID);
@@ -109,7 +176,7 @@ final class Mandala_Setup
             $wc_permalinks['category_base'] = 'kategoria';
             $wc_permalinks['tag_base'] = 'cimke';
             $wc_permalinks['attribute_base'] = '';
-            update_option('woocommerce_permalinks', $wc_permalinks);
+            $this->set('woocommerce_permalinks', $wc_permalinks);
         }
     }
 
@@ -160,7 +227,7 @@ final class Mandala_Setup
             'woocommerce_email_footer_text' => get_bloginfo('name') . ' – hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából',
         ];
         foreach ($options as $key => $value) {
-            update_option($key, $value);
+            $this->set($key, $value);
         }
         // A WooCommerce oldalak (kosár, pénztár, fiók, bolt) a „pages” lépésben kapják a tartalmukat.
     }
@@ -168,15 +235,15 @@ final class Mandala_Setup
     private function step_tax(): void
     {
         // Magyar B2C: bruttó árak, 27% ÁFA.
-        update_option('woocommerce_calc_taxes', 'yes');
-        update_option('woocommerce_prices_include_tax', 'yes');
-        update_option('woocommerce_tax_based_on', 'base');
-        update_option('woocommerce_shipping_tax_class', '');
-        update_option('woocommerce_tax_round_at_subtotal', 'no');
-        update_option('woocommerce_tax_display_shop', 'incl');
-        update_option('woocommerce_tax_display_cart', 'incl');
-        update_option('woocommerce_price_display_suffix', '');
-        update_option('woocommerce_tax_total_display', 'single');
+        $this->set('woocommerce_calc_taxes', 'yes');
+        $this->set('woocommerce_prices_include_tax', 'yes');
+        $this->set('woocommerce_tax_based_on', 'base');
+        $this->set('woocommerce_shipping_tax_class', '');
+        $this->set('woocommerce_tax_round_at_subtotal', 'no');
+        $this->set('woocommerce_tax_display_shop', 'incl');
+        $this->set('woocommerce_tax_display_cart', 'incl');
+        $this->set('woocommerce_price_display_suffix', '');
+        $this->set('woocommerce_tax_total_display', 'single');
         global $wpdb;
         $exists = $wpdb->get_var($wpdb->prepare("SELECT tax_rate_id FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_country = %s AND tax_rate_class = ''", 'HU'));
         if (!$exists) {
@@ -209,7 +276,7 @@ final class Mandala_Setup
         }
         if (!$has_pickup) {
             $instance_id = $zone->add_shipping_method('local_pickup');
-            update_option("woocommerce_local_pickup_{$instance_id}_settings", ['title' => 'Személyes átvétel', 'tax_status' => 'none', 'cost' => '0']);
+            $this->set("woocommerce_local_pickup_{$instance_id}_settings", ['title' => 'Személyes átvétel', 'tax_status' => 'none', 'cost' => '0']);
             // A pénztár az első módot választja ki: a GLS módok (bővítmény) kerüljenek elé.
             global $wpdb;
             $wpdb->update("{$wpdb->prefix}woocommerce_shipping_zone_methods", ['method_order' => 99], ['instance_id' => $instance_id]);
@@ -222,22 +289,19 @@ final class Mandala_Setup
 
     private function step_payments(): void
     {
-        $bank = mandala_config('bank', []);
         $bacs = get_option('woocommerce_bacs_settings', []);
-        update_option('woocommerce_bacs_settings', array_merge($bacs, [
+        $this->set('woocommerce_bacs_settings', array_merge($bacs, [
             'enabled' => 'yes',
             'title' => 'Előre utalás',
             'description' => 'A visszaigazolásban és a köszönő oldalon megadjuk a bankszámlaszámot; közleménynek a rendelésszámot írd. A csomagot a jóváírás után adjuk fel (általában 1 munkanap).',
             'instructions' => 'Közleménynek csak a rendelésszámot írd. A csomagot a jóváírás után adjuk fel.',
         ]));
+        // Helykitöltő számlaszámot élő boltba nem írunk (a vásárló látná): csak a bemutató tartalom kapja.
         if (!get_option('woocommerce_bacs_accounts')) {
-            update_option('woocommerce_bacs_accounts', [[
-                'account_name' => $bank['holder'] ?? '', 'account_number' => $bank['account'] ?? '', 'bank_name' => $bank['name'] ?? '',
-                'sort_code' => '', 'iban' => $bank['iban'] ?? '', 'bic' => $bank['swift'] ?? '',
-            ]]);
+            $this->log[] = '! Add meg a bankszámlaszámot: WooCommerce → Beállítások → Fizetés → Előre utalás.';
         }
         $cod = get_option('woocommerce_cod_settings', []);
-        update_option('woocommerce_cod_settings', array_merge($cod, [
+        $this->set('woocommerce_cod_settings', array_merge($cod, [
             'enabled' => 'yes',
             'title' => 'Utánvét',
             'description' => 'Fizetés készpénzzel vagy kártyával a futárnak / az automatánál.',
@@ -245,8 +309,8 @@ final class Mandala_Setup
             'enable_for_methods' => [],
             'enable_for_virtual' => 'no',
         ]));
-        update_option('woocommerce_cheque_settings', array_merge(get_option('woocommerce_cheque_settings', []), ['enabled' => 'no']));
-        update_option('woocommerce_gateway_order', array_merge((array) get_option('woocommerce_gateway_order', []), ['bacs' => 10, 'cod' => 11]));
+        $this->set('woocommerce_cheque_settings', array_merge(get_option('woocommerce_cheque_settings', []), ['enabled' => 'no']));
+        $this->set('woocommerce_gateway_order', array_merge((array) get_option('woocommerce_gateway_order', []), ['bacs' => 10, 'cod' => 11]));
     }
 
     /** Szűrő attribútumok (docs/SZURO.md) és kifejezéseik. */
@@ -378,10 +442,10 @@ final class Mandala_Setup
                 }
             }
             if ($role === 'front') {
-                update_option('show_on_front', 'page');
-                update_option('page_on_front', $id);
+                $this->set('show_on_front', 'page');
+                $this->set('page_on_front', $id);
             } elseif ($role) {
-                update_option($role, $id);
+                $this->set($role, $id);
             }
         }
         update_option(self::MANIFEST, $manifest, false);
@@ -467,6 +531,14 @@ final class Mandala_Setup
 
     private function step_demo_products(): void
     {
+        // Bemutató bankszámla (helykitöltő), ha még nincs – csak a bemutatóhoz.
+        if (!get_option('woocommerce_bacs_accounts')) {
+            $bank = mandala_config('bank', []);
+            update_option('woocommerce_bacs_accounts', [[
+                'account_name' => $bank['holder'] ?? '', 'account_number' => $bank['account'] ?? '', 'bank_name' => $bank['name'] ?? '',
+                'sort_code' => '', 'iban' => $bank['iban'] ?? '', 'bic' => $bank['swift'] ?? '',
+            ]]);
+        }
         foreach (mandala_data('products') as $p) {
             if (wc_get_product_id_by_sku($p['sku'] ?? '')) {
                 continue;
@@ -624,6 +696,10 @@ final class Mandala_Setup
     public static function delete_demo(): int
     {
         $n = 0;
+        $accounts = (array) get_option('woocommerce_bacs_accounts', []);
+        if (($accounts[0]['account_number'] ?? null) === (mandala_config('bank', [])['account'] ?? '')) {
+            delete_option('woocommerce_bacs_accounts'); // a bemutató helykitöltő számlaszáma
+        }
         foreach (apply_filters('mandala_demo_post_types', ['product', 'post', 'shop_coupon']) as $type) {
             foreach (get_posts(['post_type' => $type, 'post_status' => 'any', 'numberposts' => -1, 'meta_key' => '_mandala_demo', 'meta_value' => '1', 'fields' => 'ids']) as $id) {
                 wp_delete_post($id, true);
@@ -674,6 +750,9 @@ add_action('admin_notices', function () {
     if (!current_user_can('manage_options') || (get_current_screen()->id ?? '') === 'appearance_page_mandala-setup') {
         return;
     }
+    if (Mandala_Setup::needs_confirmation()) {
+        echo '<div class="notice notice-info"><p><strong>Mandala téma:</strong> a telepítő élő boltot talált, ezért nem futott le magától. <a href="' . esc_url(admin_url('themes.php?page=mandala-setup')) . '">Nézd át, mit állít be</a>, és indítsd el a szükséges lépéseket.</p></div>';
+    }
     $missing = array_filter(mandala_plugin_status(), fn($p) => !$p['active']);
     if ($missing) {
         echo '<div class="notice notice-warning"><p><strong>Mandala:</strong> hiányzó bővítmény: ' . esc_html(implode(', ', array_column($missing, 'name')))
@@ -683,7 +762,7 @@ add_action('admin_notices', function () {
 
 /** Automatikus futtatás adminisztrátornak (egyszer lépésenként; AJAX és cron alatt nem). */
 add_action('admin_init', function () {
-    if (wp_doing_ajax() || wp_doing_cron() || !current_user_can('manage_options') || !Mandala_Setup::pending()) {
+    if (wp_doing_ajax() || wp_doing_cron() || !current_user_can('manage_options') || !Mandala_Setup::pending() || Mandala_Setup::needs_confirmation()) {
         return;
     }
     (new Mandala_Setup())->run();
@@ -704,18 +783,40 @@ add_action('admin_menu', function () {
                 . ($p['active'] ? '✓ aktív' : '<a class="button" href="' . esc_url(admin_url('plugin-install.php?s=' . rawurlencode($p['search']) . '&tab=search&type=term')) . '">Keresés és telepítés</a>') . '</td></tr>';
         }
         echo '</tbody></table>';
-        echo '<h2>Telepítő lépések</h2><table class="widefat striped" style="max-width:720px"><thead><tr><th>Lépés</th><th>Verzió</th><th>Állapot</th></tr></thead><tbody>';
+        if (Mandala_Setup::needs_confirmation()) {
+            echo '<div class="notice notice-warning inline" style="max-width:900px"><p><strong>Élő bolt:</strong> a webáruházban már vannak termékek, ezért a telepítő nem fut le magától. Nézd át, mit állít be, és csak azt futtasd, amire szükség van. Minden felülírt beállítás eredeti értékét elmenti – egy gombbal visszaállítható. Élesítés előtt tesztszerveren (a bolt másolatán) próbáld ki.</p></div>';
+            echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '"><input type="hidden" name="action" value="mandala_setup"><input type="hidden" name="do" value="confirm">';
+            wp_nonce_field('mandala_setup');
+            echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th style="width:30px"></th><th>Lépés</th><th>Mit állít be</th></tr></thead><tbody>';
+            foreach (Mandala_Setup::STEP_INFO as $step => $info) {
+                echo '<tr><td><input type="checkbox" name="steps[]" value="' . esc_attr($step) . '" id="st-' . esc_attr($step) . '" checked></td><td><label for="st-' . esc_attr($step) . '"><strong>' . esc_html($step) . '</strong></label></td><td>' . esc_html($info) . '</td></tr>';
+            }
+            echo '</tbody></table><p><button class="button button-primary">A kijelölt lépések futtatása</button> <span class="description">A ki nem jelöltek kimaradnak; később egyenként futtathatók.</span></p></form></div>';
+            return;
+        }
+        $skipped = (array) get_option('mandala_setup_skipped', []);
+        echo '<h2>Telepítő lépések</h2><table class="widefat striped" style="max-width:900px"><thead><tr><th>Lépés</th><th>Verzió</th><th>Állapot</th><th>Mit állít be</th></tr></thead><tbody>';
         foreach (Mandala_Setup::STEPS + Mandala_Setup::DEMO_STEPS as $step => $v) {
             $ok = ($done[$step] ?? 0) >= $v;
-            echo '<tr><td>' . esc_html($step) . (isset(Mandala_Setup::DEMO_STEPS[$step]) ? ' <em>(bemutató)</em>' : '') . '</td><td>' . (int) $v . '</td><td>' . ($ok ? '✓ kész' : '–') . '</td></tr>';
+            $state = $ok ? '✓ kész' : (in_array($step, $skipped, true) ? 'kihagyva' : '–');
+            $run = !$ok && !isset(Mandala_Setup::DEMO_STEPS[$step]) ? ' <button class="button button-small" form="mandala-step" name="step" value="' . esc_attr($step) . '">Futtatás</button>' : '';
+            echo '<tr><td>' . esc_html($step) . (isset(Mandala_Setup::DEMO_STEPS[$step]) ? ' <em>(bemutató)</em>' : '') . '</td><td>' . (int) $v . '</td><td>' . esc_html($state) . $run . '</td><td class="description">' . esc_html(Mandala_Setup::STEP_INFO[$step] ?? '') . '</td></tr>';
         }
-        echo '</tbody></table><form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
+        echo '</tbody></table><form id="mandala-step" method="post" action="' . esc_url(admin_url('admin-post.php')) . '"><input type="hidden" name="action" value="mandala_setup"><input type="hidden" name="do" value="step">';
+        wp_nonce_field('mandala_setup');
+        echo '</form>';
+        $backup = (array) get_option('mandala_setup_backup', []);
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
         wp_nonce_field('mandala_setup');
         echo '<input type="hidden" name="action" value="mandala_setup">';
         echo '<button class="button button-primary" name="do" value="run">Függő lépések futtatása</button>';
         echo '<button class="button" name="do" value="force">Minden lépés újrafuttatása</button>';
         echo '<button class="button" name="do" value="demo">Bemutató termékek, cikkek, kuponok importálása</button>';
-        echo '<button class="button" name="do" value="demo-delete" onclick="return confirm(\'Törlöd a bemutató tartalmat?\')">Bemutató tartalom törlése</button></form>';
+        echo '<button class="button" name="do" value="demo-delete" onclick="return confirm(\'Törlöd a bemutató tartalmat?\')">Bemutató tartalom törlése</button>';
+        if ($backup) {
+            echo '<button class="button" name="do" value="restore" onclick="return confirm(\'A telepítő által átírt ' . count($backup) . ' beállítás visszaáll az eredeti értékére. Folytatod?\')">Eredeti beállítások visszaállítása (' . count($backup) . ')</button>';
+        }
+        echo '</form>';
         if ($log) {
             echo '<h2>Utolsó futás: ' . esc_html($log['date']) . '</h2><pre style="background:#fff;padding:12px;max-width:720px;white-space:pre-wrap">' . esc_html(implode("\n", $log['log'])) . '</pre>';
         }
@@ -729,6 +830,14 @@ add_action('admin_post_mandala_setup', function () {
     $do = sanitize_key($_POST['do'] ?? 'run');
     $setup = new Mandala_Setup();
     match ($do) {
+        'confirm' => (function () use ($setup) {
+            $steps = array_values(array_intersect(array_map('sanitize_key', (array) ($_POST['steps'] ?? [])), array_keys(Mandala_Setup::STEPS)));
+            update_option('mandala_setup_confirmed', 1, false);
+            update_option('mandala_setup_skipped', array_values(array_diff(array_keys(Mandala_Setup::STEPS), $steps)), false);
+            $setup->run($steps ?: ['__none__']);
+        })(),
+        'step' => $setup->run([sanitize_key($_POST['step'] ?? '')]),
+        'restore' => Mandala_Setup::restore_backup(),
         'force' => $setup->run([], true),
         'demo' => $setup->run(array_keys(Mandala_Setup::DEMO_STEPS)),
         'demo-delete' => Mandala_Setup::delete_demo(),
