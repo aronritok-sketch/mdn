@@ -25,7 +25,7 @@ final class Mandala_Setup
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 5,
+        'pages' => 6,
         'menus' => 1,
     ];
     public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
@@ -394,6 +394,7 @@ final class Mandala_Setup
             'rolunk' => ['Eredetünk', 'Honnan érkeznek a Mandala tárgyai? Nepál és India kis műhelyeitől Budapestig – így válogatunk.', 'mandala_page_rolunk'],
             'viszonteladoknak' => ['Viszonteladóknak', 'Jógastúdióknak, ajándék- és lakberendezési üzleteknek, masszőröknek és hangterapeutáknak: közvetlen import, nagykereskedelmi áron.', 'mandala_page_viszonteladoknak'],
             'ertekeles' => ['Értékelés', 'Köszönjük, hogy megosztod a tapasztalatod.', 'mandala_page_ertekeles'],
+            'csomagkovetes' => ['Csomagkövetés', 'Add meg a rendelésszámot és az e-mail-címed, és megmutatjuk, hol tart a csomagod.', 'mandala_page_csomagkovetes'],
             'ajandekcsomag' => ['Ajándékcsomag', 'Válassz néhány tárgyat, mi nepáli lokta papírba csomagoljuk, és kézzel megírjuk a kártyát.', 'mandala_page_ajandekcsomag'],
             'hangtal-valaszto' => ['Hangtál-választó', 'Öt kérdés, és megmutatjuk, melyik tálunk illik hozzád – a hangja, a súlya, a csakrája és a kereted alapján.', 'mandala_page_hangtal-valaszto'],
             'kapcsolat' => ['Kapcsolat', 'Kérdésed van egy termékről, vagy nem tudod, melyik hangtál illik hozzád? Általában egy munkanapon belül válaszolunk.', 'mandala_page_kapcsolat'],
@@ -485,6 +486,7 @@ final class Mandala_Setup
                 ['Szállítás és átvétel', 'custom', get_permalink($page('mandala_page_informaciok')) . '#szallitas'],
                 ['Fizetési módok', 'custom', get_permalink($page('mandala_page_informaciok')) . '#fizetes'],
                 ['Visszaküldés, elállás', 'custom', get_permalink($page('mandala_page_informaciok')) . '#visszakuldes'],
+                ['Hol a csomagom?', 'page', $page('mandala_page_csomagkovetes')],
                 ['Fiókom és rendeléseim', 'page', $page('woocommerce_myaccount_page_id')],
                 ['Viszonteladóknak', 'page', $page('mandala_page_viszonteladoknak')],
                 ['Kapcsolat', 'page', $page('mandala_page_kapcsolat')],

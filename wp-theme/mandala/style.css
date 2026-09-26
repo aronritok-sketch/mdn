@@ -1052,3 +1052,15 @@ body:has(.sticky-atc.is-visible) .chat-launcher { bottom: calc(var(--space-4) + 
   .chat-panel, .chat-launcher { transition: none; }
   .chat-typing span { animation: none; opacity: .6; }
 }
+
+/* ---------- Csomagkövetés ---------- */
+.track-form, .track-panel, .track-more { max-width: 720px; margin: 0 auto var(--space-5); }
+.track-form { display: grid; gap: var(--space-4); }
+.track-form .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); }
+.track-panel .timeline li.is-current .dot { border-color: var(--c-accent-deep); color: var(--c-accent-deep); box-shadow: 0 0 0 4px var(--c-accent-soft); font-weight: 600; }
+.track-panel .timeline li.is-current strong { color: var(--c-accent-deep); }
+.track-items { margin: 0 0 var(--space-3); padding-left: 1.2em; }
+.woocommerce-MyAccount-content .track-panel { margin: 0 0 var(--space-6); max-width: none; }
+@media (max-width: 599.8px) {
+  .track-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+}

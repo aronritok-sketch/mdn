@@ -705,6 +705,7 @@ def build_content():
         **{k: page_legal(k) for k in LEGAL},
         'kedvencek': section(one(dyn('mandala/wishlist')), className='pt-7'),
         'ertekeles': section(one(dyn('mandala/review-form')), className='pt-6'),
+        'csomagkovetes': section(one(dyn('mandala/order-tracking')), className='pt-6'),
         'hangtal-valaszto': section(one(dyn('mandala/bowl-finder')), className='pt-6') + '\n\n' + consultation_section(),
         'ajandekcsomag': section(one(dyn('mandala/gift-builder')), className='pt-6') + '\n\n' + section(row('1-2|1-2',
             col('1-2', eyebrow('Ha nem tudod, mit választana'), h('Ajándékutalvány', anchor='utalvany'),

@@ -104,10 +104,9 @@ add_action('woocommerce_product_set_stock_status', function ($product_id, $statu
         return;
     }
     $product = wc_get_product($product_id);
-    $subject = sprintf(__('Újra raktáron: %s', 'mandala'), $product->get_name());
-    $body = sprintf(__("Kedves Vásárlónk!\n\nA(z) %1\$s újra elérhető webáruházunkban:\n%2\$s\n\nA készlet korlátozott, ezért érdemes hamar lecsapni rá.\n\nÜdvözlettel:\n%3\$s", 'mandala'), $product->get_name(), get_permalink($product_id), get_bloginfo('name'));
+    $blocks = ['termek_sor' => mandala_mail_product_row($product, wp_kses_post(wc_price(wc_get_price_to_display($product)))), 'gomb' => mandala_mail_button(get_permalink($product_id), __('Megnézem', 'mandala'))];
     foreach (array_keys($list) as $email) {
-        wp_mail($email, $subject, $body);
+        mandala_mail('stock_back', (string) $email, ['termek' => $product->get_name()], $blocks);
     }
     delete_post_meta($product_id, '_mandala_stock_notify');
 }, 10, 2);

@@ -130,7 +130,9 @@ $icon = 'mandala_icon';
           <li><span class="dot">4</span><span><strong><?php echo esc_html($pickup ? __('Átveszed', 'mandala') : __('Megérkezik', 'mandala')); ?></strong><span><?php esc_html_e('Jó elcsendesedést!', 'mandala'); ?></span></span></li>
         </ol>
       </section>
-      <?php if ($order->get_customer_id()) : ?>
+      <?php if (function_exists('mandala_tracking_url')) : ?>
+      <div class="woocommerce-message"><?php echo $icon('truck'); // phpcs:ignore ?><span><?php echo wp_kses_post(sprintf(__('<a href="%s">Itt követheted a rendelésed</a> – a linket e-mailben is elküldtük.', 'mandala'), esc_url(mandala_tracking_url($order)))); ?></span></div>
+      <?php elseif ($order->get_customer_id()) : ?>
       <div class="woocommerce-message"><?php echo $icon('user'); // phpcs:ignore ?><span><?php echo wp_kses_post(sprintf(__('A rendelésed a <a href="%s">Fiókom</a> oldalon követheted.', 'mandala'), esc_url(wc_get_page_permalink('myaccount')))); ?></span></div>
       <?php endif; ?>
       <div class="iu-button-group"><a class="iu-button iu-button-block" href="<?php echo esc_url(mandala_shop_url()); ?>"><?php esc_html_e('Vásárlás folytatása', 'mandala'); ?></a>

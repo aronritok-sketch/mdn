@@ -217,11 +217,8 @@ add_action('mandala_b2b_weekly', function () {
             $wholesale = mandala_wholesale_price($product);
             $rows .= mandala_mail_product_row($product, esc_html(($product->get_sku() ? $product->get_sku() . ' · ' : '') . ($wholesale !== null ? sprintf(__('nagyker: %s', 'mandala'), mandala_fmt($wholesale)) : mandala_fmt((float) $product->get_price()))));
         }
-        $body = '<p>' . sprintf(esc_html__('Kedves %s!', 'mandala'), esc_html($user->first_name ?: $user->display_name)) . '</p><p>'
-            . esc_html(sprintf(_n('Ezen a héten %d új termék érkezett.', 'Ezen a héten %d új termék érkezett.', count($ids), 'mandala'), count($ids))) . '</p>'
-            . $rows . mandala_mail_button(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT), __('Gyorsrendelés', 'mandala'))
-            . '<p style="font-size:12px;color:#6E6357">' . esc_html__('A levelet a viszonteladói felületen kapcsoltad be; ugyanott ki is kapcsolhatod.', 'mandala') . '</p>';
-        mandala_send_mail($user->user_email, __('Új érkezések a Mandalánál', 'mandala'), __('Új érkezések', 'mandala'), $body);
+        mandala_mail('b2b_weekly', $user->user_email, ['keresztnev' => $user->first_name ?: $user->display_name, 'db' => (string) count($ids)],
+            ['termekek' => $rows, 'gomb' => mandala_mail_button(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT), __('Gyorsrendelés', 'mandala'))]);
     }
     wp_set_current_user(0);
 });

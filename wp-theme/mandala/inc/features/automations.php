@@ -5,12 +5,18 @@
  *  - használati útmutató a teljesített rendelés után;
  *  - újrarendelés emlékeztető fogyóeszközöknél (füstölő);
  *  - értékelés kérése személyes, ellenőrzött linkkel (lásd reviews.php).
- * Beállítás: WooCommerce → Mandala automatizmusok.
+ * A levelek szövege, kapcsolója és időzítése: WooCommerce → Mandala levelek (mailer.php).
  */
 
 defined('ABSPATH') || exit;
 
 const MANDALA_AS_GROUP = 'mandala';
+
+/** A rendeléses levelek közös helyőrzői. */
+function mandala_mail_order_vars(WC_Order $order): array
+{
+    return ['keresztnev' => $order->get_billing_first_name() ?: __('Vásárlónk', 'mandala'), 'rendeles' => $order->get_order_number()];
+}
 
 function mandala_schedule(int $delay_seconds, string $hook, array $args): void
 {
@@ -86,11 +92,7 @@ add_action('mandala_mail_abandoned', function ($email) {
     $restore = add_query_arg(['mandala_restore' => rawurlencode($email), 'k' => mandala_token('restore', $email, (string) $cart['time']), 't' => $cart['time']], home_url('/'));
     // A visszaállításhoz a kosár tartalma a linkhez kötve 7 napig marad meg.
     set_transient('mandala_restore_' . md5($email . $cart['time']), $cart['items'], 7 * DAY_IN_SECONDS);
-    $hello = $cart['name'] ? sprintf(__('Kedves %s!', 'mandala'), esc_html($cart['name'])) : __('Kedves Vásárlónk!', 'mandala');
-    $body = '<p>' . $hello . '</p><p>' . esc_html__('Úgy láttuk, a kosaradban maradt néhány darab. Félretettük neked – egy kattintással folytathatod a rendelést.', 'mandala') . '</p>'
-        . $rows . mandala_mail_button($restore, __('Rendelés folytatása', 'mandala'))
-        . '<p style="color:#6E6357">' . esc_html__('Kérdésed van a termékekről? Válaszolj erre a levélre, szívesen segítünk.', 'mandala') . '</p>';
-    mandala_send_mail($email, __('A kosarad vár rád', 'mandala'), __('Félretettük neked', 'mandala'), $body, true);
+    mandala_mail('abandoned', $email, ['keresztnev' => $cart['name'] ?: __('Vásárlónk', 'mandala')], ['termekek' => $rows, 'gomb' => mandala_mail_button($restore, __('Rendelés folytatása', 'mandala'))]);
 });
 
 /** Kosár visszaállítása a levél linkjéből. */
@@ -159,10 +161,7 @@ add_action('mandala_mail_care', function ($order_id) {
     if (!$rows) {
         return;
     }
-    $body = '<p>' . sprintf(esc_html__('Kedves %s!', 'mandala'), esc_html($order->get_billing_first_name())) . '</p><p>'
-        . esc_html__('Reméljük, már megérkezett és jó helyre került, amit tőlünk választottál. Összegyűjtöttük, hogyan érdemes használni és gondozni, hogy sokáig örömöd legyen benne.', 'mandala') . '</p>'
-        . $rows;
-    mandala_send_mail($order->get_billing_email(), __('Így használd és gondozd', 'mandala'), __('Használat és gondozás', 'mandala'), $body);
+    mandala_mail('care', $order->get_billing_email(), mandala_mail_order_vars($order), ['termekek' => $rows], $order->get_id());
 });
 
 add_action('mandala_mail_reorder', function ($order_id) {
@@ -182,10 +181,7 @@ add_action('mandala_mail_reorder', function ($order_id) {
     if (!$rows) {
         return;
     }
-    $body = '<p>' . sprintf(esc_html__('Kedves %s!', 'mandala'), esc_html($order->get_billing_first_name())) . '</p><p>'
-        . esc_html__('Talán már fogytán a füstölőd. Ha jólesett, egy kattintással újrarendelheted – vagy nézd meg az új illatokat.', 'mandala') . '</p>'
-        . $rows . mandala_mail_button(mandala_url(['cat' => $cats[0]]), __('Új illatok', 'mandala'));
-    mandala_send_mail($order->get_billing_email(), __('Fogytán a füstölő?', 'mandala'), __('Újrarendelés egy kattintással', 'mandala'), $body, true);
+    mandala_mail('reorder', $order->get_billing_email(), mandala_mail_order_vars($order), ['termekek' => $rows, 'gomb' => mandala_mail_button(mandala_url(['cat' => $cats[0]]), __('Új illatok', 'mandala'))], $order->get_id());
 });
 
 /* ---------- Pénztár: e-mail rögzítése és tájékoztatás ---------- */

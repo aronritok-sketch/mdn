@@ -95,7 +95,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → Beállítások → Fizetés → **Előre utalás** | bankszámlaszám (a köszönőoldal és a levél innen veszi) |
 | WooCommerce → Beállítások → **Szállítás** | a GLS bővítmény módjai a „Magyarország” zónában (a személyes átvétel a lista végén) |
 | **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
-| WooCommerce → **Mandala automatizmusok** | elhagyott kosár, használati útmutató, újrarendelés, értékelés kérése – mind kikapcsolható, időzíthető; az értékelések moderátorának e-mail-címe |
+| WooCommerce → **Mandala levelek** | a téma automata levelei: szöveg, be/ki, időzítés, előnézet, tesztlevél; napló. Beállítások fül: aláírás, fogyóeszköz kategóriák, értékelés-moderátor, **a GLS bővítmény csomagszám mezője** (lásd 6. pont, Csomagkövetés) |
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
 | WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |
@@ -139,6 +139,14 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - [ ] **GTM:** előnézeti módban a `view_item_list`, `add_to_cart`, `purchase` események; a süti sáv választása a
   Consent Mode-ot frissíti. Meta pixel címkében `eventID` = `order_` + tranzakció azonosító.
 - [ ] **Claude:** próbafuttatás 20–50 termékkel; a javaslatok átnézése.
+- [ ] **Levelek:** WooCommerce → Mandala levelek → minden levélnél „Előnézet” és egy tesztlevél a saját címre; a szövegek
+  átnézése (hangnem, aláírás). Ha a GLS bővítmény is küld „feladtuk” levelet, az egyiket kapcsold ki.
+- [ ] **Csomagkövetés:** egy tesztrendelésnél a GLS bővítménnyel címkét / csomagszámot generálsz → a rendelés oldalán a
+  „Csomagkövetés és levelek” dobozban megjelenik a szám, és „Feladtuk” levél megy. Ha nem jelenik meg: a rendelés
+  „Egyéni mezők” dobozában keresd meg, melyik mezőbe írja a bővítmény a csomagszámot, és írd be a Mandala levelek →
+  Beállítások → Csomagszám mezők listába. A „Hol a csomagom?” oldalon rendelésszám + e-mail-címmel is kipróbálható.
+  Ha a boltban már volt lábléc menü, a telepítő nem írja át: a „Csomagkövetés” oldalt kézzel add hozzá
+  (Megjelenés → Menük → Lábléc – Vásárlás).
 - [ ] **AI tanácsadó:** 15–20 valódi vásárlói kérdés (ajánlás kerettel, termékoldalon „Kérdésem van”, szállítás,
   visszaküldés, egy témán kívüli kérdés); a linkelt termékek léteznek-e, az árak stimmelnek-e. A WooCommerce →
   Mandala tanácsadó oldalon a beszélgetések és a tokenek.

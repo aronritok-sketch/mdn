@@ -337,13 +337,12 @@ function mandala_mail_voucher(WP_Post $voucher, WC_Order $order, array $v): void
     $message = $v['message'] ? '<blockquote style="margin:16px 0;padding:0 16px;border-left:3px solid #B5651D;font-style:italic">' . nl2br(esc_html($v['message'])) . '</blockquote>' : '';
     $buttons = mandala_mail_button(mandala_shop_url(), __('Irány a kínálat', 'mandala')) . '<p><a href="' . esc_url(mandala_voucher_print_url($voucher)) . '">' . esc_html__('Nyomtatható változat', 'mandala') . '</a></p>';
 
-    $buyer = $order->get_billing_first_name();
-    mandala_send_mail($order->get_billing_email(), __('Az ajándékutalványod', 'mandala'), __('Itt az ajándékutalvány', 'mandala'),
-        '<p>' . sprintf(esc_html__('Kedves %s!', 'mandala'), esc_html($buyer)) . '</p><p>' . esc_html($v['to_email'] ? sprintf(__('Köszönjük! Az utalványt elküldtük %s részére is. Itt a másolat, ha kinyomtatnád:', 'mandala'), $v['to_email']) : __('Köszönjük! Itt az utalvány – továbbküldheted vagy kinyomtathatod.', 'mandala')) . '</p>' . $card . $message . $buttons);
-    if ($v['to_email'] && strtolower($v['to_email']) !== strtolower($order->get_billing_email())) {
-        $hello = $v['to_name'] ? sprintf(__('Kedves %s!', 'mandala'), $v['to_name']) : __('Kedves Címzett!', 'mandala');
-        mandala_send_mail($v['to_email'], sprintf(__('Ajándékot kaptál %s-tól', 'mandala'), trim($order->get_billing_first_name() . ' ' . $order->get_billing_last_name())), __('Ajándékot kaptál', 'mandala'),
-            '<p>' . esc_html($hello) . '</p><p>' . esc_html(sprintf(__('%s ajándékutalványt küldött neked a Mandala webáruházba.', 'mandala'), $buyer)) . '</p>' . $card . $message . $buttons);
+    $blocks = ['utalvany' => $card, 'uzenet' => $message, 'gombok' => $buttons];
+    $other = $v['to_email'] && strtolower($v['to_email']) !== strtolower($order->get_billing_email());
+    mandala_mail('voucher_buyer', $order->get_billing_email(), mandala_mail_order_vars($order) + ['cimzett' => (string) $v['to_email']],
+        $blocks + ['cimzett_info' => $other ? '<p>' . esc_html(sprintf(__('Az utalványt elküldtük %s részére is.', 'mandala'), $v['to_email'])) . '</p>' : ''], $order->get_id());
+    if ($other) {
+        mandala_mail('voucher_recipient', $v['to_email'], ['cimzett_nev' => $v['to_name'] ?: __('Címzett', 'mandala'), 'kuldo' => trim($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()), 'kuldo_keresztnev' => $order->get_billing_first_name()], $blocks, $order->get_id());
     }
 }
 

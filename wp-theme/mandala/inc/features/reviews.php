@@ -117,9 +117,7 @@ add_action('mandala_mail_review', function ($order_id) {
     if (!$rows) {
         return;
     }
-    $body = '<p>' . sprintf(esc_html__('Kedves %s!', 'mandala'), esc_html($order->get_billing_first_name())) . '</p><p>'
-        . esc_html__('Hogy tetszik, amit tőlünk választottál? Egy-két mondat és egy fotó sokat segít azoknak, akik még döntenek – és nekünk is, hogy jól válogassunk.', 'mandala') . '</p>' . $rows;
-    mandala_send_mail($order->get_billing_email(), __('Milyen lett? Mondd el másoknak is', 'mandala'), __('Értékeld a vásárlásod', 'mandala'), $body, true);
+    mandala_mail('review', $order->get_billing_email(), mandala_mail_order_vars($order), ['termekek' => $rows], $order->get_id());
 });
 
 /* ---------- Beküldés ---------- */

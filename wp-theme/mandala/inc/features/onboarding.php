@@ -276,7 +276,7 @@ add_action('mandala_onboarding_digest', function () {
     $body = '<p>' . esc_html(sprintf('%d új termék érkezett a JUTA-ból. Élesítés előtt kategória, kép, leírás és szűrőadatok kellenek.', count($ids))) . '</p>'
         . mandala_onboarding_mail_rows($ids) . mandala_mail_button(admin_url('edit.php?post_type=product&page=mandala-onboarding'), 'Új termékek megnyitása');
     foreach (mandala_onboarding_recipients() as $to) {
-        mandala_send_mail($to, sprintf('[%s] %d új termék vár élesítésre', get_bloginfo('name'), count($ids)), 'Új termékek érkeztek', $body);
+        mandala_send_mail($to, sprintf('[%s] %d új termék vár élesítésre', get_bloginfo('name'), count($ids)), 'Új termékek érkeztek', $body, false, ['type' => 'belso']);
     }
 });
 
@@ -302,7 +302,7 @@ add_action('mandala_onboarding_daily', function () {
         . ($review ? '<p>' . esc_html(sprintf('%d élő termék kategóriáját / szűrőadatait kell ellenőrizni (a migráció nem tudott dönteni).', $review)) . '</p>' : '')
         . mandala_mail_button(admin_url('edit.php?post_type=product&page=mandala-onboarding'), 'Új termékek megnyitása');
     foreach (mandala_onboarding_recipients() as $to) {
-        mandala_send_mail($to, sprintf('[%s] Emlékeztető: élesítésre váró termékek', get_bloginfo('name')), 'Élesítésre vár', $body);
+        mandala_send_mail($to, sprintf('[%s] Emlékeztető: élesítésre váró termékek', get_bloginfo('name')), 'Élesítésre vár', $body, false, ['type' => 'belso']);
     }
 });
 
