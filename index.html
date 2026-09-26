@@ -2,211 +2,168 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Mandala – Hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából</title>
-  <meta name="description" content="Kézzel válogatott hangtálak, füstölők, mala láncok, Buddha szobrok, textilek és ajándékok közvetlenül Nepál és India műhelyeiből. Ingyenes szállítás 25 000 Ft felett.">
+  <meta name="description" content="Kézzel válogatott hangtálak, füstölők, mala láncok, Buddha szobrok, textilek és ajándékok Nepál és India műhelyeiből. Ingyenes szállítás 25 000 Ft felett.">
+  <meta name="theme-color" content="#16120F">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Mandala – Lassulj le, érkezz meg">
-  <meta property="og:description" content="Szakrális tárgyak, lakberendezés, ruházat és ajándékok Nepálból és Indiából.">
+  <meta property="og:site_name" content="Mandala">
+  <meta property="og:title" content="Mandala – Hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából">
+  <meta property="og:description" content="Kézzel válogatott hangtálak, füstölők, mala láncok, Buddha szobrok, textilek és ajándékok Nepál és India műhelyeiből. Ingyenes szállítás 25 000 Ft felett.">
   <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
-  <meta name="theme-color" content="#1A1512">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
-  <link rel="preload" as="image" href="assets/img/hangtalak-gyertyafeny-1600.webp" imagesrcset="assets/img/hangtalak-gyertyafeny-800.webp 800w, assets/img/hangtalak-gyertyafeny-1600.webp 1600w" imagesizes="100vw">
-  <link rel="stylesheet" href="assets/css/styles.css">
-  <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"Store","name":"Mandala","url":"https://mandala.hu/","description":"Szakrális tárgyak, lakberendezés, ruházat és ajándékok Nepálból és Indiából.","sameAs":["https://www.facebook.com/mandalawebaruhaz"]}
-  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@400;500;600&amp;display=swap">
+  <link rel="stylesheet" href="assets/css/vars.css">
+  <link rel="stylesheet" href="assets/css/iu.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body>
+<body data-active="" class="home front-page">
   <header id="site-header"></header>
-
-  <main id="main">
-    <!-- Hős -->
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-media">
-        <img src="assets/img/hangtalak-gyertyafeny-1600.webp" srcset="assets/img/hangtalak-gyertyafeny-800.webp 800w, assets/img/hangtalak-gyertyafeny-1600.webp 1600w" sizes="100vw" alt="Nepáli hangtálak gyertyafényben, füstölővel, mandala falikép előtt" fetchpriority="high">
-      </div>
+  <main id="main" tabindex="-1">
+    <!-- iu/section: hős (bgImage + lightText) -->
+    <section class="iu-section iu-section-light hero" aria-labelledby="hero-title">
+      <div class="hero-media"><img src="assets/img/hangtalak-gyertyafeny-800.webp" srcset="assets/img/hangtalak-gyertyafeny-800.webp 800w, assets/img/hangtalak-gyertyafeny-1600.webp 1600w" sizes="100vw" alt="Nepáli hangtálak gyertyafényben, füstölővel, mandala falikép előtt" fetchpriority="high" decoding="async"></div>
       <div data-hero-mandala></div>
-      <div class="container hero-inner">
-        <p class="eyebrow">Kézzel válogatva Nepálból és Indiából</p>
-        <h1 id="hero-title">Lassulj le, <em>érkezz meg.</em></h1>
-        <p class="lead">Hangtálak, füstölők, mala láncok és rituális tárgyak azoknak, akik a hétköznapokban is helyet adnának a csendnek, a figyelemnek és a belső egyensúlynak.</p>
-        <div class="hero-cta">
-          <a class="btn btn-light" href="termekek.html?cat=szakralis-targyak">Szakrális tárgyak</a>
-          <a class="btn btn-outline-light" href="rolunk.html">Honnan érkeznek?</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Bizalmi sáv -->
-    <section class="trust" aria-label="Amiért nálunk vásárolnak">
-      <div class="container">
-        <ul>
-          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span><strong>Közvetlen import</strong>Nepál és India műhelyeiből</span></li>
-          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17" r="1.8"/><circle cx="17" cy="17" r="1.8"/></svg><span><strong>Ingyenes szállítás</strong>25 000 Ft feletti rendelésnél</span></li>
-          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11m0-1V5a1.5 1.5 0 0 1 3 0v5m0 0V6.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 7-6 7s-5-2-6.5-4.5L5 12.5a1.5 1.5 0 0 1 2.5-1.5z"/></svg><span><strong>Személyes tanács</strong>Segítünk a választásban</span></li>
-          <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><span><strong>14 napos visszaküldés</strong>Kérdések nélkül</span></li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- Szándék szerint -->
-    <section class="section" aria-labelledby="intent-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Szándék szerint</p>
-            <h2 id="intent-title">Mire van most szükséged?</h2>
-            <p>Nem mindig tudjuk, milyen tárgyat keresünk – de azt igen, mit szeretnénk érezni. Kezdd innen.</p>
+      <div class="iu-row">
+        <div class="iu-column iu-column-2-3">
+          <p class="eyebrow">Kézzel válogatva Nepálból és Indiából</p>
+          <h1 id="hero-title">Lassulj le, <em>érkezz meg.</em></h1>
+          <p class="lead">Hangtálak, füstölők, mala láncok és rituális tárgyak azoknak, akik a hétköznapokban is helyet adnának a csendnek, a figyelemnek és a belső egyensúlynak.</p>
+          <div class="iu-button-group">
+            <a class="iu-button iu-button-large" href="termekek.html?cat=szakralis-targyak">Szakrális tárgyak</a>
+            <a class="iu-button iu-button-outline iu-button-large" href="rolunk.html">Honnan érkeznek?</a>
           </div>
         </div>
-        <div class="intents" data-intents></div>
+        <div class="iu-column iu-column-1-3" data-hero-pick></div>
       </div>
     </section>
 
-    <!-- Kategóriák -->
-    <section class="section section-alt" aria-labelledby="cat-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Kínálat</p>
-            <h2 id="cat-title">Négy világ, egy hangulat</h2>
-          </div>
-          <a class="btn btn-ghost" href="termekek.html">Teljes kínálat</a>
-        </div>
-        <div class="cats">
-          <a class="cat-tile big reveal" href="termekek.html?cat=szakralis-targyak">
-            <img src="assets/img/fustolok-csakra-800.webp" srcset="assets/img/fustolok-csakra-800.webp 800w, assets/img/fustolok-csakra-1600.webp 1600w" sizes="(max-width: 860px) 100vw, 45vw" alt="Füstölők, csakra illatok, lótuszvirág és backflow füstölőtartó" loading="lazy">
-            <div class="cat-text"><h3>Szakrális tárgyak</h3><p>Hangtálak, füstölők, mala láncok, csengők és imazászlók a csendesebb pillanatokhoz.</p></div>
-          </a>
-          <a class="cat-tile reveal" href="termekek.html?cat=lakberendezes">
-            <img src="assets/img/rez-sarkanyok-800.webp" sizes="(max-width: 860px) 100vw, 30vw" alt="Réz sárkány- és főnixszobor bambusz alátéten" loading="lazy">
-            <div class="cat-text"><h3>Lakberendezés</h3><p>Szobrok, szélcsengők, textilek.</p></div>
-          </a>
-          <a class="cat-tile reveal" href="termekek.html?cat=ruhazat-es-kiegeszitok">
-            <img src="assets/img/ruhazat-to-800.webp" sizes="(max-width: 860px) 100vw, 30vw" alt="Mintás indiai tunikát viselő nő a vízparton" loading="lazy" style="object-position:50% 25%">
-            <div class="cat-text"><h3>Ruházat és ékszer</h3><p>Könnyű indiai textilek.</p></div>
-          </a>
-          <a class="cat-tile wide plain reveal" href="termekek.html?cat=ajandektargyak" data-gift-tile>
-            <div class="cat-text"><h3>Ajándéktárgyak</h3><p>Réz kulacsok, teák és összeállított ajándékcsomagok kézzel írt kártyával.</p></div>
-          </a>
-        </div>
+    <!-- iu/section: bizalmi sáv (4 × iu/column 1-4) -->
+    <section class="iu-section trust" aria-label="Amiért nálunk vásárolnak">
+      <div class="iu-row">
+        <div class="iu-column iu-column-1-4"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><p><strong>Közvetlen import</strong>Nepál és India műhelyeiből</p></div>
+        <div class="iu-column iu-column-1-4"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5h11v10H3zM14 10h4l3 3.2v3.3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><p><strong>Ingyenes szállítás</strong>25 000 Ft feletti rendelésnél</p></div>
+        <div class="iu-column iu-column-1-4"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11m0-1V5a1.5 1.5 0 0 1 3 0v5m0 0V6.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 7-6 7s-5-2-6.5-4.5L5 12.5a1.5 1.5 0 0 1 2.5-1.5z"/></svg><p><strong>Személyes tanács</strong>Segítünk a választásban</p></div>
+        <div class="iu-column iu-column-1-4"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><p><strong>14 napos visszaküldés</strong>Indoklás nélkül</p></div>
       </div>
     </section>
 
-    <!-- Újdonságok -->
-    <section class="section" aria-labelledby="new-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Frissen érkezett</p>
-            <h2 id="new-title">Újdonságok</h2>
-          </div>
-          <a class="btn btn-ghost" href="termekek.html?sort=new">Összes újdonság</a>
-        </div>
-        <div class="grid" data-new-products></div>
-      </div>
+    <!-- iu/section: szándék szerint (iu/card × 4) -->
+    <section class="iu-section" aria-labelledby="intent-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="section-head reveal"><div>
+        <p class="eyebrow">Szándék szerint</p>
+        <h2 id="intent-title">Mire van most szükséged?</h2>
+        <p>Nem mindig tudjuk, milyen tárgyat keresünk – de azt igen, mit szeretnénk érezni. Kezdd innen.</p>
+      </div></div></div></div>
+      <div class="iu-row" data-intents></div>
     </section>
 
-    <!-- Eredet -->
-    <section class="section origin-band" aria-labelledby="origin-title">
-      <div class="container origin-grid">
-        <div class="reveal">
+    <!-- iu/section: kategóriák (2-3|1-3, majd 1-1) -->
+    <section class="iu-section" style="background-color:var(--wp--preset--color--sand)" aria-labelledby="cat-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="section-head reveal"><div>
+        <p class="eyebrow">Kínálat</p><h2 id="cat-title">Négy világ, egy hangulat</h2>
+      </div><div class="iu-button-group"><a class="iu-button iu-button-outline" href="termekek.html">Teljes kínálat</a></div></div></div></div>
+      <div class="iu-row">
+        <div class="iu-column iu-column-2-3">
+          <a class="cat-tile cat-tile-tall reveal" href="termekek.html?cat=szakralis-targyak"><img src="assets/img/fustolok-csakra-800.webp" srcset="assets/img/fustolok-csakra-800.webp 800w, assets/img/fustolok-csakra-1600.webp 1600w" sizes="(max-width: 991px) 100vw, 66vw" alt="Füstölők, csakra illatok, lótuszvirág és backflow füstölőtartó" loading="lazy" decoding="async">
+            <div class="cat-body"><div><h3>Szakrális tárgyak</h3><p>Hangtálak, füstölők, mala láncok, csengők és imazászlók a csendesebb pillanatokhoz.</p></div><span class="count" data-count="szakralis-targyak"></span></div></a>
+        </div>
+        <div class="iu-column iu-column-1-3"><div class="iu-group iu-group-column" style="height:100%;gap:var(--gutter)">
+          <a class="cat-tile cat-tile-half reveal" href="termekek.html?cat=lakberendezes"><img src="assets/img/rez-sarkanyok-800.webp" srcset="assets/img/rez-sarkanyok-800.webp 800w, assets/img/rez-sarkanyok-976.webp 976w" sizes="(max-width: 991px) 100vw, 33vw" alt="Réz sárkány- és főnixszobor bambusz alátéten" loading="lazy" decoding="async">
+            <div class="cat-body"><div><h3>Lakberendezés</h3><p>Szobrok, szélcsengők, textilek.</p></div><span class="count" data-count="lakberendezes"></span></div></a>
+          <a class="cat-tile cat-tile-half reveal" href="termekek.html?cat=ruhazat-es-kiegeszitok"><img src="assets/img/ruhazat-to-800.webp" srcset="assets/img/ruhazat-to-800.webp 800w, assets/img/ruhazat-to-885.webp 885w" sizes="(max-width: 991px) 100vw, 33vw" alt="Mintás indiai tunikát viselő nő a vízparton" loading="lazy" decoding="async" style="object-position:50% 22%">
+            <div class="cat-body"><div><h3>Ruházat és ékszer</h3><p>Könnyű indiai textilek.</p></div><span class="count" data-count="ruhazat-es-kiegeszitok"></span></div></a>
+        </div></div>
+      </div>
+      <div class="iu-row"><div class="iu-column iu-column-1-1">
+        <a class="cat-tile cat-tile-wide reveal" href="termekek.html?cat=ajandektargyak" data-gift-tile>
+          <div class="cat-body"><div><p class="eyebrow">Ajándéktárgyak</p><h3>Ajándék, ami jelent is valamit</h3><p>Réz kulacsok, teák és összeállított ajándékcsomagok – kérésre kézzel írt kártyával, díszdobozban.</p></div></div></a>
+      </div></div>
+    </section>
+
+    <!-- iu-woocommerce/product-carousel: újdonságok -->
+    <section class="iu-section" aria-labelledby="new-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="carousel" data-carousel>
+        <div class="section-head"><div><p class="eyebrow">Frissen érkezett</p><h2 id="new-title">Újdonságok</h2></div><div class="iu-group iu-group-vertical-center" data-carousel-nav><a class="iu-button iu-button-link" href="termekek.html?orderby=date">Összes újdonság</a></div></div>
+        <ul class="products carousel-track" data-new-products aria-label="Újdonságok"></ul>
+        <div class="carousel-progress" aria-hidden="true"><span></span></div>
+      </div></div></div>
+    </section>
+
+    <!-- iu/section: eredet (bgColor night + lightText, 1-2|1-2) -->
+    <section class="iu-section iu-section-light origin-band" style="background-color:var(--wp--preset--color--night)" aria-labelledby="origin-title">
+      <div class="iu-row iu-row-vertical-center">
+        <div class="iu-column iu-column-1-2 reveal">
           <p class="eyebrow">Eredetünk</p>
           <h2 id="origin-title">Katmandutól Budapestig</h2>
-          <p>Minden tárgyunknak van egy helye és egy keze, amely elkészítette. Nepál és India kis műhelyeivel dolgozunk – ahol a mesterség apáról fiúra, anyáról lányra száll.</p>
-          <div class="origin-cols">
-            <div><h3><span class="origin-dot" style="--dot:#C9776B"></span>Nepál</h3><p>Hangtálak, csengők és tingsha Patan öntőműhelyeiből, kézzel sodort tibeti füstölők, mala láncok, imazászlók.</p></div>
-            <div><h3><span class="origin-dot" style="--dot:#E3A15F"></span>India</h3><p>Moradabad rézművessége, jaipuri blokknyomott textilek és ékszerek, dél-indiai kézzel sodort füstölők.</p></div>
+          <p class="lead">Minden tárgyunknak van egy helye és egy keze, amely elkészítette. Nepál és India kis műhelyeivel dolgozunk – ahol a mesterség generációkon át öröklődik.</p>
+          <div class="origin-facts">
+            <div><h3><span class="origin origin-nepal" aria-hidden="true"></span>Nepál</h3><p>Hangtálak, csengők és tingsha Patan öntőműhelyeiből, kézzel sodort tibeti füstölők, mala láncok, imazászlók.</p></div>
+            <div><h3><span class="origin origin-india" aria-hidden="true"></span>India</h3><p>Moradabad rézművessége, jaipuri blokknyomott textilek és ékszerek, dél-indiai kézzel sodort füstölők.</p></div>
           </div>
-          <a class="btn btn-light" href="rolunk.html">Ismerd meg az utat</a>
+          <div class="iu-button-group"><a class="iu-button" href="rolunk.html">Ismerd meg az utat</a></div>
         </div>
-        <div class="reveal" data-route></div>
+        <div class="iu-column iu-column-1-2 reveal" data-route></div>
       </div>
     </section>
 
-    <!-- Hangtál kalauz -->
-    <section class="section" aria-labelledby="bowl-title">
-      <div class="container spot">
-        <div class="spot-media reveal">
-          <img src="assets/img/hangtalak-studio-800.webp" srcset="assets/img/hangtalak-studio-800.webp 800w, assets/img/hangtalak-studio-1600.webp 1600w" sizes="(max-width: 860px) 100vw, 55vw" alt="Két nepáli hangtál párnán, filcütőkkel és acél nyelvdobbal" loading="lazy">
-        </div>
-        <div class="reveal">
+    <!-- iu/section: hangtál-kalauz (1-2|1-2) -->
+    <section class="iu-section" aria-labelledby="bowl-title">
+      <div class="iu-row iu-row-vertical-center">
+        <div class="iu-column iu-column-1-2 reveal"><div class="media-frame"><img src="assets/img/hangtalak-studio-800.webp" srcset="assets/img/hangtalak-studio-800.webp 800w, assets/img/hangtalak-studio-1600.webp 1600w" sizes="(max-width: 991px) 100vw, 50vw" alt="Két nepáli hangtál párnán, filcütőkkel és acél nyelvdobbal" loading="lazy" decoding="async"></div></div>
+        <div class="iu-column iu-column-1-2 reveal">
           <p class="eyebrow">Hangtál-kalauz</p>
           <h2 id="bowl-title">Minden tálnak saját hangja van</h2>
-          <p class="lead">Hangtálainkat egyenként, meghallgatva választjuk ki. Minden tálnál megadjuk, amit egy gyakorló tudni szeretne – hogy ne a leírás, hanem a hang alapján dönthess.</p>
-          <ul class="spec-list">
+          <p class="lead">Hangtálainkat egyenként, meghallgatva választjuk ki, és minden tálnál megadjuk, amit egy gyakorló tudni szeretne – hogy ne a leírás, hanem a hang alapján dönthess.</p>
+          <ul class="spec-grid">
             <li><strong>Hz</strong><span>Mért alapfrekvencia</span></li>
             <li><strong>G#, C…</strong><span>Zenei hang</span></li>
             <li><strong>Csakra</strong><span>Hagyományos megfeleltetés</span></li>
-            <li><strong>Gramm</strong><span>Súly és anyag</span></li>
+            <li><strong>Gramm</strong><span>Súly és ötvözet</span></li>
           </ul>
-          <a class="btn btn-primary" href="termekek.html?cat=szakralis-targyak&amp;sub=hangtalak">Hangtálak böngészése</a>
+          <div class="iu-button-group"><a class="iu-button" href="termekek.html?cat=szakralis-targyak&amp;sub=hangtalak">Hangtálak</a><a class="iu-button iu-button-link" href="cikk.html?a=hangtal-valasztas">Hogyan válassz?</a></div>
         </div>
       </div>
     </section>
 
-    <!-- Válogatás -->
-    <section class="section section-alt" aria-labelledby="featured-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">A tudatos választás</p>
-            <h2 id="featured-title">Kedvenceink</h2>
-            <p>Darabok, amelyekhez mi magunk is újra és újra visszatérünk.</p>
-          </div>
-        </div>
-        <div class="grid" data-featured-products></div>
-      </div>
+    <!-- mandala/product-selection (saját blokk): kedvenceink -->
+    <section class="iu-section" style="background-color:var(--wp--preset--color--sand)" aria-labelledby="featured-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="section-head reveal"><div>
+        <p class="eyebrow">A tudatos választás</p><h2 id="featured-title">Kedvenceink</h2><p>Darabok, amelyekhez mi magunk is újra és újra visszatérünk.</p>
+      </div></div><ul class="products columns-4" data-featured-products></ul></div></div>
     </section>
 
-    <!-- Filozófia -->
-    <section class="section" aria-labelledby="calm-title">
-      <div class="container split">
-        <div class="split-media reveal">
-          <img src="assets/img/meditacio-erdo-800.webp" srcset="assets/img/meditacio-erdo-800.webp 800w, assets/img/meditacio-erdo-1600.webp 1600w" sizes="(max-width: 860px) 100vw, 50vw" alt="Csukott szemmel meditáló nő az erdőben" loading="lazy">
-        </div>
-        <div class="reveal">
+    <!-- iu/section: filozófia (1-2|1-2) -->
+    <section class="iu-section" aria-labelledby="calm-title">
+      <div class="iu-row iu-row-vertical-center">
+        <div class="iu-column iu-column-1-2 reveal"><div class="media-frame" style="aspect-ratio:4/3"><img src="assets/img/meditacio-erdo-800.webp" srcset="assets/img/meditacio-erdo-800.webp 800w, assets/img/meditacio-erdo-1600.webp 1600w" sizes="(max-width: 991px) 100vw, 50vw" alt="Csukott szemmel meditáló nő az erdőben" loading="lazy" decoding="async" style="height:100%;object-fit:cover;object-position:40% 50%"></div></div>
+        <div class="iu-column iu-column-1-2 reveal">
           <p class="eyebrow">A Mandala világa</p>
           <h2 id="calm-title">Tárgyak, amelyek túlmutatnak a funkciójukon</h2>
-          <p class="lead">Egy hangtál, egy füstölő vagy egy Buddha szobor nem dísz, hanem emlékeztető: hogy megállj, figyelj, és jobban érezd magad a saját teredben.</p>
+          <p class="lead">Egy hangtál, egy füstölő vagy egy Buddha-szobor nem dísz, hanem emlékeztető: hogy megállj, figyelj, és jobban érezd magad a saját teredben.</p>
           <p>Ezért nem a „mindent egy helyen” elv szerint válogatunk. Csak azt hozzuk el, amit mi magunk is használnánk – és amiről el tudjuk mondani, honnan jön, ki készítette, és mire való.</p>
-          <a class="btn btn-ghost" href="rolunk.html">Rólunk</a>
+          <div class="iu-button-group"><a class="iu-button iu-button-outline" href="rolunk.html">Rólunk</a></div>
         </div>
       </div>
     </section>
 
-    <!-- Vélemények -->
-    <section class="section section-alt" aria-labelledby="quotes-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Vásárlóink mondták</p>
-            <h2 id="quotes-title">Több, mint egy vásárlás</h2>
-          </div>
-        </div>
-        <div class="quotes" data-quotes></div>
-      </div>
+    <!-- iu/section: vélemények (1-3 × 3) -->
+    <section class="iu-section" style="background-color:var(--wp--preset--color--sand)" aria-labelledby="quotes-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1"><div class="section-head reveal"><div><p class="eyebrow">Vásárlóink mondták</p><h2 id="quotes-title">Több, mint egy vásárlás</h2></div></div></div></div>
+      <div class="iu-row" data-quotes></div>
     </section>
 
-    <!-- Magazin -->
-    <section class="section" aria-labelledby="mag-title">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Magazin</p>
-            <h2 id="mag-title">Tudni, mit tartasz a kezedben</h2>
-          </div>
-          <a class="btn btn-ghost" href="magazin.html">Összes cikk</a>
-        </div>
-        <div class="grid grid-3" data-posts></div>
-      </div>
+    <!-- iu/query: magazin (3 oszlop) -->
+    <section class="iu-section" aria-labelledby="mag-title">
+      <div class="iu-row"><div class="iu-column iu-column-1-1">
+        <div class="section-head reveal"><div><p class="eyebrow">Magazin</p><h2 id="mag-title">Tudni, mit tartasz a kezedben</h2></div><div class="iu-button-group"><a class="iu-button iu-button-outline" href="magazin.html">Összes cikk</a></div></div>
+        <div class="iu-query iu-query-col-3" data-posts></div>
+      </div></div>
     </section>
   </main>
-
   <footer id="site-footer"></footer>
   <script type="module" src="assets/js/pages/home.js"></script>
 </body>

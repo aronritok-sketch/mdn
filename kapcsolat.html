@@ -2,44 +2,39 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kapcsolat – Mandala</title>
-  <meta name="description" content="Írj nekünk, segítünk kiválasztani a hozzád illő hangtálat, szobrot vagy ajándékot.">
-  <meta name="theme-color" content="#1A1512">
+  <meta name="description" content="Írj nekünk: segítünk kiválasztani a hozzád illő hangtálat, szobrot vagy ajándékot.">
+  <meta name="theme-color" content="#16120F">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Mandala">
+  <meta property="og:title" content="Kapcsolat – Mandala">
+  <meta property="og:description" content="Írj nekünk: segítünk kiválasztani a hozzád illő hangtálat, szobrot vagy ajándékot.">
+  <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@400;500;600&amp;display=swap">
+  <link rel="stylesheet" href="assets/css/vars.css">
+  <link rel="stylesheet" href="assets/css/iu.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body data-active="contact">
+<body data-active="" class="page">
   <header id="site-header"></header>
-
-  <main id="main">
-    <div class="page-head"><div class="container">
-      <nav class="crumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li aria-current="page">Kapcsolat</li></ol></nav>
-      <h1>Kapcsolat</h1>
-      <p>Kérdésed van egy termékről, vagy nem tudod, melyik hangtál illik hozzád? Írj nekünk – általában egy munkanapon belül válaszolunk.</p>
-    </div></div>
-    <section class="section-tight"><div class="container split" style="align-items:start">
-      <div>
-        <ul class="contact-list" style="list-style:none;padding:0;display:grid;gap:1.1rem;font-size:1.05rem" data-contact></ul>
-        <p class="note" style="margin-top:2rem">Személyes átvétel és bemutató csak előzetes időpont-egyeztetéssel.</p>
-      </div>
-      <form class="panel" novalidate data-validate data-success="Köszönjük! Hamarosan válaszolunk.">
-        <div class="form-grid">
-          <div class="field"><label for="f-name">Név</label><input class="input" id="f-name" name="name" type="text" autocomplete="name" required><span class="field-err"></span></div>
-          <div class="field"><label for="f-email">E-mail-cím</label><input class="input" id="f-email" name="email" type="email" autocomplete="email" required><span class="field-err"></span></div>
-          <div class="field full"><label for="f-subject">Tárgy <span class="muted">(nem kötelező)</span></label><input class="input" id="f-subject" name="subject" type="text"><span class="field-err"></span></div>
-          <div class="field full"><label for="f-msg">Üzenet</label><textarea class="input" id="f-msg" name="msg" required></textarea><span class="field-err"></span></div>
-          <label class="check full"><input type="checkbox" name="consent"> <span>Elfogadom az <a href="informaciok.html#adatvedelem">adatkezelési tájékoztatót</a>.</span></label>
-          <div class="full"><button class="btn btn-primary" type="submit">Üzenet küldése</button><p class="form-msg" role="status"></p></div>
-        </div>
-      </form>
+  <main id="main" tabindex="-1">
+    <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Kapcsolat</span></li></ol></nav><p class="eyebrow">Kapcsolat</p><h1 class="iu-title">Írj nekünk</h1><p>Kérdésed van egy termékről, vagy nem tudod, melyik hangtál illik hozzád? Általában egy munkanapon belül válaszolunk.</p>
+    </div></div></section>
+    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row">
+      <div class="iu-column iu-column-1-3"><div class="iu-group iu-group-column" style="gap:var(--space-6)">
+        <ul class="contact-list product-assurance" data-contact style="font-size:1rem"></ul>
+        <div class="map-placeholder" data-map></div>
+      </div></div>
+      <div class="iu-column iu-column-2-3"><div class="panel" data-contact-form></div></div>
     </div></section>
   </main>
-
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/forms.js"></script>
+  <script type="module" src="assets/js/pages/contact.js"></script>
 </body>
 </html>

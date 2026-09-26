@@ -1,65 +1,96 @@
-# Mandala – új webshop frontend
+# Mandala – webshop prototípus (iu_theme szerkezetben)
 
-A [mandala.hu](https://mandala.hu) új, letisztult frontendje. Nepálból és Indiából importált hangtálak, füstölők, szakrális tárgyak, lakberendezési darabok, ruhák és ajándékok webshopja.
+A [mandala.hu](https://mandala.hu) új frontendjének HTML-prototípusa. Nepálból és Indiából importált hangtálak, füstölők, szakrális tárgyak, lakberendezési darabok, ruhák és ajándékok webáruháza.
 
-Az üzlet és a jelenlegi oldal elemzése: [`docs/ELEMZES.md`](docs/ELEMZES.md).
+A prototípus az **Infinite Unity (iu_theme)** WordPress-keretrendszer szerkezetére épül (`iu/section › iu/row › iu/column`, `--iu-*` változók, theme.json paletta, klasszikus WooCommerce markup). Így jóváhagyás után közvetlenül `mandala` child témává fordítható.
 
-## Futtatás
+- **Üzleti elemzés:** [`docs/ELEMZES.md`](docs/ELEMZES.md)
+- **Blokktérkép és átadási terv:** [`docs/IU-BLOKKTERKEP.md`](docs/IU-BLOKKTERKEP.md)
+- **Design system (élő):** `stilus.html`
 
-Nincs build lépés és nincs függőség. Bármilyen statikus szerver elég, mert az oldal ES modulokat használ (`file://`-ról nem fut):
+## Megtekintés
+
+**Egy fájlban (elküldhető):** `dist/mandala-elonezet.html`. Dupla kattintással megnyílik, a CSS, a JS és a képek is benne vannak.
+
+**Fejlesztéshez:** bármilyen statikus szerver (ES modulok, `file://`-ról nem fut):
 
 ```bash
-python3 -m http.server 8000
-# → http://localhost:8000
+python3 -m http.server 8000      # → http://localhost:8000
 ```
 
-### Egyfájlos előnézet
-
-`dist/mandala-elonezet.html` – az egész oldal egyetlen fájlban (CSS, JS és képek beágyazva). Dupla kattintással megnyitható, e-mailben elküldhető. Újragenerálás a forrás módosítása után:
+**Újragenerálás** a forrás módosítása után:
 
 ```bash
-python3 tools/build-single.py
+python3 tools/pages.py           # HTML oldalak a közös <head>-del és az iu szerkezettel
+python3 tools/build-single.py    # dist/mandala-elonezet.html
 ```
 
 ## Oldalak
 
-| Fájl | Tartalom |
+| Oldal | Tartalom |
 |---|---|
-| `index.html` | Kezdőlap: hős, szándék szerinti belépés, kategóriák, újdonságok, eredet (Katmandu → Budapest), hangtál-kalauz, kedvencek, vélemények, magazin |
-| `termekek.html` | Kínálat: szűrés kategória, alkategória, szándék, eredet és ár szerint; rendezés; keresés (`?q=`). A szűrők az URL-ben is megmaradnak, így megoszthatók |
-| `termek.html?p=<slug>` | Termékoldal: eredetkártya, műszaki adatok (pl. hangtálaknál Hz, hang, csakra), használat, szállítás, hasonló termékek, Product JSON-LD |
-| `kosar.html` | Kosár és pénztár: szállítási és fizetési mód, ingyenes szállításig hátralévő összeg, űrlap-ellenőrzés, visszaigazolás |
-| `rolunk.html` | Eredetünk: Nepál és India, a beszerzés folyamata |
-| `viszonteladoknak.html` | B2B jelentkezés (adószám-ellenőrzéssel) |
-| `magazin.html`, `cikk.html?a=<slug>` | Magazin és cikkoldal |
-| `kapcsolat.html`, `informaciok.html` | Kapcsolat, szállítás, fizetés, visszaküldés, jogi szövegek helye |
+| `index.html` | Hős (a hét hangtála), bizalmi sáv, szándék szerinti belépés, kategóriák, újdonság-karusszel, eredet (Katmandu → Budapest), hangtál-kalauz, kedvencek, vélemények, magazin |
+| `termekek.html` | Szűrés kategória, alkategória, szándék, eredet, ár és készlet szerint; rendezés; „több betöltése”; üres állapot; mobilon szűrőfiók. A szűrők az URL-ben vannak |
+| `termek.html?p=…` | Galéria, cikkszám, bruttó ár + ÁFA, készletállapot (raktáron / utolsó darabok / elfogyott + értesítő), mennyiség készletkorláttal, kedvencek, eredetkártya, adatlap, fülek (leírás, használat, szállítás, kérdés űrlap), ragadós kosárba sáv, Product JSON-LD |
+| `kosar.html` | WooCommerce kosártábla, kupon, ingyenes szállítás mérő, összesítő, „ehhez illik” |
+| `penztar.html` | Klasszikus pénztár 5 lépésben (lásd lent) |
+| `koszonjuk.html` | Rendelés-áttekintés, utalási adatok másolás gombbal, „Mi történik most?” idővonal, rendelés részletei, címek |
+| `fiok.html`, `kedvencek.html` | Belépés / regisztráció, kedvencek listája |
+| `kereses.html`, `404.html` | Termék- és cikktalálatok kiemeléssel, üres találat; 404 keresővel |
+| `magazin.html`, `cikk.html?a=…` | Kategóriaszűrő + lapozás; cikk minden szerkesztői elemmel (H2–H4, lista, idézet, kép, táblázat, gomb) |
+| `rolunk.html`, `viszonteladoknak.html`, `kapcsolat.html`, `informaciok.html`, `jogi.html?d=…` | Eredetünk, háromlépéses B2B jelentkezés (adószám-ellenőrzés), kapcsolat, GYIK, ÁSZF / adatkezelés / impresszum |
+| `stilus.html` | Design system: paletta kontrasztértékekkel, szövegstílusok, térköz, rács, ikonok, komponensek és állapotok |
 
-Közös elemek minden oldalon: megamenü, mobilmenü, élő kereső (`/` billentyűvel is nyílik), kosárfiók, hírlevél, lábléc.
+Közös elemek: megamenü, mobilmenü, élő kereső (`/` billentyű, nyilas navigáció), minikosár visszavonható törléssel, cookie sáv beállításokkal, hírlevél űrlap.
+
+## A pénztár
+
+1. **Elérhetőség:** e-mail (elírás-javaslat, pl. gmial.com → gmail.com), telefon (+36 formázás).
+2. **Szállítási mód:** GLS, Foxpost (automata választó kereséssel), személyes átvétel. Ingyenes 25 000 Ft felett.
+3. **Cím:** irányítószámból település, céges vásárlás adószámmal (formátum + ellenőrző számjegy), szállítás másik címre.
+4. **Fizetés:** Barion kártya, előre utalás, utánvét (+490 Ft; személyes átvételnél „Fizetés átvételkor”, díj nélkül).
+5. **Megrendelés:** megjegyzés vagy ajándékkártya szövege, fiók létrehozása, hírlevél, ÁSZF elfogadása; „Fizetési kötelezettséggel járó megrendelés” gomb a végösszeggel.
+
+További jellemzők:
+- mezőnkénti azonnali validáció, beküldéskor hibaösszesítő, amelynek linkjei a hibás mezőre ugranak;
+- a módválasztások csak a függő részeket frissítik, így gépelés közben nem ugrik a fókusz;
+- mentett piszkozat (az ÁSZF-et újra el kell fogadni);
+- mobilon lenyitható összesítő;
+- minden ár bruttó, az ÁFA-tartalom külön sorban.
+
+Kipróbálható kuponok: `MANDALA10` (10%), `UDVOZLO` (1 500 Ft, 10 000 Ft felett).
 
 ## Felépítés
 
 ```
-assets/
-  css/styles.css      design tokenek és minden stílus
-  img/                optimalizált WebP fotók (800 px és teljes méret)
-  js/data.js          konfiguráció, kategóriák, szándékok, mintatermékek, cikkek
-  js/store.js         termékbetöltés (minta vagy WooCommerce), kosár (localStorage)
-  js/app.js           fejléc, lábléc, kereső, kosárfiók, termékkártya
-  js/art.js           vonalas termékillusztrációk (amíg nincs termékfotó)
-  js/blocks.js        cikk- és véleménykártya, útvonaltérkép
-  js/pages/*.js       oldalankénti logika
+theme/theme.json         paletta és betűk (child téma theme.json)
+assets/css/vars.css      tokenek, --iu-* felülírások (child téma vars.css)
+assets/css/site.css      vizuális réteg az iu osztályokra (child téma style.css)
+assets/css/shop.css      WooCommerce klasszikus markup (child téma assets/shop.css)
+assets/css/iu.css        CSAK prototípus: az iu_theme szerkezeti CSS-ét pótolja
+assets/js/data.js        konfiguráció (ÁFA, szállítás, fizetés, kuponok), termékek, cikkek
+assets/js/store.js       kosár, kedvencek, kupon, összesítés, rendelések (élesben: WooCommerce)
+assets/js/ui.js          fejléc, lábléc, minikosár, kereső, cookie, termékkártya, validáció
+assets/js/blocks.js      iu/accordion, iu/tabs, karusszel, bejegyzéskártya, térkép
+assets/js/pages/*.js     oldalankénti logika
+tools/pages.py           oldalgenerátor
+tools/build-single.py    egyfájlos előnézet
+tests/*.mjs              Playwright tesztek
 ```
 
-## Bekötés a meglévő WooCommerce-hez
+## Tesztek
 
-1. `assets/js/data.js` → `CONFIG.woocommerce = 'https://mandala.hu'`. Ekkor a termékeket a WooCommerce Store API-ból (`/wp-json/wc/store/v1/products`) töltjük be. A kategória-slugok megegyeznek a mostani oldaléval. Az eredetet egy `Eredet` nevű termékattribútumból olvassuk (pl. „Nepál – Patan”). **Élő áruházzal még nem teszteltük.** Ha a frontend más domainen fut, CORS-beállítás is kell.
-2. A pénztár jelenleg bemutató: a rendelés helyben „teljesül”. Élesben a `checkout.js` beküldéskor a Store API `/cart` és `/checkout` végpontját kell hívni (a helye jelölve van).
-3. A hírlevél-, kapcsolat- és viszonteladói űrlapok kliensoldalon ellenőriznek, de még nem küldenek adatot. A bekötés helye a `forms.js` és az `app.js` (`initNewsletter`).
+```bash
+python3 -m http.server 8000 &
+node tests/smoke.mjs      # minden oldal asztalon és mobilon: JS-hiba, H1, túlcsordulás, érintési méret
+node tests/checkout.mjs   # vásárlás végig: készletkorlát, kupon, hibák, adószám, Foxpost, utánvét, piszkozat, köszönő oldal
+```
 
-## Ami még a tulajdonostól kell
+(Playwright kell hozzá: `npm i -D playwright`, vagy a `PWPATH` környezeti változóban megadott telepítés.)
 
-- **Termékfotók.** A kártyák 1000×1128-as álló képekre vannak méretezve, ez megegyezik a mostani feltöltésekkel. Amíg nincs fotó, vonalas illusztráció jelenik meg. A `product.image` mezőt kitöltve a fotó automatikusan átveszi a helyét.
-- A mintatermékek egy része (pl. Full Moon hangtál, masala chai, ajándékcsomag) és a hozzájuk tartozó adatok csak bemutató célúak.
-- Beszerzési helyszínek pontosítása az „Eredetünk” oldalon és a termékeknél.
-- Kapcsolati adatok, szállítási díjak, ÁSZF, adatkezelési tájékoztató, impresszum (`CONFIG` és `informaciok.html`). A mostani értékek helykitöltők.
-- Angol nyelvű változat (a mostani oldal WPML-lel kétnyelvű).
+## Ami még nem éles
+
+- **Termékfotók:** a kártyákon SVG illusztrációk. Fotó esetén a `product.image` mező kitöltésével automatikusan a helyükre kerülnek.
+- **Helykitöltő adatok:** cégadatok, bankszámla, bemutatóterem címe, szállítási díjak, jogi szövegek (`CONFIG` és `jogi.html`).
+- **Szimulált háttérfolyamatok:** a rendelés, a fizetés, a fiók és az űrlapok beküldése csak szimulált; élesben ezeket a WooCommerce és az iu/form végzi.
+- **Nyitott tételek:** a teljes lista a [`docs/IU-BLOKKTERKEP.md`](docs/IU-BLOKKTERKEP.md) 7. pontjában van.

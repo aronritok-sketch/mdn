@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Magazin – Mandala</title>
-  <meta name="description" content="Mandala magazin">
+  <title>Fiókom – Mandala</title>
+  <meta name="description" content="Belépés vagy regisztráció.">
   <meta name="theme-color" content="#16120F">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Mandala">
-  <meta property="og:title" content="Magazin – Mandala">
-  <meta property="og:description" content="Mandala magazin">
+  <meta property="og:title" content="Fiókom – Mandala">
+  <meta property="og:description" content="Belépés vagy regisztráció.">
   <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
+  <meta name="robots" content="noindex">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,12 +21,15 @@
   <link rel="stylesheet" href="assets/css/site.css">
   <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body data-active="mag" class="single-post">
+<body data-active="account" class="woocommerce-account">
   <header id="site-header"></header>
   <main id="main" tabindex="-1">
-    <div data-post></div>
+    <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Fiókom</span></li></ol></nav><h1 class="iu-title">Fiókom</h1><p>Lépj be a rendeléseid követéséhez, vagy hozz létre fiókot a gyorsabb vásárláshoz.</p>
+    </div></div></section>
+    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row"><div class="iu-column iu-column-1-1" data-account></div></div></section>
   </main>
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/post.js"></script>
+  <script type="module" src="assets/js/pages/account.js"></script>
 </body>
 </html>

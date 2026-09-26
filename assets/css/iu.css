@@ -1,0 +1,111 @@
+/* ==========================================================================
+   iu_theme szerkezeti alap – CSAK A PROTOTÍPUSHOZ
+   WordPressben ezt az iu_theme saját style.css-e és blokk-CSS-e adja,
+   ezért a child témába NEM kell átvinni. A vizuális réteg a site.css-ben
+   és a shop.css-ben van, az már átvihető.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 16px); }
+body {
+  margin: 0;
+  font-family: var(--iu-text-font-family);
+  font-size: var(--iu-text-font-size);
+  line-height: var(--iu-text-line-height);
+  color: var(--iu-text-color);
+  background: var(--c-paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+img { height: auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--iu-link-color); }
+
+/* Címsorok (block-styles.css megfelelője) */
+h1, h2, h3, h4, h5, h6, .iu-heading, .is-h1, .is-h2, .is-h3 {
+  font-family: var(--iu-heading-font-family);
+  line-height: var(--iu-heading-line-height);
+  color: var(--iu-heading-color);
+  font-weight: 500;
+  letter-spacing: var(--ls-heading);
+  margin: 0 0 .5em;
+  text-wrap: balance;
+}
+h1, .is-h1 { font-size: var(--iu-heading-1-font-size); }
+.is-h2 { font-size: var(--iu-heading-2-font-size); }
+.is-h3 { font-size: var(--iu-heading-3-font-size); }
+h2 { font-size: var(--iu-heading-2-font-size); }
+h3 { font-size: var(--iu-heading-3-font-size); }
+h4 { font-size: var(--iu-heading-4-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: -.005em; line-height: 1.3; }
+h5 { font-size: var(--iu-heading-5-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: 0; line-height: 1.35; }
+h6 { font-size: var(--iu-heading-6-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; line-height: 1.3; }
+p { margin: 0 0 1em; text-wrap: pretty; }
+p.is-small, .has-small-font-size { font-size: var(--iu-text-small-font-size); }
+p.is-muted, .has-muted-color { color: var(--iu-text-color-muted); }
+
+/* iu/section */
+.iu-section { position: relative; padding: var(--iu-section-default-padding) 0; background-size: cover; background-position: center; }
+.iu-section-fullwidth { padding-left: var(--iu-section-fullwidth-padding); padding-right: var(--iu-section-fullwidth-padding); }
+.iu-section-fullwidth > .iu-row { width: 100%; max-width: none; }
+.iu-section-light, .iu-section-light h1, .iu-section-light h2, .iu-section-light h3, .iu-section-light h4, .iu-section-light h5, .iu-section-light h6 { color: var(--c-white); }
+
+/* iu/row: 12 oszlopos rács, mobilon egymás alá */
+.iu-row { width: var(--iu-row-width); margin: 0 auto; display: flex; flex-wrap: wrap; gap: var(--iu-column-gap); }
+.iu-row + .iu-row { margin-top: var(--space-7); }
+.iu-row-vertical-center { align-items: center; }
+.iu-row-vertical-flex-end { align-items: flex-end; }
+
+/* iu/column: szélesség a row columns attribútumából */
+.iu-column { min-width: 0; flex: 0 0 auto; }
+.iu-column-1-1 { width: 100%; }
+.iu-column-1-2 { width: calc((100% - var(--iu-column-gap)) / 2); }
+.iu-column-1-3 { width: calc((100% - 2 * var(--iu-column-gap)) / 3); }
+.iu-column-2-3 { width: calc((100% - 2 * var(--iu-column-gap)) / 3 * 2 + var(--iu-column-gap)); }
+.iu-column-1-4 { width: calc((100% - 3 * var(--iu-column-gap)) / 4); }
+.iu-column-3-4 { width: calc((100% - 3 * var(--iu-column-gap)) / 4 * 3 + 2 * var(--iu-column-gap)); }
+.iu-column-align-center { text-align: center; }
+.iu-column-align-right { text-align: right; }
+
+/* iu/group: flexbox csoport */
+.iu-group { display: flex; flex-wrap: wrap; gap: var(--iu-group-gap); min-width: 0; }
+.iu-group-column { flex-direction: column; flex-wrap: nowrap; }
+.iu-group-equal > * { flex: 1 1 0; min-width: 0; }
+.iu-group-horizontal-center { justify-content: center; }
+.iu-group-horizontal-flex-end { justify-content: flex-end; }
+.iu-group-horizontal-space-between { justify-content: space-between; }
+.iu-group-vertical-center { align-items: center; }
+.iu-group-vertical-flex-end { align-items: flex-end; }
+.iu-group-vertical-flex-start { align-items: flex-start; }
+.iu-group-column.iu-group-horizontal-center { align-items: center; }
+
+/* iu/button-group */
+.iu-button-group { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.iu-button-group-center { justify-content: center; }
+
+/* iu/image */
+.iu-image-wrap { display: flex; }
+.iu-image-justify-center { justify-content: center; }
+.iu-image-crop img { width: 100%; height: 100%; object-fit: cover; }
+
+/* iu/query */
+.iu-query { display: grid; gap: var(--iu-column-gap); }
+.iu-query-col-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.iu-query-col-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.iu-query-col-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Reszponzív segédosztályok (iu_theme style.css) */
+@media (min-width: 992px) {
+  .d-block { display: block !important; } .d-flex { display: flex !important; }
+  .d-inline-flex { display: inline-flex !important; } .d-none { display: none !important; }
+}
+@media (max-width: 991.8px) {
+  .m-block { display: block !important; } .m-flex { display: flex !important; }
+  .m-inline-flex { display: inline-flex !important; } .m-none { display: none !important; }
+  .iu-column-1-2, .iu-column-1-3, .iu-column-2-3, .iu-column-1-4, .iu-column-3-4 { width: 100%; }
+  .iu-query-col-3, .iu-query-col-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .iu-query-col-2, .iu-query-col-3 { grid-template-columns: 1fr; }
+}

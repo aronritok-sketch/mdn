@@ -2,37 +2,37 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Vásárlási információk – Mandala</title>
-  <meta name="description" content="Szállítás, fizetés, visszaküldés, ÁSZF, adatvédelem és impresszum.">
-  <meta name="theme-color" content="#1A1512">
+  <meta name="description" content="Szállítás, fizetés, visszaküldés és gyakori kérdések.">
+  <meta name="theme-color" content="#16120F">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Mandala">
+  <meta property="og:title" content="Vásárlási információk – Mandala">
+  <meta property="og:description" content="Szállítás, fizetés, visszaküldés és gyakori kérdések.">
+  <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@400;500;600&amp;display=swap">
+  <link rel="stylesheet" href="assets/css/vars.css">
+  <link rel="stylesheet" href="assets/css/iu.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body>
+<body data-active="" class="page">
   <header id="site-header"></header>
-
-  <main id="main">
-    <div class="page-head"><div class="container">
-      <nav class="crumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li aria-current="page">Információk</li></ol></nav>
-      <h1>Vásárlási információk</h1>
-      <p>Minden, amit a rendelésről tudni érdemes.</p>
-    </div></div>
-    <div class="container section-tight">
-      <nav class="info-nav" aria-label="Tartalom"><a class="chip" href="#szallitas">Szállítás</a><a class="chip" href="#fizetes">Fizetés</a><a class="chip" href="#visszakuldes">Visszaküldés</a><a class="chip" href="#aszf">ÁSZF</a><a class="chip" href="#adatvedelem">Adatvédelem</a><a class="chip" href="#impresszum">Impresszum</a></nav>
-      <section class="info-section" id="szallitas"><h2>Szállítás</h2><p>Raktáron lévő termékeinket 1–3 munkanapon belül szállítjuk. 25 000 Ft feletti rendelésnél a szállítás ingyenes.</p><ul><li>Házhozszállítás futárral – 1 990 Ft</li><li>Csomagautomata – 1 290 Ft</li><li>Személyes átvétel Budapesten, előzetes egyeztetéssel – ingyenes</li></ul></section>
-      <section class="info-section" id="fizetes"><h2>Fizetés</h2><p>Fizethetsz bankkártyával (biztonságos, titkosított fizetési oldalon), előre utalással vagy utánvéttel (+490 Ft).</p></section>
-      <section class="info-section" id="visszakuldes"><h2>Visszaküldés</h2><p>A termékeket az átvételtől számított 14 napon belül indoklás nélkül visszaküldheted. Írj a kapcsolat oldalon megadott e-mail-címre, és segítünk a menetében.</p></section>
-      <section class="info-section" id="aszf"><h2>Általános Szerződési Feltételek</h2><p class="note">A teljes ÁSZF szövege a jelenlegi mandala.hu oldalról kerül át.</p></section>
-      <section class="info-section" id="adatvedelem"><h2>Adatkezelési tájékoztató</h2><p class="note">A teljes adatkezelési tájékoztató szövege a jelenlegi mandala.hu oldalról kerül át.</p></section>
-      <section class="info-section" id="impresszum"><h2>Impresszum</h2><p class="note">A cégadatok (név, székhely, adószám, cégjegyzékszám, tárhelyszolgáltató) a jelenlegi impresszumból kerülnek át.</p></section>
-    </div>
+  <main id="main" tabindex="-1">
+    <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Vásárlási információk</span></li></ol></nav><p class="eyebrow">Vásárlási információk</p><h1 class="iu-title">Szállítás, fizetés, visszaküldés</h1><p>Minden, amit a rendelésről tudni érdemes – röviden.</p>
+    </div></div></section>
+    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row">
+      <div class="iu-column iu-column-1-4"><nav class="toc" aria-label="Tartalom"><ol>
+        <li><a href="#szallitas">Szállítás és átvétel</a></li><li><a href="#fizetes">Fizetési módok</a></li><li><a href="#visszakuldes">Visszaküldés, elállás</a></li><li><a href="#gyik">Gyakori kérdések</a></li></ol></nav></div>
+      <div class="iu-column iu-column-3-4" data-info></div>
+    </div></section>
   </main>
-
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/forms.js"></script>
+  <script type="module" src="assets/js/pages/info.js"></script>
 </body>
 </html>

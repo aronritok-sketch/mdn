@@ -2,46 +2,52 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kínálat – Mandala</title>
-  <meta name="description" content="Hangtálak, füstölők, mala láncok, szobrok, textilek és ajándékok Nepálból és Indiából – szűrhető kategória, szándék, eredet és ár szerint.">
-  <meta name="theme-color" content="#1A1512">
+  <meta name="description" content="Hangtálak, füstölők, mala láncok, szobrok, textilek és ajándékok – szűrhető kategória, szándék, eredet és ár szerint.">
+  <meta name="theme-color" content="#16120F">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Mandala">
+  <meta property="og:title" content="Kínálat – Mandala">
+  <meta property="og:description" content="Hangtálak, füstölők, mala láncok, szobrok, textilek és ajándékok – szűrhető kategória, szándék, eredet és ár szerint.">
+  <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@400;500;600&amp;display=swap">
+  <link rel="stylesheet" href="assets/css/vars.css">
+  <link rel="stylesheet" href="assets/css/iu.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body>
+<body data-active="shop" class="archive woocommerce-shop">
   <header id="site-header"></header>
-
-  <main id="main">
-    <div class="page-head"><div class="container">
-      <nav class="crumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><a href="termekek.html">Kínálat</a></li><li aria-current="page" data-crumb>Teljes kínálat</li></ol></nav>
-      <h1 data-title>Teljes kínálat</h1>
-      <p data-lead></p>
-    </div></div>
-    <div class="container shop">
-      <aside class="filters" data-filters aria-label="Szűrők"></aside>
-      <div>
-        <div class="shop-bar">
-          <button class="btn btn-ghost filter-toggle" type="button" data-filters-open><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Szűrők</button>
-          <p data-count aria-live="polite"></p>
-          <label><span class="sr-only">Rendezés</span>
-            <select class="input" data-sort>
-              <option value="featured">Ajánlott sorrend</option>
-              <option value="new">Legújabb elöl</option>
-              <option value="price-asc">Ár szerint növekvő</option>
-              <option value="price-desc">Ár szerint csökkenő</option>
-              <option value="name">Név szerint</option>
-            </select></label>
+  <main id="main" tabindex="-1">
+    <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><a href="termekek.html">Kínálat</a></li><li><span aria-current="page" data-crumb>Teljes kínálat</span></li></ol></nav>
+      <h1 class="iu-title" data-title>Teljes kínálat</h1>
+      <p data-lead>Hangtálak, füstölők, szobrok, textilek és ajándékok – Nepál és India műhelyeiből.</p>
+      <div class="chip-row" data-subnav style="margin-top:var(--space-5)"></div>
+    </div></div></section>
+    <!-- 1-4|3-4: iu-woocommerce/filter + [products class="mainquery"] -->
+    <section class="iu-section" style="padding-top:var(--space-6)"><div class="iu-row">
+      <div class="iu-column iu-column-1-4"><aside class="iu-woocommerce-filter" data-filters aria-label="Szűrők"></aside></div>
+      <div class="iu-column iu-column-3-4">
+        <div class="shop-toolbar">
+          <button class="iu-button iu-button-outline filter-toggle" type="button" data-filters-open aria-controls="filters">Szűrők <span data-filter-count></span></button>
+          <p class="woocommerce-result-count" data-count aria-live="polite"></p>
+          <form class="woocommerce-ordering" onsubmit="return false"><label class="sr-only" for="orderby">Rendezés</label>
+            <select name="orderby" id="orderby" class="orderby" data-sort>
+              <option value="menu_order">Ajánlott sorrend</option><option value="date">Legújabb elöl</option><option value="popularity">Legnépszerűbb</option>
+              <option value="price">Ár szerint növekvő</option><option value="price-desc">Ár szerint csökkenő</option>
+            </select></form>
         </div>
         <div class="active-filters" data-chips></div>
-        <div class="grid grid-3" data-results></div>
+        <ul class="products columns-3" data-results></ul>
+        <div data-more></div>
       </div>
-    </div>
+    </div></section>
   </main>
-
   <footer id="site-footer"></footer>
   <script type="module" src="assets/js/pages/shop.js"></script>
 </body>

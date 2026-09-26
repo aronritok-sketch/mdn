@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Magazin – Mandala</title>
-  <meta name="description" content="Mandala magazin">
+  <title>Pénztár – Mandala</title>
+  <meta name="description" content="Rendelés leadása.">
   <meta name="theme-color" content="#16120F">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Mandala">
-  <meta property="og:title" content="Magazin – Mandala">
-  <meta property="og:description" content="Mandala magazin">
+  <meta property="og:title" content="Pénztár – Mandala">
+  <meta property="og:description" content="Rendelés leadása.">
   <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
+  <meta name="robots" content="noindex">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,12 +21,16 @@
   <link rel="stylesheet" href="assets/css/site.css">
   <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body data-active="mag" class="single-post">
+<body data-active="" class="woocommerce-checkout-page">
   <header id="site-header"></header>
   <main id="main" tabindex="-1">
-    <div data-post></div>
+    <section class="iu-section" style="padding:var(--space-6) 0 var(--space-9)"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <ol class="checkout-progress" aria-label="Rendelés lépései"><li class="is-done"><a href="kosar.html" style="display:flex;gap:8px;align-items:center;color:inherit"><span class="step-dot">✓</span>Kosár</a></li><li class="is-current" aria-current="step"><span class="step-dot">2</span>Pénztár</li><li><span class="step-dot">3</span>Visszaigazolás</li></ol>
+      <h1 class="sr-only">Pénztár</h1>
+      <div class="woocommerce" data-checkout></div>
+    </div></div></section>
   </main>
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/post.js"></script>
+  <script type="module" src="assets/js/pages/checkout.js"></script>
 </body>
 </html>

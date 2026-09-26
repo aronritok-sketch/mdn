@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Magazin – Mandala</title>
-  <meta name="description" content="Cikkek a hangtálakról, a buddhista oltárról, a szimbólumokról és a tárgyak jelentéséről.">
+  <title>Keresés – Mandala</title>
+  <meta name="description" content="Keresés a termékek és cikkek között.">
   <meta name="theme-color" content="#16120F">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Mandala">
-  <meta property="og:title" content="Magazin – Mandala">
-  <meta property="og:description" content="Cikkek a hangtálakról, a buddhista oltárról, a szimbólumokról és a tárgyak jelentéséről.">
+  <meta property="og:title" content="Keresés – Mandala">
+  <meta property="og:description" content="Keresés a termékek és cikkek között.">
   <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,15 +20,15 @@
   <link rel="stylesheet" href="assets/css/site.css">
   <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body data-active="mag" class="blog">
+<body data-active="" class="search">
   <header id="site-header"></header>
   <main id="main" tabindex="-1">
     <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
-      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Magazin</span></li></ol></nav><p class="eyebrow">Magazin</p><h1 class="iu-title">Tudni, mit tartasz a kezedben</h1><p>Hetente új cikk arról, honnan jön, mit jelent, és hogyan használják a hagyományban azt, amit a kezedben tartasz.</p>
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Keresés</span></li></ol></nav><h1 class="iu-title"><span data-search-title>Keresés</span></h1><form class="search-form" action="kereses.html" role="search" style="margin-top:var(--space-5);max-width:720px"><label class="sr-only" for="s">Keresőkifejezés</label><input id="s" name="s" type="search" placeholder="Mit keresel?"><button class="iu-button" type="submit">Keresés</button></form>
     </div></div></section>
-    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row"><div class="iu-column iu-column-1-1"><div class="iu-terms" data-terms role="group" aria-label="Kategória szűrő"></div><div class="iu-query iu-query-col-3" data-posts></div><nav class="pagination" data-paging aria-label="Lapozás"></nav></div></div></section>
+    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row"><div class="iu-column iu-column-1-1" data-search></div></div></section>
   </main>
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/blog.js"></script>
+  <script type="module" src="assets/js/pages/search.js"></script>
 </body>
 </html>

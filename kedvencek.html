@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Magazin – Mandala</title>
-  <meta name="description" content="Mandala magazin">
+  <title>Kedvencek – Mandala</title>
+  <meta name="description" content="A kedvencnek jelölt termékeid.">
   <meta name="theme-color" content="#16120F">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Mandala">
-  <meta property="og:title" content="Magazin – Mandala">
-  <meta property="og:description" content="Mandala magazin">
+  <meta property="og:title" content="Kedvencek – Mandala">
+  <meta property="og:description" content="A kedvencnek jelölt termékeid.">
   <meta property="og:image" content="assets/img/hangtalak-gyertyafeny-1600.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,12 +20,15 @@
   <link rel="stylesheet" href="assets/css/site.css">
   <link rel="stylesheet" href="assets/css/shop.css">
 </head>
-<body data-active="mag" class="single-post">
+<body data-active="" class="wishlist">
   <header id="site-header"></header>
   <main id="main" tabindex="-1">
-    <div data-post></div>
+    <section class="iu-section page-head"><div class="iu-row"><div class="iu-column iu-column-1-1">
+      <nav class="iu-breadcrumbs" aria-label="Morzsamenü"><ol><li><a href="index.html">Kezdőlap</a></li><li><span aria-current="page">Kedvencek</span></li></ol></nav><h1 class="iu-title">Kedvencek</h1><p>A szívvel jelölt termékeid. A lista ezen az eszközön marad meg.</p>
+    </div></div></section>
+    <section class="iu-section" style="padding-top:var(--space-7)"><div class="iu-row"><div class="iu-column iu-column-1-1" data-wishlist></div></div></section>
   </main>
   <footer id="site-footer"></footer>
-  <script type="module" src="assets/js/pages/post.js"></script>
+  <script type="module" src="assets/js/pages/wishlist.js"></script>
 </body>
 </html>
