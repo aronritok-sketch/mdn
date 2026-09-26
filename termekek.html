@@ -29,9 +29,9 @@
       <p data-lead>Hangtálak, füstölők, szobrok, textilek és ajándékok – Nepál és India műhelyeiből.</p>
       <div class="chip-row" data-subnav style="margin-top:var(--space-5)"></div>
     </div></div></section>
-    <!-- 1-4|3-4: iu-woocommerce/filter + [products class="mainquery"] -->
+    <!-- 1-4|3-4: mandala/filter (saját blokk) + [products class="mainquery"] -->
     <section class="iu-section" style="padding-top:var(--space-6)"><div class="iu-row">
-      <div class="iu-column iu-column-1-4"><aside class="iu-woocommerce-filter" data-filters aria-label="Szűrők"></aside></div>
+      <div class="iu-column iu-column-1-4"><aside class="iu-woocommerce-filter mandala-filter" id="filters" data-filters aria-label="Szűrők"></aside></div>
       <div class="iu-column iu-column-3-4">
         <div class="shop-toolbar">
           <button class="iu-button iu-button-outline filter-toggle" type="button" data-filters-open aria-controls="filters">Szűrők <span data-filter-count></span></button>
@@ -42,6 +42,7 @@
               <option value="price">Ár szerint növekvő</option><option value="price-desc">Ár szerint csökkenő</option>
             </select></form>
         </div>
+        <div class="quick-filters" data-quick role="group" aria-label="Gyors szűrések"></div>
         <div class="active-filters" data-chips></div>
         <ul class="products columns-3" data-results></ul>
         <div data-more></div>

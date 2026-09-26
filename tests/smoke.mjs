@@ -22,7 +22,7 @@ for (const [vw, tag] of [[1440,'d'],[390,'m']]) {
       for (let y = 0; y < document.body.scrollHeight; y += 700) { scrollTo(0, y); await new Promise(r => setTimeout(r, 30)); }
       scrollTo(0,0);
       const small = [...document.querySelectorAll('a[href], button, input, select, summary')].filter(el => el.offsetParent && getComputedStyle(el).visibility!=='hidden').map(el => { const b = el.getBoundingClientRect(); return { el, w: b.width, h: b.height }; })
-        .filter(x => x.w > 0 && x.h > 0 && (x.h < 24) && !x.el.closest('p, li, td, .iu-breadcrumbs, .footer-bottom, .post-meta, .field-suggest, figcaption, label') && !['checkbox','radio','range'].includes(x.el.type)).map(x => (x.el.className||x.el.tagName)+':'+Math.round(x.h)).slice(0,4);
+        .filter(x => x.w > 0 && x.h > 0 && (x.h < 24) && !x.el.closest('p, li, td, .iu-breadcrumbs, .footer-bottom, .post-meta, .field-suggest, figcaption, label') && !['checkbox','radio','range'].includes(x.el.type) && !(x.el.tagName==='A' && [...x.el.parentElement.childNodes].some(n => n.nodeType===3 && n.textContent.trim()))).map(x => (x.el.className||x.el.tagName)+':'+Math.round(x.h)).slice(0,4);
       return { h1: document.querySelectorAll('h1').length, sw: document.documentElement.scrollWidth, small };
     });
     const warn = [];

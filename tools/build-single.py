@@ -19,7 +19,7 @@ OUT = ROOT / 'dist' / 'mandala-elonezet.html'
 PAGES = ['index', 'termekek', 'termek', 'kosar', 'penztar', 'koszonjuk', 'fiok', 'kedvencek', 'kereses', '404',
          'magazin', 'cikk', 'rolunk', 'viszonteladoknak', 'kapcsolat', 'informaciok', 'jogi', 'stilus']
 PAGE_RE = '(?:' + '|'.join(sorted(PAGES, key=len, reverse=True)) + r')\.html'
-MODULES = ['data', 'icons', 'art', 'store', 'ui', 'blocks']   # függőségi sorrend
+MODULES = ['data', 'icons', 'art', 'store', 'facets', 'ui', 'blocks']   # függőségi sorrend
 CSS = ['vars', 'iu', 'site', 'shop']
 
 
@@ -69,6 +69,7 @@ def js_source(path):
     if name == 'store':
         src = src.replace('localStorage.', '__storage.')
     # Az URL-szinkron (szűrők, lapozás) a hash-be írjon, ne a fájl útvonalába.
+    src = src.replace('${location.pathname}${location.search}', '${location.hash}')
     src = src.replace('${location.pathname}', '${__route.path()}')
     return route_links(src)
 

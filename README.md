@@ -30,7 +30,7 @@ python3 tools/build-single.py    # dist/mandala-elonezet.html
 | Oldal | Tartalom |
 |---|---|
 | `index.html` | Hős (a hét hangtála), bizalmi sáv, szándék szerinti belépés, kategóriák, újdonság-karusszel, eredet (Katmandu → Budapest), hangtál-kalauz, kedvencek, vélemények, magazin |
-| `termekek.html` | Szűrés kategória, alkategória, szándék, eredet, ár és készlet szerint; rendezés; „több betöltése”; üres állapot; mobilon szűrőfiók. A szűrők az URL-ben vannak |
+| `termekek.html` | Saját szűrőrendszer ([`docs/SZURO.md`](docs/SZURO.md)): kategóriafa, szándék, ár (hisztogramos kettős csúszka), hangtálaknál hang / frekvencia / súly / csakra / készítés, füstölőknél illat és típus, ruháknál méret, eredet, régió, anyag, szín, elérhetőség; élő darabszámok, gyors szűrések, lazítási javaslat, URL-állapot, vissza gomb; rendezés, „több betöltése” |
 | `termek.html?p=…` | Galéria, cikkszám, bruttó ár + ÁFA, készletállapot (raktáron / utolsó darabok / elfogyott + értesítő), mennyiség készletkorláttal, kedvencek, eredetkártya, adatlap, fülek (leírás, használat, szállítás, kérdés űrlap), ragadós kosárba sáv, Product JSON-LD |
 | `kosar.html` | WooCommerce kosártábla, kupon, ingyenes szállítás mérő, összesítő, „ehhez illik” |
 | `penztar.html` | Klasszikus pénztár 5 lépésben (lásd lent) |
@@ -69,6 +69,7 @@ assets/css/site.css      vizuális réteg az iu osztályokra (child téma style.
 assets/css/shop.css      WooCommerce klasszikus markup (child téma assets/shop.css)
 assets/css/iu.css        CSAK prototípus: az iu_theme szerkezeti CSS-ét pótolja
 assets/js/data.js        konfiguráció (ÁFA, szállítás, fizetés, kuponok), termékek, cikkek
+assets/js/facets.js      szűrőmotor és -konfiguráció (mandala/filter)
 assets/js/store.js       kosár, kedvencek, kupon, összesítés, rendelések (élesben: WooCommerce)
 assets/js/ui.js          fejléc, lábléc, minikosár, kereső, cookie, termékkártya, validáció
 assets/js/blocks.js      iu/accordion, iu/tabs, karusszel, bejegyzéskártya, térkép
@@ -84,6 +85,7 @@ tests/*.mjs              Playwright tesztek
 python3 -m http.server 8000 &
 node tests/smoke.mjs      # minden oldal asztalon és mobilon: JS-hiba, H1, túlcsordulás, érintési méret
 node tests/checkout.mjs   # vásárlás végig: készletkorlát, kupon, hibák, adószám, Foxpost, utánvét, piszkozat, köszönő oldal
+node tests/filter.mjs     # szűrő: darabszámok, VAGY/ÉS logika, tartományok, gyors szűrések, üres állapot, URL, vissza gomb, mobil
 ```
 
 (Playwright kell hozzá: `npm i -D playwright`, vagy a `PWPATH` környezeti változóban megadott telepítés.)

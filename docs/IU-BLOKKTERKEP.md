@@ -43,7 +43,7 @@ A HTML-prototípus 1:1-ben az **Infinite Unity (iu_theme)** keretrendszer szerke
 | Magazin | `iu/query` (`post_type: post`, 3 oszlop, sablon: kép + kategória + dátum + cím + kivonat) |
 
 ### Kínálat (`templates/archive_product_content.html`, `tax_product_cat_content.html`)
-`iu/breadcrumbs` + `iu/title` (h1) + alkategória chipek (**`mandala/subcategory-chips`** vagy `iu/terms` product_cat) › `iu/row 1-4\|3-4`: `iu-woocommerce/filter` | `[products … class="mainquery"]` (Loop Product minta). Szűrők: kategória, **`pa_szandek`** és **`pa_eredet`** attribútum, ár, „csak raktáron”. Rendezés: WooCommerce `orderby`. „Több betöltése”: **`mandala/load-more`** vagy WooCommerce lapozás. Üres állapot: `woocommerce_no_products_found` hook.
+`iu/breadcrumbs` + `iu/title` (h1) + alkategória chipek (**`mandala/subcategory-chips`**) › `iu/row 1-4\|3-4`: **`mandala/filter`** (saját szűrőblokk – részletek: [`SZURO.md`](SZURO.md)) | gyors szűrések + aktív szűrők + `[products … class="mainquery"]` (Loop Product minta). Rendezés: WooCommerce `orderby`. „Több betöltése”: **`mandala/load-more`**. Üres állapot lazítási javaslattal.
 
 ### Loop Product minta (`iu_pattern` „Loop Product”)
 `iu/group column` › `loop-product-image` (+ `product-badges`, **`mandala/wishlist-button`**, gyors kosárba gomb) › `product-attributes` (csak Eredet) › `loop-product-title` › `iu/group space-between`: `loop-product-pirce` + `loop-product-button`.
@@ -88,6 +88,7 @@ Shortcode-os oldalak (`[woocommerce_cart]`, `[woocommerce_checkout]`, `[woocomme
 
 | Blokk | Feladat |
 |---|---|
+| `mandala/filter` | saját termékszűrő (lásd [`SZURO.md`](SZURO.md)) |
 | `mandala/product-selection` | kézzel választott termékek rácsban vagy karusszelben (ID lista attribútum) |
 | `mandala/featured-product` | egy kiemelt termék kártya (hős) |
 | `mandala/wishlist-button`, `mandala/wishlist`, `mandala/wishlist-count` | kedvencek (süti: `mandala_wishlist`) |
@@ -114,7 +115,7 @@ A skill ismert keretrendszer-hibái miatt: az `email` attribútum üres, a level
 - Árak bruttóval, 27% ÁFA, ÁFA-tartalom a végösszeg alatt.
 - Szállítás (Magyarország zóna): GLS futár 1 990 Ft, Foxpost 1 290 Ft, személyes átvétel (`local_pickup`) 0 Ft; mindkét futáros mód ingyenes 25 000 Ft felett.
 - Fizetés: Barion (bővítmény), Előre utalás (bankadatok), Utánvét (+490 Ft díj; személyes átvételnél „Fizetés átvételkor”).
-- Termékattribútumok: `pa_eredet` (Nepál, India + hely), `pa_szandek` (Elcsendesülés, Otthoni harmónia, Önkifejezés, Figyelmes ajándék), hangtálaknál Súly, Frekvencia, Hang, Csakra, Anyag.
+- Termékattribútumok és meta mezők a szűrőhöz: `pa_szandek`, `pa_hang`, `pa_csakra`, `pa_keszites`, `pa_illat`, `pa_forma`, `pa_meret`, `pa_eredet`, `pa_regio`, `pa_anyag`, `pa_szin`; numerikus meta: `_mandala_hz`, `_mandala_suly` (lásd [`SZURO.md`](SZURO.md)).
 - Kuponok (minta): `MANDALA10` (10%), `UDVOZLO` (1 500 Ft, 10 000 Ft felett).
 - Oldalak: ÁSZF, Adatkezelés, Impresszum, Vásárlási információk; ÁSZF oldal a pénztárhoz.
 

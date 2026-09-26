@@ -321,7 +321,134 @@ export const PRODUCTS = [
     description: 'Kis rituálé egy dobozban: tingsha a kezdéshez és a lezáráshoz, tibeti füstölő, egyszerű tartó és egy doboz fűszeres tea. Kérésre a kártyára a te üzenetedet írjuk.',
     ritual: 'A megjegyzés rovatban add meg, mit írjunk a kártyára.',
   }),
+  // — Bemutató termékek a szűrő kipróbálásához (élesben a WooCommerce kínálat) —
+  P({
+    id: 30106, sku: 'MND-HT-0650', slug: 'kezi-kovacsolt-hangtal-sziv', name: 'Kézzel kovácsolt hangtál – F, szívcsakra',
+    cat: 'szakralis-targyak', sub: 'hangtalak', price: 46900, origin: 'nepal', place: 'Patan, Katmandu-völgy',
+    art: 'bowl', tone: 'sage', isNew: true, intents: ['csend'], images: ['hangtalak-studio'],
+    specs: { 'Súly': '650 g', 'Frekvencia': '349 Hz', 'Hang': 'F', 'Csakra': 'Szív (Anáhata)', 'Anyag': 'Kovácsolt bronz', 'Készítés': 'Kézzel kovácsolt' },
+    short: 'Meleg, lágy hang; a kalapácsnyomok minden darabon egyediek.',
+    description: 'Kézzel kovácsolt nepáli tál, lassan épülő, meleg felhangokkal. Szívcsakrához kapcsolt F hang – elcsendesedéshez és hangfürdőhöz.',
+    ritual: 'Filcborítású ütővel a perem külső oldalán köröztesd, egyenletes nyomással.',
+  }),
+  P({
+    id: 30107, sku: 'MND-HT-0820', slug: 'mandalas-hangtal-gyoker', name: 'Mandalás hangtál – C, gyökércsakra',
+    cat: 'szakralis-targyak', sub: 'hangtalak', price: 52900, origin: 'nepal', place: 'Katmandu',
+    art: 'bowl', tone: 'maroon', featured: false, intents: ['csend', 'otthon'],
+    specs: { 'Súly': '820 g', 'Frekvencia': '262 Hz', 'Hang': 'C', 'Csakra': 'Gyökér (Múládhára)', 'Anyag': '7 fémes ötvözet', 'Díszítés': 'Belső mandala vésés' },
+    short: 'Mély, földelő hang, a tál belsejében vésett mandalával.',
+    description: 'Nagyobb, testes tál mély alaphanggal. A belső mandala vésés hagyományos nepáli motívum.',
+    ritual: 'Párnára helyezve, puha ütővel szólaltasd meg; a rezgés a padlón keresztül is érezhető.',
+  }),
+  P({
+    id: 30108, sku: 'MND-HT-0320', slug: 'gepi-hangtal-kezdoknek', name: 'Gépi hangtál kezdőknek – D, szakrális csakra',
+    cat: 'szakralis-targyak', sub: 'hangtalak', price: 14900, origin: 'india', place: 'Moradabad',
+    art: 'bowl', tone: 'sand', intents: ['csend', 'ajandek'],
+    specs: { 'Súly': '320 g', 'Frekvencia': '294 Hz', 'Hang': 'D', 'Csakra': 'Szakrális (Szvádhisthána)', 'Anyag': 'Sárgaréz ötvözet', 'Készítés': 'Gépi' },
+    short: 'Könnyű, jól kezelhető első tál – ütővel és párnával.',
+    description: 'Gépi megmunkálású, egyenletes hangú tál. Jó választás az első hangtálnak vagy ajándéknak.',
+    ritual: 'Tenyéren tartva, a perem mentén köröztesd az ütőt.',
+  }),
+  P({
+    id: 30109, sku: 'MND-HT-0540', slug: 'sun-hangtal-napfonat', name: 'Sun hangtál – E, napfonatcsakra',
+    cat: 'szakralis-targyak', sub: 'hangtalak', price: 39900, compare: 44900, origin: 'nepal', place: 'Patan, Katmandu-völgy',
+    art: 'bowl', tone: 'saffron', intents: ['csend'],
+    specs: { 'Súly': '540 g', 'Frekvencia': '330 Hz', 'Hang': 'E', 'Csakra': 'Napfonat (Manipúra)', 'Anyag': '7 fémes ötvözet', 'Díszítés': 'Napmotívum' },
+    short: 'Fényes, élénk hang, napmotívumos díszítéssel.',
+    description: 'A Sun tálak külső peremét napmotívum díszíti. Élénk, tiszta hangjuk reggeli gyakorláshoz ideális.',
+    ritual: 'Egyetlen ütéssel indítsd a gyakorlást, és hagyd teljesen lecsengeni.',
+  }),
+  P({
+    id: 30110, sku: 'MND-HT-0900', slug: 'antik-hangtal-homlok', name: 'Antik jellegű kovácsolt hangtál – A, homlokcsakra',
+    cat: 'szakralis-targyak', sub: 'hangtalak', price: 64900, origin: 'nepal', place: 'Katmandu',
+    art: 'bowl', tone: 'sky', stock: 'low', stockQty: 1, intents: ['csend'],
+    specs: { 'Súly': '900 g', 'Frekvencia': '440 Hz', 'Hang': 'A', 'Csakra': 'Homlok (Ádzsnyá)', 'Anyag': 'Kovácsolt bronz', 'Készítés': 'Kézzel kovácsolt' },
+    short: 'Patinás felületű, hosszan zengő darab – egyetlen példány.',
+    description: 'Antik jellegű, patinázott kovácsolt tál. Hosszú lecsengés, gazdag felhangok.',
+    ritual: 'Csak puha ütővel szólaltasd meg, és ne tisztítsd vegyszerrel a patinát.',
+  }),
+  P({
+    id: 30111, sku: 'MND-FK-0012', slug: 'szantal-kupfustolo', name: 'Szantál kúpfüstölő – 12 db',
+    cat: 'szakralis-targyak', sub: 'fustolok', price: 1490, origin: 'india', place: 'Bengaluru',
+    art: 'holder', tone: 'sand', intents: ['otthon', 'csend'],
+    specs: { 'Tartalom': '12 kúp', 'Égési idő': '~20 perc / kúp', 'Illat': 'Szantálfa' },
+    short: 'Meleg, fás szantálillat – gyors, rövid rituálékhoz.',
+    description: 'Kézzel formázott kúpfüstölő szantálfával. Rövid égési idő, kisebb terekhez.',
+    ritual: 'Hőálló tartóba helyezve gyújtsd meg a csúcsát, majd fújd el a lángot.',
+  }),
+  P({
+    id: 30112, sku: 'MND-FB-0010', slug: 'backflow-kupfustolo-lotusz', name: 'Backflow kúpfüstölő – lótusz, 10 db',
+    cat: 'szakralis-targyak', sub: 'fustolok', price: 1890, origin: 'india', place: 'Bengaluru',
+    art: 'holder', tone: 'maroon', isNew: true, intents: ['otthon', 'ajandek'],
+    specs: { 'Tartalom': '10 kúp', 'Égési idő': '~15 perc / kúp', 'Illat': 'Lótusz' },
+    short: 'Lefelé áramló füst backflow tartóhoz – virágos lótuszillat.',
+    description: 'Üreges kúpfüstölő, amelynek füstje lefelé áramlik a backflow tartón, mint egy kis vízesés.',
+    ritual: 'Kizárólag backflow tartóban használd, huzatmentes helyen.',
+  }),
+  P({
+    id: 30302, sku: 'MND-RU-0001', slug: 'mandalamintas-maxi-ruha', name: 'Mandalamintás maxi ruha – indigó',
+    cat: 'ruhazat-es-kiegeszitok', sub: 'ruhak', price: 15900, origin: 'india', place: 'Jaipur',
+    art: 'scarf', tone: 'sky', isNew: true, intents: ['onkifejezes'], images: ['ruhazat-to'],
+    specs: { 'Méret': 'S, M, L, XL', 'Anyag': '100% viszkóz', 'Hossz': 'Bokáig érő' },
+    short: 'Könnyű, omló viszkóz ruha blokknyomott mandalamintával.',
+    description: 'Laza szabású, bokáig érő nyári ruha jaipuri mintával.',
+    ritual: '30 °C-on, kifordítva mosd.',
+  }),
+  P({
+    id: 30303, sku: 'MND-NA-0002', slug: 'pillango-nadrag-bordo', name: 'Pillangó nadrág – bordó',
+    cat: 'ruhazat-es-kiegeszitok', sub: 'nadragok', price: 8990, origin: 'india', place: 'Jaipur',
+    art: 'pants', tone: 'maroon', stock: 'low', stockQty: 2, intents: ['onkifejezes', 'csend'],
+    specs: { 'Méret': 'M, L', 'Anyag': '100% pamut', 'Derék': 'Gumírozott' },
+    short: 'Bő, lebegő szár – jógához és meleg napokra.',
+    description: 'Könnyű pamut pillangó nadrág, gumírozott derékkal.',
+    ritual: '30 °C-on mosd, ne centrifugázd erősen.',
+  }),
 ];
+
+// Szűrhető tulajdonságok (WooCommerce attribútumok / meta mezők).
+// Kulcsok: anyag, szin, regio, hang, hz, suly, csakra, keszites, illat, forma, meret, gyongy.
+const ATTRS = {
+  26234: { hang: 'G#', hz: 405, suly: 490, csakra: ['torok'], keszites: 'ontott', anyag: ['7 fémes ötvözet'], szin: ['bronz'] },
+  27101: { hang: 'G', hz: 390, suly: 560, csakra: ['torok'], keszites: 'ontott', anyag: ['7 fémes ötvözet'], szin: ['bronz'] },
+  30101: { hang: 'C#', hz: 136, suly: 780, keszites: 'kovacsolt', anyag: ['bronz'], szin: ['bronz'] },
+  30106: { hang: 'F', hz: 349, suly: 650, csakra: ['sziv'], keszites: 'kovacsolt', anyag: ['bronz'], szin: ['bronz'] },
+  30107: { hang: 'C', hz: 262, suly: 820, csakra: ['gyoker'], keszites: 'ontott', anyag: ['7 fémes ötvözet'], szin: ['bronz'] },
+  30108: { hang: 'D', hz: 294, suly: 320, csakra: ['szakralis'], keszites: 'gepi', anyag: ['sárgaréz'], szin: ['arany'] },
+  30109: { hang: 'E', hz: 330, suly: 540, csakra: ['napfonat'], keszites: 'ontott', anyag: ['7 fémes ötvözet'], szin: ['bronz'] },
+  30110: { hang: 'A', hz: 440, suly: 900, csakra: ['homlok'], keszites: 'kovacsolt', anyag: ['bronz'], szin: ['bronz'] },
+  4490: { csakra: ['het'], gyongy: 8.5, anyag: ['féldrágakő', 'pamut'], szin: ['többszínű'] },
+  4688: { anyag: ['bronz'], szin: ['arany'] },
+  30102: { anyag: ['bronz', 'bőr'], szin: ['bronz'] },
+  30103: { illat: ['földes', 'gyógynövényes'], forma: 'pálca nélküli', anyag: ['gyógynövény'] },
+  30104: { illat: ['virágos', 'édes'], forma: 'pálcás', anyag: ['gyanta', 'bambusz'] },
+  30111: { illat: ['fás'], forma: 'kúp', anyag: ['szantálfa'] },
+  30112: { illat: ['virágos'], forma: 'backflow kúp', anyag: ['gyógynövény'] },
+  4652: { anyag: ['fém'], szin: ['fehér'] },
+  30105: { anyag: ['pamut'], szin: ['többszínű'] },
+  30201: { anyag: ['réz'], szin: ['réz'] },
+  30202: { anyag: ['réz', 'fa'], szin: ['réz'] },
+  30203: { anyag: ['pamut', 'hajdinahéj'], szin: ['bordó'] },
+  30204: { anyag: ['réz'], szin: ['réz'] },
+  30205: { anyag: ['pamut', 'fa', 'toll'], szin: ['természetes'] },
+  25843: { csakra: ['het'], anyag: ['fém', 'féldrágakő'], szin: ['arany'] },
+  25854: { csakra: ['het'], anyag: ['fém', 'féldrágakő'], szin: ['ezüst'] },
+  25721: { anyag: ['fém', 'féldrágakő'], szin: ['ezüst'] },
+  25949: { meret: ['Egy méret'], anyag: ['viszkóz'], szin: ['terrakotta'] },
+  25950: { meret: ['Egy méret'], anyag: ['viszkóz'], szin: ['indigó'] },
+  30301: { meret: ['S', 'M', 'L'], anyag: ['pamut'], szin: ['bordó'] },
+  30302: { meret: ['S', 'M', 'L', 'XL'], anyag: ['viszkóz'], szin: ['indigó'] },
+  30303: { meret: ['M', 'L'], anyag: ['pamut'], szin: ['bordó'] },
+  30401: { anyag: ['réz'], szin: ['réz'] },
+  30402: { anyag: ['fekete tea', 'fűszer'] },
+  30403: { anyag: ['vegyes'], szin: ['többszínű'] },
+};
+PRODUCTS.forEach((p) => {
+  p.attrs = ATTRS[p.id] || {};
+  // Műhely / régió: az eredethely első eleme (pl. „Patan, Katmandu-völgy” → Patan)
+  const place = (p.place || '').split(',')[0].replace('Katmandu-völgy', 'Katmandu').trim();
+  p.region = place && !place.includes(' és ') ? place : '';
+});
+
 
 export const ARTICLE_CATEGORIES = ['Hangszerek', 'Otthon és oltár', 'Szimbólumok', 'Rituálé'];
 
