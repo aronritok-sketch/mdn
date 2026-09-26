@@ -25,7 +25,7 @@ function mandala_ai_settings(): array
 {
     return wp_parse_args((array) get_option('mandala_ai', []), [
         'api_key' => '',
-        'model' => 'claude-opus-5-5',
+        'model' => MANDALA_CLAUDE_DEFAULT_MODEL,
         'threshold' => 0.85,
         'batch' => 8,
         'keep_old' => 'yes',     // a régi kategóriák megmaradnak (URL-ek, SEO) – külön lépésben bonthatók
@@ -87,7 +87,7 @@ function mandala_ai_system_prompt(array $tax): string
         '- confidence (0–1): 0.9 felett csak akkor, ha a fő- és alkategória egyértelmű ÉS minden, a kategóriájához kötelező szűrő adatokkal alátámasztott. Ha bármi bizonytalan, legyen 0.7 alatt.',
         '- note: egy rövid magyar mondat a döntés indokáról vagy arról, mit kell embernek ellenőriznie.',
         '- short_description_draft: csak ha a terméknek nincs rövid leírása – 1–2 tényszerű magyar mondat a megadott adatokból, túlzás és egészségügyi ígéret nélkül; különben üres.',
-        '- Az eredményt kizárólag a ' . MANDALA_AI_TOOL . ' eszközzel add vissza, minden kapott termékre egy elemet.',
+        '- Az eredményt mindig és kizárólag a ' . MANDALA_AI_TOOL . ' eszköz hívásával add vissza (szöveges válasz nélkül), minden kapott termékre egy elemmel.',
         '',
         'KATEGÓRIÁK (fő → al):'];
     foreach ($tax['categories'] as $slug => $c) {
@@ -190,37 +190,39 @@ function mandala_ai_classify(array $products)
     $payload = array_map('mandala_ai_product_payload', $products);
     $body = [
         'model' => $s['model'],
-        'max_tokens' => 1200 + 700 * count($products),
+        'max_tokens' => 16000,
+        // Besorolás: közepes gondolkodási mélység elég, és jóval olcsóbb 3000 terméknél.
+        'output_config' => ['effort' => 'medium'],
         'system' => [['type' => 'text', 'text' => mandala_ai_system_prompt($tax), 'cache_control' => ['type' => 'ephemeral']]],
         'tools' => [mandala_ai_tool($tax)],
-        'tool_choice' => ['type' => 'tool', 'name' => MANDALA_AI_TOOL],
-        'messages' => [['role' => 'user', 'content' => "Sorold be ezeket a termékeket:\n" . wp_json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]],
+        // Nem kényszerítjük az eszközt (egyes modellek – pl. Claude Opus 5.5 – elutasítják a kényszerítést):
+        // a rendszerprompt kéri, és ha a válasz mégsem hívja, egyszer újrapróbáljuk.
+        'tool_choice' => ['type' => 'auto'],
+        'messages' => [['role' => 'user', 'content' => "Sorold be ezeket a termékeket a " . MANDALA_AI_TOOL . " eszközzel:\n" . wp_json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]],
     ];
-    $response = wp_remote_post(apply_filters('mandala_ai_endpoint', 'https://api.anthropic.com/v1/messages'), [
-        'timeout' => 120,
-        'headers' => ['x-api-key' => mandala_ai_key(), 'anthropic-version' => '2023-06-01', 'content-type' => 'application/json'],
-        'body' => wp_json_encode($body),
-    ]);
-    if (is_wp_error($response)) {
-        return new WP_Error('mandala_ai_http', $response->get_error_message(), ['retry_after' => 60]);
-    }
-    $code = (int) wp_remote_retrieve_response_code($response);
-    $data = json_decode((string) wp_remote_retrieve_body($response), true);
-    if ($code === 429 || $code === 529 || $code >= 500) {
-        return new WP_Error('mandala_ai_busy', 'Az API túlterhelt vagy korlátozott (' . $code . ').', ['retry_after' => max(30, (int) wp_remote_retrieve_header($response, 'retry-after'))]);
-    }
-    if ($code !== 200 || !is_array($data)) {
-        return new WP_Error('mandala_ai_api', 'API hiba (' . $code . '): ' . mb_substr((string) ($data['error']['message'] ?? wp_remote_retrieve_body($response)), 0, 300));
-    }
     $input = null;
-    foreach ((array) ($data['content'] ?? []) as $block) {
-        if (($block['type'] ?? '') === 'tool_use' && ($block['name'] ?? '') === MANDALA_AI_TOOL) {
-            $input = $block['input'];
+    $usage = ['input_tokens' => 0, 'output_tokens' => 0, 'cache_read_input_tokens' => 0, 'cache_creation_input_tokens' => 0];
+    for ($attempt = 0; $attempt < 2 && $input === null; $attempt++) {
+        $data = mandala_claude_request($body, 180);
+        if (is_wp_error($data)) {
+            return $data;
+        }
+        foreach ($usage as $k => $v) {
+            $usage[$k] = $v + (int) ($data['usage'][$k] ?? 0);
+        }
+        if (($data['stop_reason'] ?? '') === 'refusal') {
+            return new WP_Error('mandala_ai_refusal', 'A modell elutasította a kérést (' . ($data['stop_details']['category'] ?? '?') . ') – a köteg kimarad.');
+        }
+        foreach ((array) ($data['content'] ?? []) as $block) {
+            if (($block['type'] ?? '') === 'tool_use' && ($block['name'] ?? '') === MANDALA_AI_TOOL && is_array($block['input']['results'] ?? null)) {
+                $input = $block['input'];
+            }
         }
     }
-    if (!is_array($input['results'] ?? null)) {
+    if ($input === null) {
         return new WP_Error('mandala_ai_format', 'A válasz nem tartalmazta a besorolást (stop_reason: ' . ($data['stop_reason'] ?? '?') . ').');
     }
+    $data['usage'] = $usage;
     $by_id = [];
     foreach ($products as $p) {
         $by_id[$p->get_id()] = $p;
@@ -672,7 +674,7 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
             if (!empty($_POST['mandala_ai_forget_key'])) {
                 $s['api_key'] = '';
             }
-            $s['model'] = preg_replace('/[^a-z0-9.\-]/', '', strtolower($in['model'] ?? $s['model'])) ?: 'claude-opus-5-5';
+            $s['model'] = preg_replace('/[^a-z0-9.\-]/', '', strtolower($in['model'] ?? $s['model'])) ?: MANDALA_CLAUDE_DEFAULT_MODEL;
             $s['threshold'] = min(1, max(0.5, (float) ($in['threshold'] ?? 0.85)));
             $s['batch'] = min(20, max(1, (int) ($in['batch'] ?? 8)));
             foreach (['keep_old', 'create_terms', 'auto_new'] as $k) {
@@ -763,7 +765,7 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
     wp_nonce_field('mandala_ai');
     echo '<input type="hidden" name="mandala_ai_do" value="settings"><table class="form-table">'
         . '<tr><th scope="row"><label for="ai-key">Anthropic API-kulcs</label></th><td>' . (defined('MANDALA_ANTHROPIC_API_KEY') ? '<p>A wp-config.php-ból (MANDALA_ANTHROPIC_API_KEY).</p>' : '<input type="password" id="ai-key" name="mandala_ai[api_key]" class="regular-text" autocomplete="off" value="' . ($key_set ? '••••••••' : '') . '">' . ($key_set ? ' <label><input type="checkbox" name="mandala_ai_forget_key" value="1"> kulcs törlése</label>' : '') . '<p class="description">Biztonságosabb a wp-config.php-ban megadni.</p>') . '</td></tr>'
-        . '<tr><th scope="row"><label for="ai-model">Modell</label></th><td><input type="text" id="ai-model" name="mandala_ai[model]" value="' . esc_attr($s['model']) . '" list="ai-models" class="regular-text"><datalist id="ai-models"><option value="claude-opus-5-5"><option value="claude-sonnet-5"><option value="claude-haiku-4-5-20251001"></datalist><p class="description">Alapból a legpontosabb modell. Nagy tömegnél a próbafuttatással érdemes összevetni egy olcsóbbal.</p></td></tr>'
+        . '<tr><th scope="row"><label for="ai-model">Modell</label></th><td><input type="text" id="ai-model" name="mandala_ai[model]" value="' . esc_attr($s['model']) . '" list="ai-models" class="regular-text"><datalist id="ai-models"><option value="claude-opus-5"><option value="claude-opus-5-5"><option value="claude-sonnet-5"><option value="claude-haiku-4-5"></datalist><p class="description">Alapból Claude Opus 5. Nagy tömegnél a próbafuttatással érdemes összevetni egy olcsóbbal (pl. claude-sonnet-5).</p></td></tr>'
         . '<tr><th scope="row"><label for="ai-th">Automatikus, ha a megbízhatóság legalább</label></th><td><input type="number" step="0.01" min="0.5" max="1" id="ai-th" name="mandala_ai[threshold]" value="' . esc_attr((string) $s['threshold']) . '" style="width:80px"> <span class="description">(0,5–1; alatta a termék ellenőrizendő)</span></td></tr>'
         . '<tr><th scope="row"><label for="ai-batch">Termék / kérés</label></th><td><input type="number" min="1" max="20" id="ai-batch" name="mandala_ai[batch]" value="' . esc_attr((string) $s['batch']) . '" style="width:80px"></td></tr>'
         . '<tr><th scope="row">Régi kategóriák</th><td><label><input type="checkbox" name="mandala_ai[keep_old]" value="1"' . checked($s['keep_old'], 'yes', false) . '> megmaradnak a termék mellett (a régi URL-ek és a SEO miatt; élesítés után külön bonthatók, átirányítással)</label></td></tr>'

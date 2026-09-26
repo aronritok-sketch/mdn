@@ -121,6 +121,7 @@ nyelvenként) eltérő URL-ek mellett is jók.
 | `ai-catalog.php` | Claude-alapú kategorizálás: a meglévő termékek migrálása az új kategóriafára és szűrőkre (próbafuttatás, becslés, visszavonás), javaslat az új termékekhez | Termékek → Új termékek → Claude migráció; `wp mandala ai-migrate` |
 | `store-settings.php` | Bolt adatai adminból (elérhetőség, nyitvatartás, ingyenes szállítás, utánvét díja) | WooCommerce → Mandala bolt adatai |
 | `search.php` + `assets/js/search-engine.js` | Kereső: ragozás („hangtálakat”), összetett szavak („tál” → hangtál), elírás-tűrés („hantál”, „Erre gondoltál?”), szinonimák, a kérdés értelmezése szűrőként („hangtál 500 g alatt”, „432 Hz”, „G#”, „10 000 Ft alatt”, „akciós”), cikkszám-részlet, súlyozott rangsor – az élő keresőben, a találati oldalon és a kínálat keresőjében egyformán; keresési statisztika (legtöbbet keresett, nulla találat → szinonima egy kattintással) | WooCommerce → Mandala kereső |
+| `claude.php` + `chat.php` + `assets/js/chat.js` | AI tanácsadó (Claude): lebegő „Kérdezz tőlünk” gomb és a termékoldalon „Kérdésem van erről a termékről”. Ajánl a kínálatból (a téma keresőjével, ár / kategória / készlet szűrővel), válaszol a termék adataiból (leírás, jellemzők, gondozás, értékelések), a szállításról, fizetésről, visszaküldésről; csak valós, linkelt terméket ajánl (termékkártyával), egészségügyi hatást nem ígér, bizonytalanságnál az ügyfélszolgálatra irányít. Költségvédelem: IP-nkénti és napi összesített korlát; beszélgetések 30 napig, értékeléssel | WooCommerce → Mandala tanácsadó |
 | `a11y.php` | Címke–mező összekapcsolás az iu/form mezőkön, fókuszálható táblázatok; az akadálymentességi nyilatkozat oldal a telepítőből | – |
 
 ### Ajándékutalvány és ÁFA
@@ -200,9 +201,14 @@ Részletes munkafolyamat a webért felelős munkatársnak: [`docs/UJ-TERMEKEK.md
   készletfrissítése nem élesít. Élesítés: a sorban (egyenként vagy csoportosan) vagy a szerkesztőben közzététellel –
   mindkettő csak teljes ellenőrzőlistával.
 - **Claude:** API-kulcs a `wp-config.php`-ban (`MANDALA_ANTHROPIC_API_KEY`). A kérés csak termékadatot visz
-  (név, cikkszám, régi kategória és tulajdonságok, leírás) – személyes adatot nem. Alapmodell: `claude-opus-5-5`
+  (név, cikkszám, régi kategória és tulajdonságok, leírás) – személyes adatot nem. Alapmodell: `claude-opus-5`
   (állítható). A kategória és a szűrőértékek felsorolt listából jönnek (strukturált kimenet), a szerver még
   egyszer ellenőrzi őket; a biztos javaslat érvénybe lép, a bizonytalan az „Élő, ellenőrizendő” fülre kerül.
+- **AI tanácsadó (chat):** ugyanazzal a kulccsal. A Claude eszközökkel dolgozik (`search_products`,
+  `get_product`, `contact_human`), a bolti tudnivalók (szállítás, fizetés, elérhetőség, kategóriák) a
+  gyorsítótárazott rendszerpromptban vannak, így egy kérdés jellemzően néhány ezer bemeneti token, nagyrészt
+  gyorsítótárból. Gyors mód (`effort: low`), állítható modell; elutasításnál (`stop_reason: refusal`) barátságos
+  válasz és elérhetőség. A pénztárban nem jelenik meg.
 - **Élesítés előtt, tesztszerveren:** adatbázis-mentés → próbafuttatás 20–50 termékkel → a javaslatok átnézése,
   küszöb / modell hangolása → teljes migráció → az ellenőrizendők átnézése. Minden éles futtatás visszavonható.
 - **A régi kategóriák** a termékek mellett maradnak (URL-ek, SEO). Ha az új kategóriafa bevált, a régieket

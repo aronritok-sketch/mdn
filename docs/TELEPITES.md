@@ -79,8 +79,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
   időzítője késhet, ezért **valódi cron** ajánlott: `DISABLE_WP_CRON` a wp-config-ba, és a tárhelyen
   5 percenként: `wget -q -O - https://mandala.hu/wp-cron.php?doing_wp_cron >/dev/null 2>&1`
   (vagy WP-CLI-vel: `wp cron event run --due-now`).
-- **Claude (kategória-migráció, új termékek javaslata):** `MANDALA_ANTHROPIC_API_KEY` a wp-config-ba
-  (az Anthropic Console-ban létrehozott kulcs). Kulcs nélkül a funkció egyszerűen nem aktív.
+- **Claude (kategória-migráció, új termékek javaslata, AI tanácsadó chat):** `MANDALA_ANTHROPIC_API_KEY` a
+  wp-config-ba (az Anthropic Console-ban létrehozott kulcs). Kulcs nélkül ezek a funkciók egyszerűen nem aktívak
+  (a chat gomb sem jelenik meg). A Console-ban érdemes havi költségkorlátot is beállítani.
 - **Levelek:** SMTP-bővítménnyel (pl. a tárhely vagy egy levélküldő szolgáltatás SMTP adataival), hogy a
   levelek ne spambe menjenek. Próba: rendelés a tesztszerveren, és nézd meg, megérkezik-e a visszaigazolás.
 
@@ -98,6 +99,8 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
 | WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |
+| WooCommerce → **Mandala tanácsadó** | AI chat: be/ki, üdvözlő szöveg, modell, korlátok (üzenet / látogató / óra, napi összesített plafon), beszélgetések megőrzése; a beszélgetések és az értékelések átnézése (hetente érdemes) |
+| **Adatkezelési tájékoztató** | egy bekezdés az AI tanácsadóról: a kérdéseket az Anthropic (Claude) dolgozza fel, a beszélgetést 30 napig őrizzük a szolgáltatás javításához, személyes adatot nem kérünk |
 | Termékek → **Új termékek → Beállítások** | kiket értesítsen az új JUTA-termékekről, minimális leírás hossza |
 | Termékek → **Új termékek → Claude migráció** | modell, küszöb, próbafuttatás (lásd `UJ-TERMEKEK.md`) |
 
@@ -136,6 +139,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - [ ] **GTM:** előnézeti módban a `view_item_list`, `add_to_cart`, `purchase` események; a süti sáv választása a
   Consent Mode-ot frissíti. Meta pixel címkében `eventID` = `order_` + tranzakció azonosító.
 - [ ] **Claude:** próbafuttatás 20–50 termékkel; a javaslatok átnézése.
+- [ ] **AI tanácsadó:** 15–20 valódi vásárlói kérdés (ajánlás kerettel, termékoldalon „Kérdésem van”, szállítás,
+  visszaküldés, egy témán kívüli kérdés); a linkelt termékek léteznek-e, az árak stimmelnek-e. A WooCommerce →
+  Mandala tanácsadó oldalon a beszélgetések és a tokenek.
 - [ ] Mobilon: kínálat szűrővel, termékoldal, kosár, pénztár.
 
 ---

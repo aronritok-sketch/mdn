@@ -4,8 +4,8 @@
  * sor ELÉ). Csak azt vedd át, amire szükség van.
  */
 
-// Claude (Anthropic) API-kulcs: kategória-migráció és javaslat az új JUTA-termékekhez.
-// Termékek → Új termékek → Claude migráció. Kulcs nélkül a funkció nem aktív.
+// Claude (Anthropic) API-kulcs: kategória-migráció, javaslat az új JUTA-termékekhez és az AI tanácsadó chat.
+// Termékek → Új termékek → Claude migráció; WooCommerce → Mandala tanácsadó. Kulcs nélkül ezek nem aktívak.
 define('MANDALA_ANTHROPIC_API_KEY', 'sk-ant-...');
 
 // Memória a nagyobb háttérfeladatokhoz (migráció, árlista, fotócsomag).

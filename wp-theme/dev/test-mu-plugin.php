@@ -67,7 +67,10 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
         return $pre;
     }
     $req = json_decode($args['body'], true);
-    update_option('mandala_ai_mock_last', ['model' => $req['model'], 'tool_choice' => $req['tool_choice'], 'cached' => !empty($req['system'][0]['cache_control']), 'key' => $args['headers']['x-api-key'] ?? '', 'tool' => $req['tools'][0]['name']], false);
+    update_option('mandala_ai_mock_last', ['model' => $req['model'], 'tool_choice' => $req['tool_choice'] ?? null, 'cached' => !empty($req['system'][0]['cache_control']), 'key' => $args['headers']['x-api-key'] ?? '', 'tool' => $req['tools'][0]['name'] ?? '', 'fallbacks' => $req['fallbacks'] ?? null, 'beta' => $args['headers']['anthropic-beta'] ?? '', 'effort' => $req['output_config']['effort'] ?? null], false);
+    if (($req['tools'][0]['name'] ?? '') === 'search_products') {
+        return mandala_test_chat_mock($req);
+    }
     if (($args['headers']['x-api-key'] ?? '') === 'rate-limit') {
         return ['headers' => ['retry-after' => '1'], 'body' => '{"type":"error","error":{"type":"rate_limit_error","message":"rate"}}', 'response' => ['code' => 429, 'message' => 'Too Many'], 'cookies' => [], 'filename' => null];
     }
@@ -106,3 +109,45 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
         'usage' => ['input_tokens' => 300 * $n, 'output_tokens' => 180 * $n, 'cache_read_input_tokens' => 2800, 'cache_creation_input_tokens' => 0]];
     return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
 }, 10, 3);
+
+/**
+ * Tanácsadó chat helyettesítő: első kör → eszközhívás (a kérdésből kiolvasott kereséssel vagy a
+ * termékoldal azonosítójával), második kör → szöveges válasz az eszköz első termékére linkelve.
+ * „REFUSE” a kérdésben → stop_reason: refusal. Az utolsó kérést elmenti (mandala_chat_mock).
+ */
+function mandala_test_chat_mock(array $req): array
+{
+    $last = end($req['messages']);
+    $wrap = fn(array $body) => ['headers' => [], 'body' => wp_json_encode($body + ['id' => 'msg_chat', 'type' => 'message', 'role' => 'assistant', 'model' => $req['model'],
+        'usage' => ['input_tokens' => 120, 'output_tokens' => 60, 'cache_read_input_tokens' => 1800, 'cache_creation_input_tokens' => 0]]), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+    $log = ['rounds' => count($req['messages']), 'system' => $req['system'][0]['text'] ?? '', 'tools' => array_column($req['tools'], 'name'), 'max_tokens' => $req['max_tokens']];
+    if (is_string($last['content'])) {
+        $text = $last['content'];
+        $log['question'] = $text;
+        update_option('mandala_chat_mock', $log, false);
+        if (str_contains($text, 'REFUSE')) {
+            return $wrap(['stop_reason' => 'refusal', 'stop_details' => ['type' => 'refusal', 'category' => 'cyber'], 'content' => []]);
+        }
+        if (preg_match('/termékoldalon van: #(\d+)/u', $text, $m)) {
+            $call = ['name' => 'get_product', 'input' => ['product_id' => (int) $m[1]]];
+        } else {
+            preg_match('/(\d[\d ]*)\s*Ft alatt/u', $text, $price);
+            $call = ['name' => 'search_products', 'input' => array_filter(['query' => str_contains($text, 'hangtál') ? 'hangtál' : 'ajándék', 'max_price' => $price ? (int) str_replace(' ', '', $price[1]) : null, 'in_stock_only' => true])];
+        }
+        return $wrap(['stop_reason' => 'tool_use', 'content' => [
+            ['type' => 'thinking', 'thinking' => 'Keresek.', 'signature' => 'sig_test'],
+            ['type' => 'text', 'text' => 'Megnézem a kínálatot.'],
+            ['type' => 'tool_use', 'id' => 'toolu_chat_1', 'name' => $call['name'], 'input' => $call['input']],
+        ]]);
+    }
+    // Eszközeredmény: az előző asszisztens-üzenet változatlanul (gondolkodásblokkal) jött-e vissza.
+    $prev = $req['messages'][count($req['messages']) - 2];
+    $log['echo_ok'] = ($prev['content'][0]['type'] ?? '') === 'thinking' && ($prev['content'][0]['signature'] ?? '') === 'sig_test';
+    $result = json_decode($last['content'][0]['content'] ?? '{}', true) ?: [];
+    $log['tool_result'] = $result;
+    update_option('mandala_chat_mock', $log, false);
+    $p = $result['products'][0] ?? (isset($result['url']) ? $result : null);
+    $reply = $p ? "Ezt ajánlom:\n- [{$p['name']}]({$p['url']}) – {$p['price']}, **{$p['stock']}**\n\nHa kérdésed van, szólj! [Külső](https://example.com/x)"
+        : 'Sajnos nem találtam ilyet.';
+    return $wrap(['stop_reason' => 'end_turn', 'content' => [['type' => 'text', 'text' => $reply]]]);
+}

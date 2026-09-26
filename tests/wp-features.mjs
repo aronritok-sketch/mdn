@@ -321,7 +321,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(sug(ids[0]).decision === 'auto' && sug(ids[1]).decision === 'review' && sug(ids[2]).decision === 'review', 'Claude próbafuttatás: biztos → automatikus, bizonytalan → ellenőrizendő');
   ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'Claude próbafuttatás: nem ír a termékbe');
   const mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
-  ok(mock.model === 'claude-opus-5-5' && mock.tool_choice.name === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell, kötelező eszköz (strukturált kimenet), gyorsítótárazott rendszerprompt');
+  ok(mock.model === 'claude-opus-5' && mock.tool_choice.type === 'auto' && mock.tool === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell, eszköz (auto – minden modellen működik), gyorsítótárazott rendszerprompt');
+  ok(mock.fallbacks === 'default' && mock.beta === 'server-side-fallback-2026-07-01', 'Claude kérés: szerveroldali visszaesés elutasítás esetére');
   ok(sug(ids[2]).problems.length === 0 && sug(ids[2]).missing.includes('Illat'), 'Claude: a bizonytalan kötelező szűrő (illat) miatt ellenőrizendő');
 
   const out = W(`mandala ai-migrate --ids=${ids.join(',')}`);
@@ -497,6 +498,99 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   t = await overlay('');
   ok(t.includes('mala lánc'), 'népszerű keresések: automatikusan a valódi keresésekből');
   wp('delete_option("mandala_search");');
+  await admin.context().close();
+  await page.context().close();
+}
+
+// ======================= AI tanácsadó (chat) =======================
+{
+  wp('global $wpdb; $wpdb->query("DELETE FROM " . mandala_chat_table()); delete_option("mandala_chat"); delete_option("mandala_chat_day_" . gmdate("Ymd")); $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE \'_transient%mandala_chat_ip_%\'"); update_option("mandala_ai", ["api_key" => "test-key"]);');
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.chat-launcher'), 'chat: lebegő „Kérdezz tőlünk” gomb');
+  await page.click('.chat-launcher');
+  await page.waitForSelector('#mandala-chat.is-open');
+  ok(await page.evaluate(() => document.activeElement?.id === 'mandala-chat-input'), 'chat: megnyitáskor a beviteli mezőn a fókusz');
+  ok((await page.$$('#mandala-chat [data-chat-suggest]')).length === 3, 'chat: javasolt kérdések');
+  await page.fill('#mandala-chat-input', 'Melyik hangtál jó kezdőnek 30 000 Ft alatt?');
+  await page.press('#mandala-chat-input', 'Enter');
+  await page.waitForSelector('#mandala-chat .chat-msg-bot:nth-of-type(3)', { timeout: 15000 });
+  let mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_chat_mock"));'));
+  const lastCall = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
+  ok(lastCall.model === 'claude-opus-5' && lastCall.effort === 'low' && lastCall.cached && lastCall.fallbacks === 'default', 'chat: Claude kérés (alapmodell, gyors mód, gyorsítótárazott rendszerprompt, visszaesés)');
+  ok(mock.tools.join() === 'search_products,get_product,contact_human' && mock.system.includes('GLS') && mock.system.includes('Hangtálak'), 'chat: eszközök, bolti tudnivalók és kategóriák a rendszerpromptban');
+  ok(mock.echo_ok && mock.tool_result.products.length > 0 && mock.tool_result.products.every((p) => /hangtál/i.test(p.name) && /Ft/.test(p.price) && p.url), 'chat: termékkeresés eszköz a téma keresőjével, a gondolkodásblokk változatlanul vissza');
+  const bot = (await page.textContent('#mandala-chat .chat-log')).replace(/\s+/g, ' ');
+  ok(bot.includes('Ezt ajánlom') && (await page.$$('#mandala-chat .chat-msg-bot a[href*="/termek/"], #mandala-chat .chat-msg-bot a[href*="/product/"]')).length >= 1, 'chat: válasz linkkel a termékre');
+  ok(await page.isVisible('#mandala-chat .chat-card'), 'chat: termékkártya a linkelt termékhez');
+  ok(!(await page.$('#mandala-chat a[href*="example.com"]')) && bot.includes('Külső'), 'chat: külső link nem lesz kattintható');
+  ok(await page.isVisible('#mandala-chat strong'), 'chat: félkövér kiemelés');
+  const row = JSON.parse(wp('global $wpdb; echo wp_json_encode($wpdb->get_row("SELECT id, turns, tokens_in, cache_read, messages FROM " . mandala_chat_table()));'));
+  ok(row && Number(row.turns) === 1 && Number(row.cache_read) > 0 && JSON.parse(row.messages).length === 2, 'chat: beszélgetés mentve (tokenek, gyorsítótár)');
+
+  // Oldalváltás után a beszélgetés megmarad; második kérdés ugyanabban a beszélgetésben.
+  await page.goto(`${BASE}/informaciok/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('#mandala-chat.is-open') && (await page.textContent('#mandala-chat .chat-log')).includes('Ezt ajánlom'), 'chat: oldalváltás után folytatható');
+  await page.fill('#mandala-chat-input', 'Ajándékot keresek 10 000 Ft alatt');
+  await page.click('#mandala-chat .chat-send');
+  await page.waitForFunction(() => document.querySelectorAll('#mandala-chat .chat-msg-bot').length >= 3 && !document.querySelector('.chat-typing'), null, { timeout: 15000 });
+  mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_chat_mock"));'));
+  ok(mock.tool_result.products.every((p) => Number(p.price.split('Ft')[0].replace(/[^\d]/g, '')) <= 10000), 'chat: árszűrő az eszközben');
+  ok(wp('global $wpdb; echo $wpdb->get_var("SELECT turns FROM " . mandala_chat_table());') === '2', 'chat: ugyanaz a beszélgetés folytatódik');
+  ok(await page.isVisible('#mandala-chat [data-chat-rate]'), 'chat: értékelés gomb');
+  await page.click('#mandala-chat [data-chat-rate="1"]');
+  await page.waitForTimeout(500);
+  ok(wp('global $wpdb; echo $wpdb->get_var("SELECT rating FROM " . mandala_chat_table());') === '1', 'chat: értékelés mentve');
+
+  // Elutasítás: barátságos üzenet + ügyfélszolgálat.
+  await page.fill('#mandala-chat-input', 'REFUSE ezt');
+  await page.press('#mandala-chat-input', 'Enter');
+  await page.waitForFunction(() => !document.querySelector('.chat-typing') && document.querySelectorAll('#mandala-chat .chat-msg-bot').length >= 4, null, { timeout: 15000 });
+  ok((await page.textContent('#mandala-chat .chat-msg-bot:last-of-type')).includes('nem tudok segíteni') && await page.isVisible('#mandala-chat .chat-msg-bot:last-of-type .chat-handoff'), 'chat: elutasításnál barátságos válasz és elérhetőség');
+  await page.keyboard.press('Escape');
+  ok(await page.isHidden('#mandala-chat') && await page.evaluate(() => document.activeElement?.classList.contains('chat-launcher')), 'chat: Esc bezárja, a fókusz visszakerül');
+
+  // Termékoldal: „Kérdésem van erről a termékről” → a termék adataival indul.
+  const pid = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  await page.goto(wp(`echo get_permalink(${pid});`), { waitUntil: 'networkidle' });
+  await page.click('.chat-ask');
+  await page.waitForSelector('#mandala-chat.is-open');
+  ok((await page.textContent('#mandala-chat .chat-context')).includes(wp(`echo get_the_title(${pid});`)), 'chat (termékoldal): a kérdezett termék megjelenik');
+  await page.click('#mandala-chat [data-chat-suggest]');
+  await page.waitForFunction(() => !document.querySelector('.chat-typing') && document.querySelectorAll('#mandala-chat .chat-msg-bot').length >= 2, null, { timeout: 15000 });
+  mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_chat_mock"));'));
+  ok(Number(mock.tool_result.id) === Number(pid) && mock.tool_result.description && 'use_and_care' in mock.tool_result, 'chat (termékoldal): termékadatok eszköz (leírás, gondozás)');
+
+  // Korlát: a napi összesített plafon elérése után az ügyfélszolgálatra irányít, API hívás nélkül.
+  wp('update_option("mandala_chat", ["daily_limit" => 1]);');
+  wp('delete_option("mandala_chat_mock");');
+  const res = await page.evaluate(async () => (await fetch(`${window.MANDALA.rest}chat`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.MANDALA.nonce }, body: JSON.stringify({ message: 'Szia' }) })).json());
+  ok(res.handoff && /később/.test(res.reply) && wp('echo wp_json_encode(get_option("mandala_chat_mock"));') === 'false', 'chat: napi költségplafon – API hívás nélkül ügyfélszolgálatra irányít');
+  const cross = (await fetch(`${await page.evaluate(() => window.MANDALA.rest)}chat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://mashol.example' }, body: JSON.stringify({ message: 'Szia' }) })).status;
+  ok(cross === 401 || cross === 403, 'chat: más oldalról (nonce és saját Origin/Referer nélkül) elutasítva', String(cross));
+
+  // Pénztár: nincs chat (ne vonja el a figyelmet).
+  await page.goto(`${BASE}/?add-to-cart=${pid}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  ok(page.url().includes('/penztar/') && !(await page.$('.chat-launcher')), 'chat: a pénztárban nem jelenik meg');
+
+  // Admin: statisztika, beszélgetés megnyitása, beállítások.
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-chat`);
+  const at = await admin.textContent('#wpbody-content');
+  ok(/Utolsó 30 nap: 2 beszélgetés/.test(at) && at.includes('Melyik hangtál jó kezdőnek'), 'admin: tanácsadó statisztika és beszélgetések', at.match(/Utolsó 30 nap[^·]*/)?.[0]);
+  await admin.click('text=Megnyitás >> nth=-1');
+  ok((await admin.textContent('#wpbody-content')).includes('Ezt ajánlom'), 'admin: beszélgetés megtekintése');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-chat`);
+  await admin.uncheck('input[name="mandala_chat[enabled]"]');
+  await Promise.all([admin.waitForNavigation(), admin.click('#submit')]);
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(!(await page.$('.chat-launcher')), 'admin: kikapcsolva nem jelenik meg');
+  wp('delete_option("mandala_chat"); delete_option("mandala_ai"); delete_option("mandala_chat_day_" . gmdate("Ymd"));');
   await admin.context().close();
   await page.context().close();
 }
