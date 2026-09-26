@@ -478,6 +478,7 @@ a:hover .go .ico { transform: translateX(4px); }
 .cat-tile-tall { min-height: 620px; }
 .cat-tile-half { min-height: 294px; }
 .cat-tile-wide { min-height: 240px; background: var(--c-accent-soft); color: var(--c-ink); }
+.cat-tile .eyebrow { opacity: 1; } /* a p átlátszósága alatt a kontraszt 4.5:1 alá esne */
 .cat-tile-wide::after { display: none; }
 .cat-tile-wide h3, .cat-tile-wide:hover { color: var(--c-ink); }
 .cat-tile-wide .art { position: absolute; right: 4%; top: 50%; transform: translateY(-50%); width: min(260px, 36%); height: auto; z-index: -1; background: none; }
@@ -900,6 +901,7 @@ li.product.outofstock .loop-product-image > a { opacity: .6; }
 /* ---------- Termékoldal (single_product_content) ---------- */
 .product-layout { padding-top: var(--space-5); }
 .product-gallery { position: sticky; top: calc(var(--header-h) + var(--space-5)); display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--space-4); }
+.product-gallery:not(:has(.product-gallery-thumbs)) { grid-template-columns: minmax(0, 1fr); }
 .product-gallery-main { aspect-ratio: 1000 / 1128; border-radius: var(--radius-l); overflow: hidden; background: var(--c-sand); order: 2; }
 .product-gallery-main { position: relative; }
 .product-gallery-main > img, .product-gallery-main > .art { width: 100%; height: 100%; object-fit: cover; }
@@ -1911,6 +1913,16 @@ const P = {
   sparkle: '<path d="M12 3.5c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z"/>',
   facebook: '<path d="M14 8h3V4h-3a4 4 0 0 0-4 4v2H7v4h3v7h4v-7h3l1-4h-4V8z"/>',
   instagram: '<rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="17" cy="7" r=".6" fill="currentColor"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  pause: '<path d="M8.5 5.5v13M15.5 5.5v13"/>',
+  wave: '<path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10.5v3M21 12h0"/>',
+  star: '<path d="m12 3.8 2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8z"/>',
+  calendar: '<rect x="4" y="5.5" width="16" height="15" rx="1.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  ticket: '<path d="M4 7.5h16v3a1.8 1.8 0 0 0 0 3.5v3H4v-3a1.8 1.8 0 0 0 0-3.5z"/><path d="M14 7.5v10" stroke-dasharray="1.5 2"/>',
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>',
+  list: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h0M4.5 12h0M4.5 17.5h0"/>',
+  camera: '<path d="M4 8h3.5l1.5-2.5h6L16.5 8H20v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
 };
 
 const icon = (name, cls = 'ico') =>
@@ -2323,8 +2335,8 @@ const FACETS = [
   { key: 'anyag', label: 'Anyag', type: 'check', values: (p) => p.attrs.anyag || [] },
   { key: 'szin', label: 'Szín', type: 'swatch', values: (p) => p.attrs.szin || [], colors: COLORS },
   { key: 'allapot', label: 'Elérhetőség és ajánlat', type: 'check', mode: 'and',
-    values: (p) => [p.stock !== 'out' && 'raktaron', p.compare > p.price && 'akcios', p.isNew && 'uj'].filter(Boolean),
-    options: [['raktaron', 'Raktáron'], ['akcios', 'Akciós'], ['uj', 'Újdonság']] },
+    values: (p) => [['in', 'low'].includes(p.stock) && 'raktaron', p.compare > p.price && !p.wholesale && 'akcios', p.isNew && 'uj', p.audio && 'hangminta', p.unique && 'egyedi', p.incoming && 'elorendeles'].filter(Boolean),
+    options: [['raktaron', 'Raktáron'], ['akcios', 'Akciós'], ['uj', 'Újdonság'], ['hangminta', 'Hangmintával'], ['egyedi', 'Egyedi darab'], ['elorendeles', 'Előrendelhető']] },
 ];
 const facetByKey = Object.fromEntries(FACETS.map((f) => [f.key, f]));
 

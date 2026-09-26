@@ -43,6 +43,7 @@ cd /tmp && wp --path=/var/www/html mandala setup --force  # minden lépés újra
 cd /tmp && wp --path=/var/www/html mandala demo           # bemutató tartalom
 cd /tmp && wp --path=/var/www/html mandala status
 cd /tmp && wp --path=/var/www/html mandala reindex        # szűrő termékindex újraépítése
+cd /tmp && wp --path=/var/www/html mandala eu-shipping    # szállítás az EU-ba (--off: vissza csak belföld)
 ```
 
 (Semleges mappából: az iu_theme relatív `require_once` hibája miatt.)
@@ -61,10 +62,14 @@ inc/forms.php                     iu/form feldolgozás (iu_form_submit_{formId})
 inc/wishlist.php                  kedvencek (süti + felhasználói meta)
 inc/rest.php                      mandala/v1: products, posts, stock-notify, wishlist (URL: rest_url())
 inc/setup.php, inc/cli.php        telepítő és WP-CLI
+inc/features/*.php                funkciómodulok (lásd lent) – mindegyik önálló, a functions.php betölti
+wpml-config.xml                   WPML: fordítható / másolandó egyedi mezők és bejegyzéstípusok
 templates/*.html                  sablonfájlok (header, footer, oldal, termék, kínálat, blog, keresés, 404)
 woocommerce/                      klasszikus pénztár (5 lépés), összesítő, fizetés, köszönő oldal
 setup/content/, setup/data/       oldaltartalmak és adatok a telepítőhöz
-assets/js/                        site.js (közös), filter.js + facets.js (szűrő), product.js, checkout.js
+assets/js/                        site.js (közös), filter.js + facets.js (szűrő), product.js, checkout.js,
+                                  finder.js, gift.js, b2b.js, track.js (mérés), validate.js
+src/wp.css, src/features.css      WordPress-specifikus és funkciómodul stílusok (a build a style.css végére fűzi)
 ```
 
 A `style.css`, `vars.css`, `assets/css/shop.css`, `assets/js/facets.js`, `assets/js/filter.js`, a
@@ -80,9 +85,51 @@ csak `--content` kapcsolóval). Kézzel a `src/wp.css`-t, az `inc/`, a `woocomme
 | `shop-head`, `filter`, `product-results` | kínálat, kategória, címke archívum |
 | `product-gallery`, `product-summary`, `product-tabs` | termékoldal |
 | `checkout-progress`, `wishlist`, `search-results`, `post-meta`, `post-hero`, `page-lead`, `map` | kosár/pénztár, kedvencek, keresés, cikk, oldalak |
+| `bowl-finder`, `gift-builder`, `review-form`, `product-reviews` | hangtál-választó, ajándékcsomag, értékelés |
+| `workshops`, `workshop-facts`, `events`, `event-ticket` | műhelyek, események |
 
 Belső linkek a tartalomban: `[mandala_url page=kapcsolat]`, `[mandala_url cat=hangtalak]`,
-`[mandala_url post=hangtal-valasztas]` – telepítésenként eltérő URL-ek mellett is jók.
+`[mandala_url post=hangtal-valasztas]`, `[mandala_url sku=MND-UTALVANY]` – telepítésenként (és WPML-lel
+nyelvenként) eltérő URL-ek mellett is jók.
+
+## Funkciómodulok (`inc/features/`)
+
+| Modul | Mit ad | Hol állítható |
+|---|---|---|
+| `sound.php` | Hangminta lejátszó (kártyán és termékoldalon), „Egyedi darab” jelölés, testvérdarabok (ugyanaz a forma más hangon) | Termék → Mandala adatok: Hangminta, Egyedi darab, Testvérdarabok csoportja |
+| `workshops.php` | Műhelyek (egyedi bejegyzéstípus, `/muhelyek/`), a termék eredetkártyája a műhely történetére mutat; nyomtatható kísérőkártya QR-kóddal a csomagba | Műhelyek menü; Termék → Mandala adatok: Műhely; rendelés oldalsáv → „Kísérőkártya nyomtatása” |
+| `incoming.php` | Érkező szállítmány / előrendelés: elfogyott terméknél a várható érkezéssel előrendelhető (WooCommerce utánrendelés), készletre érkezéskor magától kikapcsol | Termék → Mandala adatok: Várható érkezés, Honnan |
+| `events.php` | Események (hangfürdő, workshop) jegyértékesítéssel: az eseményhez rejtett virtuális jegytermék tartozik, a helyek száma a készlet; Event strukturált adat | Események menü |
+| `mailer.php`, `automations.php` | Elhagyott kosár (egy emlékeztető, visszaállító link), használati útmutató, újrarendelés-emlékeztető fogyóeszközöknél, értékelés kérése; leiratkozás, `List-Unsubscribe` | WooCommerce → Mandala automatizmusok |
+| `reviews.php` | Saját értékelések: személyes link a teljesített rendelés után (ellenőrzött vásárlás), csillag, szöveg, fotó; moderálás; csillagok a kártyán és a termékoldalon, `aggregateRating` | Termékek → Értékelések |
+| `gifts.php` | Ajándékcsomag-összeállító (`/ajandekcsomag/`: termékek + csomagolás + kártya szövege egy csomagként); ajándékutalvány egyenleggel, e-mailben és nyomtatható formában | Termék → Mandala adatok: Ajándékutalvány / Ajándékcsomagolás; WooCommerce → Ajándékutalványok; WooCommerce → Ajándék és hűség |
+| `loyalty.php` | Hűségpontok: gyűjtés teljesítéskor, beváltás a pénztárban, egyenleg és napló a Fiókomban, kézi jóváírás a felhasználó profilján | WooCommerce → Ajándék és hűség |
+| `b2b.php` | Viszonteladói felület (Fiókom → Viszonteladói felület): gyorsrendelő nagyker árakkal, árlista CSV, termékfotók ZIP-ben, heti levél az új érkezésekről | a `wholesale_customer` szerep (`mandala_wholesale_roles` szűrő) |
+| `wpml.php` | WPML + WooCommerce Multilingual támogatás (bővítmény nélkül hatástalan) | `wpml-config.xml` |
+| `eu.php` | Szállítás az EU-ba, országfüggő pénztári ellenőrzés, közösségi adószám | `wp mandala eu-shipping` |
+| `seo.php` | GYIK (FAQPage) az oldalak harmonika blokkjaiból, szűrt kínálat-URL-ek `noindex, follow`, egy BreadcrumbList a Yoast mellett, `countryOfOrigin` | – |
+| `analytics.php` | Consent Mode v2 alapállapot, GA4 események a saját felületekhez, Meta Conversions API | WooCommerce → Mandala mérés |
+| `a11y.php` | Címke–mező összekapcsolás az iu/form mezőkön, fókuszálható táblázatok; az akadálymentességi nyilatkozat oldal a telepítőből | – |
+
+### Ajándékutalvány és ÁFA
+
+Az utalvány **többcélú utalvány**: eladásakor nincs ÁFA (a termék adóosztálya „nincs”), az ÁFA a beváltáskor, a
+megvásárolt termékek után keletkezik. Ezért a beváltás **nem kupon/kedvezmény** (nem csökkenti a termékek
+ÁFA-alapját), hanem fizetőeszköz: a pénztárban a kuponmezőbe írt `MND-XXXX-XXXX` kód a fizetendő végösszeget
+csökkenti, a rendelésben és a levelekben külön sorban látszik, a rendelés jegyzete szerint fizetési módként.
+A **Számlázz.hu számlán** ennek fizetési módként / előlegként kell megjelennie – a bővítmény beállítását a
+könyvelővel egyeztetve a tesztszerveren ellenőrizni kell. Lemondáskor az egyenleg visszaíródik.
+
+### Mérés (GTM4WP mellett)
+
+- A WooCommerce alap eseményeit (termékoldal, pénztár lépései, vásárlás) a GTM4WP adja; a téma csak a saját,
+  AJAX-os felületeit méri: `view_item_list`, `select_item` (szűrt lista), `add_to_cart` (termékoldal,
+  ajándékcsomag, viszonteladói gyorsrendelő – `mandala_source` paraméterrel), `search`, `mandala_finder_result`.
+  GTM4WP nélkül a `view_item`-et is.
+- A Consent Mode alapállapotát a téma állítja be a GTM előtt. Ha a GTM4WP saját Consent Mode beállítása be
+  van kapcsolva, a témáét kapcsold ki (WooCommerce → Mandala mérés).
+- Meta CAPI: a GTM-es Meta pixel címkében az `eventID` legyen `order_` + `transaction_id` – így a böngészős és a
+  szerveroldali Purchase esemény nem duplázódik. A CAPI csak a pénztárban adott marketing-hozzájárulással küld.
 
 ## Szállítás, fizetés, számla, viszonteladók
 
@@ -125,3 +172,21 @@ Belső linkek a tartalomban: `[mandala_url page=kapcsolat]`, `[mandala_url cat=h
   mutatja, melyik aktív, és keresőlinket ad a hiányzókhoz. A GLS módokat a bővítmény telepítése után a
   Magyarország zónához kell adni; a személyes átvétel a lista végére kerül, így alapból GLS van kiválasztva.
 - A JUTA-Soft szinkron csak árat és készletet ír: a szűrő indexe a készlet- és árváltozásra magától frissül.
+- Akadálymentességi nyilatkozat (`/akadalymentesseg/`): a helykitöltőket (elérhetőség, hatóság, ellenőrzés
+  dátuma) ki kell tölteni. Meglévő menüket a telepítő nem ír felül: a lábléc „Jogi linkek” menüjébe kézzel kell
+  felvenni; ugyanígy az „Ajándékcsomag és utalvány” oldalt a „Lábléc – Kínálat” menübe.
+- Ajándékutalvány számlázása (fent), EU-s szállításnál az OSS ÁFA-kulcsok – könyvelővel egyeztetve.
+- GTM: a fenti események címkéi (GA4, Google Ads, Meta) és a Consent Mode beállítás a GTM-ben.
+
+## Tesztek
+
+Egy teszt WordPressen (SQLite is elég, lásd `wp-theme/dev/README.md`), friss `wp mandala setup --demo` után:
+
+```bash
+BASE=http://localhost:8080 node tests/wp-e2e.mjs                        # kínálat, szűrő, kosár, pénztár, űrlapok
+BASE=http://localhost:8080 WP="wp --path=…" node tests/wp-features.mjs   # funkciómodulok (ajándék, utalvány,
+                                                                        # pontok, EU, viszonteladó, mérés)
+```
+
+A `wp-theme/dev/test-mu-plugin.php` a teszthez kell (levelek fájlba, GLS helyettesítő módok, Meta CAPI
+helyettesítő végpont) – éles oldalra nem kerülhet.

@@ -14,12 +14,16 @@ A prototípus az **Infinite Unity (iu_theme)** WordPress-keretrendszer szerkezet
 A prototípusból készült, telepíthető `mandala` child téma az `iu_theme` keretrendszerre: `dist/mandala-tema.zip`
 (Megjelenés → Témák → Téma feltöltése). Saját blokkok `iucb_add_block`-kal, sablonfájlok, klasszikus 5 lépéses
 WooCommerce pénztár, telepítő (ÁFA, szállítás, fizetés, attribútumok, oldalak, menük), WP-CLI.
+Funkciómodulok: hangminta és egyedi darabok, műhelyek QR-es kísérőkártyával, előrendelés, hangtál-választó,
+események jegyértékesítéssel, e-mail automatizmusok, fotós értékelések, ajándékcsomag, ajándékutalvány,
+hűségpontok, viszonteladói felület, WPML, EU-s szállítás, SEO, mérés (Consent Mode, GA4, Meta CAPI), akadálymentesség.
 Részletek, követelmények és élesítési teendők: [`wp-theme/mandala/README.md`](wp-theme/mandala/README.md).
 
 ```bash
 python3 tools/build-theme.py             # téma frissítése a prototípusból + zip
 python3 tools/build-theme.py --content   # a blokk-markup újragenerálása is (utána: wp-theme/dev/canon.mjs)
 BASE=http://localhost:8080 node tests/wp-e2e.mjs   # végponttól végpontig teszt egy telepített WordPressen
+BASE=http://localhost:8080 WP="wp --path=…" node tests/wp-features.mjs   # a funkciómodulok tesztje
 ```
 
 ## Megtekintés
