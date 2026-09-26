@@ -28,7 +28,15 @@ if (form) {
 
   // Cégként vásárlás
   const company = $('#is_company');
-  const syncCompany = () => { const box = $('[data-company]'); if (box) box.hidden = !company?.checked; };
+  // A WooCommerce címmező-szkriptje (address-i18n) országváltáskor prioritás szerint újrarendezi
+  // a mezőket, és kiveszi őket a [data-company] dobozból – ezért a sorokat közvetlenül rejtjük.
+  const syncCompany = () => {
+    const hide = !company?.checked;
+    const box = $('[data-company]');
+    if (box) box.hidden = hide;
+    ['#billing_company_field', '#billing_tax_number_field'].forEach((sel) => { const row = $(sel); if (row) row.hidden = hide; });
+  };
+  $body?.on('country_to_state_changed updated_checkout', syncCompany);
   company?.addEventListener('change', () => { syncCompany(); if (company.checked) $('#billing_company')?.focus(); });
   syncCompany();
 
@@ -125,6 +133,16 @@ if (form) {
       $(sec)?.classList.toggle('is-complete', fields.length > 0 && fields.every((el) => el.value && !el.getAttribute('aria-invalid')));
     });
   }, 0));
+
+  // Elhagyott kosár: az érvényes e-mail-cím rögzítése (egyetlen emlékeztető, leiratkozható).
+  const emailEl = $('#billing_email');
+  let captured = '';
+  emailEl?.addEventListener('change', () => {
+    const v = emailEl.value.trim();
+    if (v === captured || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || !M.wcAjax) return;
+    captured = v;
+    fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_capture'), { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ email: v, name: $('#billing_first_name')?.value || '', security: M.cartNonce || '' }) }).catch(() => {});
+  });
 
   syncShipping();
   placeNote();

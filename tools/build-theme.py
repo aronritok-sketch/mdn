@@ -57,7 +57,7 @@ def build_assets():
     css = ROOT / 'assets/css'
     (THEME / 'assets/css').mkdir(parents=True, exist_ok=True)
     shutil.copy(css / 'vars.css', THEME / 'vars.css')
-    wp_css = (THEME / 'src/wp.css').read_text()
+    wp_css = (THEME / 'src/wp.css').read_text() + '\n\n' + (THEME / 'src/features.css').read_text()
     (THEME / 'style.css').write_text(HEADER + (css / 'site.css').read_text() + '\n\n' + wp_css)
     shutil.copy(css / 'shop.css', THEME / 'assets/css/shop.css')
     shutil.copy(ROOT / 'theme/theme.json', THEME / 'theme.json')
@@ -369,11 +369,35 @@ def templates():
     t['archive_product_content'] = shop
     t['tax_product_cat_content'] = shop
     t['tax_product_tag_content'] = shop
+    t['single_mandala_workshop_content'] = '\n\n'.join([
+        section(row('2-3|1-3', col('2-3', dyn('iu/breadcrumbs'), eyebrow('Műhely'), dyn('iu/title', heading='h1'), dyn('mandala/page-lead')), col('1-3', dyn('mandala/workshop-facts')), v='flex-end'), className='page-head'),
+        section(one(dyn('mandala/post-hero')), className='post-hero'),
+        section(one(dyn('iu/content')), className='post-body'),
+        section(one(dyn('mandala/products', mode='workshop', layout='carousel', limit='12', eyebrow='A műhely munkái', heading='Innen érkeztek'))),
+        section(one(section_head('Műhelyeink', 'Tovább a többi műhelyhez', button=('Összes műhely', '[mandala_url page=muhelyek]', 'outline')), dyn('mandala/workshops', limit='3')), bg='sand'),
+    ])
+    t['archive_mandala_workshop_content'] = '\n\n'.join([
+        section(one(dyn('iu/breadcrumbs'), eyebrow('Eredetünk'), h('Műhelyeink', 1, 'iu-title'),
+                    lead('Kis műhelyek Nepálban és Indiában, ahol a mesterség generációkon át öröklődik. Ismerd meg őket, és azt, amit tőlük hozunk.')), className='page-head'),
+        section(one(dyn('mandala/workshops', limit='48')), className='pt-7'),
+    ])
+    t['single_mandala_event_content'] = '\n\n'.join([
+        section(row('2-3|1-3', col('2-3', dyn('iu/breadcrumbs'), eyebrow('Esemény'), dyn('iu/title', heading='h1'), dyn('mandala/page-lead'), dyn('mandala/post-hero')),
+                    col('1-3', dyn('mandala/event-ticket'), className='event-aside')), className='page-head event-head'),
+        section(row('2-3|1-3', col('2-3', dyn('iu/content')), col('1-3')), className='post-body'),
+        section(one(dyn('mandala/events', limit='3', eyebrow='Programok', heading='További események')), bg='sand', className='mandala-optional'),
+    ])
+    t['archive_mandala_event_content'] = '\n\n'.join([
+        section(one(dyn('iu/breadcrumbs'), eyebrow('Programok'), h('Események és hangfürdők', 1, 'iu-title'),
+                    lead('Hangfürdők, workshopok és bemutatók a budapesti bemutatóteremben. A jegyet a webshopban veheted meg.')), className='page-head'),
+        section(one(dyn('mandala/events', limit='24')), className='pt-7'),
+    ])
     t['single_product_content'] = '\n\n'.join([
         section(one(dyn('iu/breadcrumbs', separator='/')),
                 row('1-2|1-2', col('1-2', dyn('mandala/product-gallery')), col('1-2', dyn('mandala/product-summary'))),
                 className='product-layout pb-8'),
         section(row('3-4|1-4', col('3-4', dyn('mandala/product-tabs')), col('1-4')), bg='white', className='pt-8'),
+        section(row('3-4|1-4', col('3-4', dyn('mandala/product-reviews')), col('1-4')), bg='white', className='product-reviews-section'),
         section(row('1-3|2-3',
                     col('1-3', eyebrow('Kérdésed van?'), h('Kérdezz a termékről', anchor='kerdes'),
                         p('Hangfelvételt, pontos méretet vagy további fotót is kérhetsz – egy munkanapon belül válaszolunk e-mailben.', 'text-muted')),
@@ -422,6 +446,7 @@ def page_home():
                         text='Réz kulacsok, teák és összeállított ajándékcsomagok – kérésre kézzel írt kártyával, díszdobozban.')),
                 bg='sand'),
         section(one(dyn('mandala/products', mode='new', layout='carousel', limit='12', eyebrow='Frissen érkezett', heading='Újdonságok', linkText='Összes újdonság', linkUrl='[mandala_url page=shop]?orderby=date'))),
+        section(one(dyn('mandala/products', mode='incoming', layout='carousel', limit='12', eyebrow='Érkező szállítmány', heading='Úton Nepálból és Indiából', linkText='Előrendelhető termékek', linkUrl='[mandala_url page=shop]?allapot=elorendeles')), className='mandala-optional', bg='sand'),
         section(row('1-2|1-2',
                     col('1-2', eyebrow('Eredetünk'), h('Katmandutól Budapestig', anchor='origin-title'),
                         lead('Minden tárgyunknak van egy helye és egy keze, amely elkészítette. Nepál és India kis műhelyeivel dolgozunk – ahol a mesterség generációkon át öröklődik.'),
@@ -434,7 +459,7 @@ def page_home():
                     col('1-2', eyebrow('Hangtál-kalauz'), h('Minden tálnak saját hangja van', anchor='bowl-title'),
                         lead('Hangtálainkat egyenként, meghallgatva választjuk ki, és minden tálnál megadjuk, amit egy gyakorló tudni szeretne – hogy ne a leírás, hanem a hang alapján dönthess.'),
                         ul(['<strong>Hz</strong> Mért alapfrekvencia', '<strong>G#, C…</strong> Zenei hang', '<strong>Csakra</strong> Hagyományos megfeleltetés', '<strong>Gramm</strong> Súly és ötvözet'], 'spec-grid'),
-                        buttons(('Hangtálak', '[mandala_url cat=hangtalak]'), ('Hogyan válassz?', '[mandala_url post=hangtal-valasztas]', 'link')), className='reveal'),
+                        buttons(('Hangtál-választó', '[mandala_url page=hangtal-valaszto]'), ('Hangtálak', '[mandala_url cat=hangtalak]', 'outline'), ('Hogyan válassz?', '[mandala_url post=hangtal-valasztas]', 'link')), className='reveal'),
                     v='center')),
         section(one(section_head('A tudatos választás', 'Kedvenceink', 'Darabok, amelyekhez mi magunk is újra és újra visszatérünk.'),
                     dyn('mandala/products', mode='featured', limit='4', columns='4')), bg='sand'),
@@ -445,6 +470,7 @@ def page_home():
                         p('Ezért nem a „mindent egy helyen” elv szerint válogatunk. Csak azt hozzuk el, amit mi magunk is használnánk – és amiről el tudjuk mondani, honnan jön, ki készítette, és mire való.'),
                         buttons(('Rólunk', '[mandala_url page=rolunk]', 'outline')), className='reveal'),
                     v='center')),
+        section(one(dyn('mandala/events', limit='3', eyebrow='Programok', heading='Hangfürdők és workshopok')), className='mandala-optional'),
         section(one(section_head('Vásárlóink mondták', 'Több, mint egy vásárlás'), dyn('mandala/testimonials')), bg='sand'),
         section(one(section_head('Magazin', 'Tudni, mit tartasz a kezedben', button=('Összes cikk', '[mandala_url page=magazin]', 'outline')),
                     dyn('iu/query', main_query=False, params='"post_type": "post", "posts_per_page": 3', template='[mandala_post_card]', columns='3'))),
@@ -475,6 +501,8 @@ def page_about():
                         lead('Moradabad a „réz városa”: szélcsengőink, mécsestartóink, kulacsaink és füstölőtartóink innen jönnek.'),
                         p('Rádzsasztán fővárosa, Jaipur a blokknyomott textilek és a kézműves ékszerek otthona – sálaink, ruháink és gyűrűink nagy része itt készül. Kézzel sodort füstölőinket dél-indiai családi manufaktúrák készítik.'), className='reveal'),
                     v='center'), bg='sand'),
+        section(one(section_head('Műhelyeink', 'Akiktől a tárgyaink érkeznek', 'Minden műhelynek saját története van – és a termékoldalakon is látod, melyik tárgy honnan jön.', button=('Összes műhely', '[mandala_url page=muhelyek]', 'outline')),
+                    dyn('mandala/workshops', limit='4'))),
         section(one(section_head('Így dolgozunk', 'Az út a műhelytől hozzád')),
                 steps([('Kapcsolat', 'Hosszú távú kapcsolatot építünk kisebb műhelyekkel – ismerjük a kezeket, amelyek a tárgyakat készítik.'),
                        ('Válogatás', 'Egyenként választunk: a hangtálat meghallgatjuk, a textilt megfogjuk, a füstölőt meggyújtjuk.'),
@@ -517,6 +545,20 @@ def page_b2b():
                     ])], 'Jelentkezés elküldése', 'Köszönjük a jelentkezést! 1–2 munkanapon belül jelentkezünk a megadott e-mail-címen.', className='panel'))),
                 bg='sand'),
     ])
+
+
+def consultation_section():
+    return section(row('1-3|2-3',
+        col('1-3', eyebrow('Személyes tanács'), h('Kérdezz tőlünk', anchor='tanacsadas'),
+            p('Hallgasd meg a tálakat a budapesti bemutatóteremben, vagy videóhívásban mutatjuk meg őket – egyeztetünk egy időpontot.', 'text-muted'),
+            ul(['Bemutatóterem: a tálakat kézbe veheted, meghallgathatod', 'Videóhívás: élőben megszólaltatjuk a kiválasztott tálakat', 'Telefon: gyors kérdésekre'], 'check-list')),
+        col('2-3', form('tanacsadas', [
+            group(f_text('nev', 'Név', 'required|Add meg a neved.'), f_text('email', 'E-mail-cím', V_EMAIL, '', 'email'),
+                  f_select('mod', 'Hogyan beszéljünk?', ['Bemutatóteremben', 'Videóhívásban', 'Telefonon'], 'Bemutatóteremben'),
+                  f_text('idopont', 'Mikor lenne jó?', '', 'pl. jövő kedd délután'), className='form-grid'),
+            f_textarea('message', 'Mire keresel hangtálat?', '', 'Pl. hangfürdőhöz, mély hangút, 40 000 Ft-ig'),
+            f_accept(),
+        ], 'Időpontot kérek', 'Köszönjük! Egy munkanapon belül jelentkezünk az időpont egyeztetésével.', className='panel')), v='center'), bg='sand', className='consultation')
 
 
 def page_contact():
@@ -649,6 +691,13 @@ def build_content():
         'informaciok': page_info(config),
         **{k: page_legal(k) for k in LEGAL},
         'kedvencek': section(one(dyn('mandala/wishlist')), className='pt-7'),
+        'ertekeles': section(one(dyn('mandala/review-form')), className='pt-6'),
+        'hangtal-valaszto': section(one(dyn('mandala/bowl-finder')), className='pt-6') + '\n\n' + consultation_section(),
+        'ajandekcsomag': section(one(dyn('mandala/gift-builder')), className='pt-6') + '\n\n' + section(row('1-2|1-2',
+            col('1-2', eyebrow('Ha nem tudod, mit választana'), h('Ajándékutalvány', anchor='utalvany'),
+                p('E-mailben érkezik, kinyomtatható, a teljes kínálatra beváltható – részletekben is. Ha megadod a címzettet, fizetés után neki is elküldjük.', 'text-muted'),
+                buttons(('Utalványt választok', '[mandala_url sku=MND-UTALVANY]'))),
+            col('1-2', ul(['5 000 Ft-tól 30 000 Ft-ig', 'Egy évig érvényes', 'Saját üzenettel, nyomtatható kártyával', 'Hűségpontot a beváltáskor gyűjt a megajándékozott'], 'check-list')), v='center'), bg='sand'),
         'kosar': section(one(dyn('mandala/checkout-progress'), block('shortcode', None, '[woocommerce_cart]')), className='pt-6') + '\n\n' + section(one(dyn('mandala/products', mode='cart', layout='carousel', limit='8', eyebrow='Ehhez illik', heading='Tedd teljessé'))),
         'penztar': section(one(dyn('mandala/checkout-progress'), block('shortcode', None, '[woocommerce_checkout]')), className='checkout-wrap'),
         'fiokom': section(one(block('shortcode', None, '[woocommerce_my_account]')), className='pt-7'),

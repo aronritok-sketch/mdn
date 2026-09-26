@@ -396,10 +396,11 @@ function mandala_minicart_content(): void
         $name = $p->get_name();
         echo '<li class="woocommerce-mini-cart-item"><a class="thumb" href="' . esc_url($url) . '">' . mandala_product_image($p, 'thumbnail') . '</a>' // phpcs:ignore
             . '<div><a class="name" href="' . esc_url($url) . '" style="color:inherit;text-decoration:none">' . esc_html($name) . '</a><small>' . esc_html(mandala_fmt(wc_get_price_to_display($p))) . ' / ' . esc_html__('db', 'mandala') . '</small>'
+            . (!empty($item['mandala_gift']) ? '<small>' . esc_html(sprintf(__('Ajándékcsomag · %d. csomag', 'mandala'), (int) $item['mandala_gift']['n'])) . '</small><div hidden>' : '')
             . '<div class="quantity quantity-s" data-cart-key="' . esc_attr($key) . '" style="margin-top:var(--space-2)">'
             . '<button type="button" data-step="-1" aria-label="' . esc_attr(sprintf(__('Eggyel kevesebb: %s', 'mandala'), $name)) . '">' . $icon('minus', 'ico ico-s') . '</button>'
             . '<input type="number" inputmode="numeric" min="1" max="' . (int) $max . '" value="' . (int) $item['quantity'] . '" aria-label="' . esc_attr(sprintf(__('Mennyiség: %s', 'mandala'), $name)) . '">'
-            . '<button type="button" data-step="1"' . ($item['quantity'] >= $max ? ' disabled' : '') . ' aria-label="' . esc_attr(sprintf(__('Eggyel több: %s', 'mandala'), $name)) . '">' . $icon('plus', 'ico ico-s') . '</button></div></div>'
+            . '<button type="button" data-step="1"' . ($item['quantity'] >= $max ? ' disabled' : '') . ' aria-label="' . esc_attr(sprintf(__('Eggyel több: %s', 'mandala'), $name)) . '">' . $icon('plus', 'ico ico-s') . '</button></div>' . (!empty($item['mandala_gift']) ? '</div>' : '') . '</div>'
             . '<div style="display:grid;justify-items:end;gap:var(--space-2)"><strong class="num">' . wp_kses_post($cart->get_product_subtotal($p, $item['quantity'])) . '</strong>'
             . '<a href="' . esc_url(wc_get_cart_remove_url($key)) . '" class="remove remove_from_cart_button" aria-label="' . esc_attr(sprintf(__('Törlés: %s', 'mandala'), $name)) . '" data-product_id="' . (int) $p->get_id() . '" data-cart_item_key="' . esc_attr($key) . '" data-product_sku="' . esc_attr($p->get_sku()) . '">' . $icon('trash', 'ico ico-s') . '</a></div></li>'; // phpcs:ignore
     }
@@ -430,6 +431,9 @@ add_action('wc_ajax_mandala_set_qty', function () {
     $key = sanitize_text_field(wp_unslash($_POST['key'] ?? ''));
     $qty = max(0, (int) ($_POST['qty'] ?? 0));
     $item = WC()->cart->get_cart_item($key);
+    if ($item && !empty($item['mandala_gift']) && $qty > 0) {
+        $item = null; // ajándékcsomag tétele: csak törölhető
+    }
     if ($item) {
         $max = $item['data']->get_max_purchase_quantity();
         WC()->cart->set_quantity($key, $max > 0 ? min($qty, $max) : $qty, true);

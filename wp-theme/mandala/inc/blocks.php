@@ -81,6 +81,18 @@ add_action('init', function () {
     }
 }, 20);
 
+/**
+ * Opcionális szekció: a „mandala-optional” osztályú iu/section eltűnik, ha a benne lévő
+ * dinamikus blokkok nem adtak tartalmat (pl. nincs érkező szállítmány vagy esemény).
+ */
+add_filter('render_block', function ($content, $block) {
+    if (($block['blockName'] ?? '') === 'iu/section' && str_contains((string) ($block['attrs']['className'] ?? ''), 'mandala-optional')
+        && trim(wp_strip_all_tags($content)) === '' && !preg_match('/<(img|svg|iframe|input|button)\b/i', $content)) {
+        return '';
+    }
+    return $content;
+}, 10, 2);
+
 /** Szerkesztői jelölés a JS nélküli blokkokhoz. */
 add_action('enqueue_block_editor_assets', function () {
     wp_add_inline_style('wp-edit-blocks', '.mandala-block-placeholder{padding:14px 16px;border:1px dashed #A9581A;border-radius:6px;background:#F7F4EE;color:#6E6357;font:500 13px/1.4 system-ui}');

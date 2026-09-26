@@ -85,6 +85,9 @@ export function productCard(p) {
   const badges = [
     out ? '<span class="badge badge-dark">Elfogyott</span>' : p.wholesale ? '<span class="badge badge-sale">Nagyker ár</span>' : saleOf(p) ? `<span class="badge badge-sale">−${saleOf(p)}%</span>` : '',
     !out && p.isNew ? '<span class="badge">Új</span>' : '',
+    !out && p.unique ? '<span class="badge badge-unique">Egyedi darab</span>' : '',
+    p.incoming ? `<span class="badge badge-incoming">Érkezik ${esc(p.incomingLabel || '')}</span>` : '',
+    p.rating ? `<span class="badge badge-rating" aria-label="Értékelés: ${p.rating} / 5">★ ${p.rating}</span>` : '',
   ].join('');
   const add = (cls, inner, label) => `<a href="${esc(p.addUrl)}" data-quantity="1" data-product_id="${p.id}" data-product_sku="${esc(p.sku || '')}" rel="nofollow" class="${cls} add_to_cart_button ajax_add_to_cart"${label ? ` aria-label="${esc(label)}"` : ''}>${inner}</a>`;
   const price = p.compare > p.price ? `<del aria-label="${p.wholesale ? 'Bolti ár' : 'Eredeti ár'}">${priceHtml(p.compare)}</del> <ins aria-label="${p.wholesale ? 'Nagyker ár' : 'Akciós ár'}">${priceHtml(p.price)}</ins>` : priceHtml(p.price);
@@ -94,6 +97,7 @@ export function productCard(p) {
         <a href="${esc(p.url)}" tabindex="-1" aria-hidden="true">${media(p)}</a>
         <div class="product-badges">${badges}</div>
         <button type="button" class="wishlist-toggle" data-wish="${p.id}" aria-pressed="${wishlist.has(p.id)}" aria-label="Kedvencekhez: ${esc(p.name)}">${icon('heart')}</button>
+        ${p.audio ? `<button type="button" class="sound-btn" data-sound="${esc(p.audio)}" aria-pressed="false" aria-label="Hangminta lejátszása: ${esc(p.name)}">${icon('play', 'ico ico-s ico-play')}${icon('pause', 'ico ico-s ico-pause')}</button>` : ''}
         ${p.buyable ? `<div class="loop-quick">${add('iu-button', `${icon('plus', 'ico ico-s')} Kosárba`)}</div>` : ''}
       </div>
       <div class="loop-product-meta"><span class="origin origin-${esc(p.origin)}">${esc(p.originLabel || '')}</span><span class="text-muted" style="font-size:var(--fs-xs)">${esc(p.catLabel || '')}</span></div>

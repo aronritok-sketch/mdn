@@ -45,7 +45,7 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
 
 // Viszonteladói szerep (élesben a Wholesale Prices bővítmény hozza létre).
 add_action('init', function () {
-    if (!get_role('wholesale_customer')) {
+    if (!wp_installing() && get_option('wp_user_roles') && !get_role('wholesale_customer')) {
         add_role('wholesale_customer', 'Wholesale Customer', ['read' => true]);
     }
 });

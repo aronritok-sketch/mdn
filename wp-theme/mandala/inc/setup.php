@@ -19,16 +19,16 @@ final class Mandala_Setup
     /** Lépés => verzió. Új lépés vagy módosított lépés: verzió emelés. */
     public const STEPS = [
         'site' => 1,
-        'woocommerce' => 1,
+        'woocommerce' => 2,
         'tax' => 1,
         'shipping' => 2,
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 1,
+        'pages' => 4,
         'menus' => 1,
     ];
-    public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1];
+    public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
 
     private const OPTION = 'mandala_setup_steps';
     private const MANIFEST = 'mandala_setup_manifest';
@@ -150,6 +150,12 @@ final class Mandala_Setup
             'woocommerce_catalog_columns' => 3,
             'woocommerce_catalog_rows' => 4,
             'woocommerce_coming_soon' => 'no',
+            // Levelek: a Mandala arculata (automatizmusok és WooCommerce értesítők).
+            'woocommerce_email_base_color' => '#A9581A',
+            'woocommerce_email_background_color' => '#F7F4EE',
+            'woocommerce_email_body_background_color' => '#FFFFFF',
+            'woocommerce_email_text_color' => '#1C1916',
+            'woocommerce_email_footer_text' => get_bloginfo('name') . ' – hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából',
         ];
         foreach ($options as $key => $value) {
             update_option($key, $value);
@@ -321,6 +327,9 @@ final class Mandala_Setup
             'kedvencek' => ['Kedvencek', 'A szívvel jelölt termékeid.', 'mandala_page_kedvencek'],
             'rolunk' => ['Eredetünk', 'Honnan érkeznek a Mandala tárgyai? Nepál és India kis műhelyeitől Budapestig – így válogatunk.', 'mandala_page_rolunk'],
             'viszonteladoknak' => ['Viszonteladóknak', 'Jógastúdióknak, ajándék- és lakberendezési üzleteknek, masszőröknek és hangterapeutáknak: közvetlen import, nagykereskedelmi áron.', 'mandala_page_viszonteladoknak'],
+            'ertekeles' => ['Értékelés', 'Köszönjük, hogy megosztod a tapasztalatod.', 'mandala_page_ertekeles'],
+            'ajandekcsomag' => ['Ajándékcsomag', 'Válassz néhány tárgyat, mi nepáli lokta papírba csomagoljuk, és kézzel megírjuk a kártyát.', 'mandala_page_ajandekcsomag'],
+            'hangtal-valaszto' => ['Hangtál-választó', 'Öt kérdés, és megmutatjuk, melyik tálunk illik hozzád – a hangja, a súlya, a csakrája és a kereted alapján.', 'mandala_page_hangtal-valaszto'],
             'kapcsolat' => ['Kapcsolat', 'Kérdésed van egy termékről, vagy nem tudod, melyik hangtál illik hozzád? Általában egy munkanapon belül válaszolunk.', 'mandala_page_kapcsolat'],
             'informaciok' => ['Vásárlási információk', 'Szállítás, fizetés, visszaküldés – minden, amit a rendelésről tudni érdemes.', 'mandala_page_informaciok'],
             'aszf' => ['Általános Szerződési Feltételek', '', 'woocommerce_terms_page_id'],
@@ -399,9 +408,13 @@ final class Mandala_Setup
             ]],
             'mandala-footer-shop' => ['Lábléc – Kínálat', array_merge(
                 array_map(fn($c) => [$c['label'], 'term', $c['slug']], mandala_data('catalog')['categories'] ?? []),
-                [['Újdonságok', 'custom', add_query_arg('orderby', 'date', get_permalink($shop))], ['Akciók', 'custom', add_query_arg('allapot', 'akcios', get_permalink($shop))]]
+                [['Újdonságok', 'custom', add_query_arg('orderby', 'date', get_permalink($shop))], ['Akciók', 'custom', add_query_arg('allapot', 'akcios', get_permalink($shop))],
+                 ['Ajándékcsomag és utalvány', 'page', $page('mandala_page_ajandekcsomag')]]
             )],
             'mandala-footer-help' => ['Lábléc – Vásárlás', [
+                ['Műhelyeink', 'custom', post_type_exists('mandala_workshop') ? get_post_type_archive_link('mandala_workshop') : home_url('/muhelyek/')],
+                ['Események, hangfürdők', 'custom', post_type_exists('mandala_event') ? get_post_type_archive_link('mandala_event') : home_url('/esemenyek/')],
+                ['Hangtál-választó', 'page', $page('mandala_page_hangtal-valaszto')],
                 ['Szállítás és átvétel', 'custom', get_permalink($page('mandala_page_informaciok')) . '#szallitas'],
                 ['Fizetési módok', 'custom', get_permalink($page('mandala_page_informaciok')) . '#fizetes'],
                 ['Visszaküldés, elállás', 'custom', get_permalink($page('mandala_page_informaciok')) . '#visszakuldes'],
@@ -578,6 +591,12 @@ final class Mandala_Setup
         }
     }
 
+    /** A funkciómodulok bemutató adatai (hangminták, műhelyek, események, előrendelés…). */
+    private function step_demo_features(): void
+    {
+        do_action('mandala_demo_features');
+    }
+
     private function step_coupons(): void
     {
         foreach (mandala_config('coupons', []) as $code => $c) {
@@ -601,7 +620,7 @@ final class Mandala_Setup
     public static function delete_demo(): int
     {
         $n = 0;
-        foreach (['product', 'post', 'shop_coupon'] as $type) {
+        foreach (apply_filters('mandala_demo_post_types', ['product', 'post', 'shop_coupon']) as $type) {
             foreach (get_posts(['post_type' => $type, 'post_status' => 'any', 'numberposts' => -1, 'meta_key' => '_mandala_demo', 'meta_value' => '1', 'fields' => 'ids']) as $id) {
                 wp_delete_post($id, true);
                 $n++;

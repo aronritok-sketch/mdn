@@ -10,6 +10,11 @@ defined('ABSPATH') || exit;
 /** Termékazonosítók a válogatás módja szerint. */
 function mandala_product_selection(string $mode, int $limit, string $category = '', string $skus = ''): array
 {
+    // Funkciómodulok saját módjai (pl. „workshop”, „incoming”).
+    $custom = apply_filters('mandala_product_selection', null, $mode, $limit);
+    if (is_array($custom)) {
+        return $custom;
+    }
     $base = ['status' => 'publish', 'limit' => $limit, 'return' => 'ids', 'visibility' => 'catalog'];
     switch ($mode) {
         case 'featured':
@@ -72,6 +77,8 @@ mandala_add_block('mandala/products', [
             ['label' => 'Akciósak', 'value' => 'sale'], ['label' => 'Kategória', 'value' => 'category'],
             ['label' => 'Cikkszámok', 'value' => 'skus'], ['label' => 'Kapcsolódó (termékoldal)', 'value' => 'related'],
             ['label' => 'Ehhez illik (kosár)', 'value' => 'cart'],
+            ['label' => 'Az aktuális műhely termékei', 'value' => 'workshop'],
+            ['label' => 'Érkező szállítmány (előrendelhető)', 'value' => 'incoming'],
         ]],
         'layout' => ['type' => 'select', 'label' => 'Elrendezés', 'options' => [
             ['label' => 'Rács', 'value' => 'grid'], ['label' => 'Karusszel', 'value' => 'carousel'],

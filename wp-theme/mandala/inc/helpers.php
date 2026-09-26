@@ -38,7 +38,13 @@ function mandala_icon(string $name, string $class = 'ico'): string
 /** Ezres tagolás szóközzel (3 940 Ft), ahogy a jelenlegi mandala.hu-n. */
 function mandala_fmt($amount): string
 {
-    return number_format((float) $amount, 0, ',', ' ') . ' Ft';
+    return mandala_num($amount) . ' Ft';
+}
+
+/** Egész szám magyar ezres tagolással (1 200). */
+function mandala_num($n): string
+{
+    return number_format((float) $n, 0, ',', ' ');
 }
 
 /** Kategória címke: slug → név. */
@@ -202,6 +208,7 @@ function mandala_card(WC_Product $product): string
     if (!$out && mandala_is_new($product)) {
         $badges .= '<span class="badge">' . esc_html__('Új', 'mandala') . '</span>';
     }
+    $badges = (string) apply_filters('mandala_card_badges', $badges, $product);
     $in_wish = mandala_wishlist_has($id);
     $add_attrs = sprintf(
         'href="%s" data-quantity="1" data-product_id="%d" data-product_sku="%s" rel="nofollow"',
@@ -216,6 +223,7 @@ function mandala_card(WC_Product $product): string
       <a href="<?php echo esc_url($url); ?>" tabindex="-1" aria-hidden="true"><?php echo mandala_product_image($product); // phpcs:ignore ?></a>
       <div class="product-badges"><?php echo $badges; // phpcs:ignore ?></div>
       <button type="button" class="wishlist-toggle" data-wish="<?php echo (int) $id; ?>" aria-pressed="<?php echo $in_wish ? 'true' : 'false'; ?>" aria-label="<?php echo esc_attr(sprintf(__('Kedvencekhez: %s', 'mandala'), $name)); ?>"><?php echo mandala_icon('heart'); // phpcs:ignore ?></button>
+      <?php echo apply_filters('mandala_card_media_extra', '', $product); // phpcs:ignore ?>
       <?php if (!$out && $product->is_purchasable() && $product->is_type('simple')) : ?>
       <div class="loop-quick"><a <?php echo $add_attrs; // phpcs:ignore ?> class="iu-button add_to_cart_button ajax_add_to_cart"><?php echo mandala_icon('plus', 'ico ico-s'); // phpcs:ignore ?> <?php esc_html_e('Kosárba', 'mandala'); ?></a></div>
       <?php endif; ?>
@@ -296,13 +304,17 @@ function mandala_shop_url(array $args = []): string
 }
 
 /**
- * [mandala_url page=kapcsolat] / [mandala_url cat=hangtalak] / [mandala_url post=hangtal-valasztas]
+ * [mandala_url page=kapcsolat] / [mandala_url cat=hangtalak] / [mandala_url post=hangtal-valasztas] / [mandala_url sku=MND-UTALVANY]
  * Telepítésfüggetlen belső linkek a sablonokban és a tartalomban (a bolt, a kategória- és
  * termékalapok, az oldalcímek telepítésenként eltérhetnek – a meglévő URL-ek maradnak).
  */
 function mandala_url(array $atts): string
 {
-    $atts = shortcode_atts(['page' => '', 'cat' => '', 'post' => ''], $atts, 'mandala_url');
+    $atts = shortcode_atts(['page' => '', 'cat' => '', 'post' => '', 'sku' => ''], $atts, 'mandala_url');
+    if ($atts['sku'] && function_exists('wc_get_product_id_by_sku')) {
+        $id = wc_get_product_id_by_sku(sanitize_text_field($atts['sku']));
+        return $id ? (string) get_permalink($id) : mandala_shop_url();
+    }
     if ($atts['cat']) {
         $term = get_term_by('slug', sanitize_title($atts['cat']), 'product_cat');
         return $term ? (string) get_term_link($term) : mandala_shop_url();
@@ -317,6 +329,12 @@ function mandala_url(array $atts): string
         'magazin' => 'page_for_posts',
     ];
     $slug = sanitize_title($atts['page']);
+    if ($slug === 'muhelyek' && post_type_exists('mandala_workshop')) {
+        return (string) get_post_type_archive_link('mandala_workshop');
+    }
+    if ($slug === 'esemenyek' && post_type_exists('mandala_event')) {
+        return (string) get_post_type_archive_link('mandala_event');
+    }
     $id = isset($roles[$slug]) ? (int) get_option($roles[$slug]) : (int) get_option('mandala_page_' . $slug);
     if (!$id && $slug && ($page = get_page_by_path($slug))) {
         $id = $page->ID;
@@ -348,13 +366,14 @@ function mandala_shipping_kind(string $method_id, string $label = ''): string
  * Viszonteladó-e a bejelentkezett vásárló. Alapértelmezés: a WooCommerce Wholesale Prices
  * bővítmény „wholesale_customer” szerepe (a mandala.hu-n ez fut).
  */
-function mandala_is_wholesale_user(): bool
+function mandala_is_wholesale_user(?int $user_id = null): bool
 {
-    if (!is_user_logged_in()) {
+    $user = $user_id ? get_userdata($user_id) : (is_user_logged_in() ? wp_get_current_user() : null);
+    if (!$user) {
         return false;
     }
     $roles = (array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']);
-    return (bool) array_intersect($roles, (array) wp_get_current_user()->roles);
+    return (bool) array_intersect($roles, (array) $user->roles);
 }
 
 /**

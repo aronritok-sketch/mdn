@@ -42,18 +42,17 @@ foreach (WC()->shipping()->get_packages() as $i => $package) {
   <p style="margin:calc(-1 * var(--space-2)) 0 var(--space-3);text-align:right"><a class="text-small" href="<?php echo esc_url(wc_get_cart_url()); ?>"><?php esc_html_e('Kosár módosítása', 'mandala'); ?></a></p>
 
   <?php if (wc_coupons_enabled()) : ?>
-  <details class="review-coupon" data-coupon-details<?php echo $coupons ? ' open' : ''; ?>><summary><?php echo $coupons ? esc_html(sprintf(__('Kupon: %s', 'mandala'), strtoupper(implode(', ', array_keys($coupons))))) : esc_html__('Van kuponkódod?', 'mandala'); ?> <?php echo $icon('chevron', 'ico ico-s'); // phpcs:ignore ?></summary>
+  <details class="review-coupon" data-coupon-details><summary><?php $applied = array_merge(array_map('strtoupper', array_keys($coupons)), function_exists('mandala_voucher_rows') ? array_keys(mandala_voucher_rows()) : []); echo $applied ? esc_html(sprintf(__('Beváltva: %s', 'mandala'), implode(', ', $applied))) : esc_html__('Kuponkód vagy ajándékutalvány', 'mandala'); ?> <?php echo $icon('chevron', 'ico ico-s'); // phpcs:ignore ?></summary>
     <div class="coupon" data-coupon>
       <?php foreach ($coupons as $code => $coupon) : ?>
       <span class="coupon-applied"><?php echo $icon('check', 'ico ico-s'); // phpcs:ignore ?> <?php echo esc_html(strtoupper($code)); ?>
         <a href="<?php echo esc_url(add_query_arg('remove_coupon', rawurlencode($code), wc_get_checkout_url())); ?>" class="woocommerce-remove-coupon" data-coupon="<?php echo esc_attr($code); ?>" aria-label="<?php esc_attr_e('Kupon eltávolítása', 'mandala'); ?>"><?php echo $icon('close', 'ico ico-s'); // phpcs:ignore ?></a></span>
       <?php endforeach; ?>
-      <?php if (!$coupons) : ?>
-      <label class="sr-only" for="checkout_coupon"><?php esc_html_e('Kuponkód', 'mandala'); ?></label><input type="text" class="input-text" id="checkout_coupon" placeholder="<?php esc_attr_e('Kuponkód', 'mandala'); ?>" autocomplete="off"><button type="button" class="iu-button iu-button-outline" data-coupon-apply><?php esc_html_e('Beváltás', 'mandala'); ?></button><p class="field-error" id="checkout_coupon-error" role="status"></p>
-      <?php endif; ?>
+      <label class="sr-only" for="checkout_coupon"><?php esc_html_e('Kuponkód', 'mandala'); ?></label><input type="text" class="input-text" id="checkout_coupon" placeholder="<?php esc_attr_e('Kupon- vagy utalványkód', 'mandala'); ?>" autocomplete="off"><button type="button" class="iu-button iu-button-outline" data-coupon-apply><?php esc_html_e('Beváltás', 'mandala'); ?></button><p class="field-error" id="checkout_coupon-error" role="status"></p>
     </div>
   </details>
   <?php endif; ?>
+  <?php do_action('mandala_review_after_coupon'); ?>
 
   <table class="totals-table shop_table"><tbody>
     <tr class="cart-subtotal"><th><?php esc_html_e('Részösszeg', 'mandala'); ?></th><td><?php wc_cart_totals_subtotal_html(); ?></td></tr>

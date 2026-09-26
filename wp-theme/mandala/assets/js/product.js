@@ -21,12 +21,16 @@ async function submitCart(qty) {
   else toast('Ebből a termékből most nem tudunk többet a kosárba tenni – a készlet korlátozott.');
 }
 form?.addEventListener('submit', (e) => {
+  if ('native' in form.dataset) return; // extra mezők (pl. utalvány): a WooCommerce űrlapkezelője dolgozza fel
   e.preventDefault();
   const input = $('input[name="quantity"]', form);
   const qty = Math.max(1, Math.min(Number(input.max) || 99, Number(input.value) || 1));
   submitCart(qty);
 });
-$('[data-add-sticky]')?.addEventListener('click', () => submitCart(1));
+$('[data-add-sticky]')?.addEventListener('click', () => {
+  if (form && 'native' in form.dataset) { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); $('input, textarea', form)?.focus({ preventScroll: true }); return; }
+  submitCart(1);
+});
 
 // Ragadós kosárba sáv, ha a gomb kigördült a képből.
 const sticky = $('[data-sticky-atc]');

@@ -66,7 +66,10 @@ mandala_add_block('mandala/shop-head', [
                 $chips .= '<a class="chip" href="' . esc_url($url) . '" data-cat="' . esc_attr($current['slug']) . '" data-sub="' . esc_attr($slug) . '" aria-pressed="' . ($ctx['sub'] === $slug ? 'true' : 'false') . '">' . esc_html($label) . '</a>';
             }
         }
+        $finder = get_option('mandala_page_hangtal-valaszto');
+        $hint = $finder && in_array('hangtalak', [$ctx['sub'], $ctx['cat']], true)
+            ? '<p class="finder-hint">' . mandala_icon('compass', 'ico ico-s') . ' ' . esc_html__('Nem tudod, melyiket válaszd?', 'mandala') . ' <a href="' . esc_url(get_permalink((int) $finder)) . '">' . esc_html__('Hangtál-választó – 5 kérdés', 'mandala') . ' →</a></p>' : '';
         return $crumbs . '<h1 class="iu-title" data-title>' . esc_html($title) . '</h1><p data-lead' . ($lead ? '' : ' hidden') . '>' . esc_html($lead) . '</p>'
-            . '<div class="chip-row" data-subnav style="margin-top:var(--space-5)">' . $chips . '</div>';
+            . '<div class="chip-row" data-subnav style="margin-top:var(--space-5)">' . $chips . '</div>' . $hint;
     },
 ]);

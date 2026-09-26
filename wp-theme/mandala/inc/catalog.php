@@ -31,6 +31,8 @@ function mandala_product_index(): array
             $row['originLabel'] = mandala_attr($product, 'pa_eredet')[0] ?? '';
             $row['buyable'] = $product->is_type('simple') && $product->is_purchasable() && $product->is_in_stock();
             $row['addUrl'] = $row['buyable'] ? $product->add_to_cart_url() : '';
+            // Funkciómodulok (hangminta, előrendelés, értékelés…) további mezői.
+            $row = apply_filters('mandala_product_index_row', $row, $product);
             $index[] = $row;
         }
     }
@@ -52,14 +54,18 @@ foreach (['woocommerce_update_product', 'woocommerce_new_product', 'woocommerce_
 
 /* ---------- Admin: „Mandala adatok” fül a termék adatai között ---------- */
 
-const MANDALA_PRODUCT_META = [
-    '_mandala_hz' => ['Frekvencia (Hz)', 'number', 'Hangtál mért alapfrekvenciája – a szűrő csúszkája ebből dolgozik.'],
-    '_mandala_suly' => ['Súly (g)', 'number', 'Hangtál súlya grammban (szűrő).'],
-    '_mandala_place' => ['Eredethely', 'text', 'Pl. „Patan, Katmandu-völgy” – a termékoldal eredetkártyáján jelenik meg.'],
-    '_mandala_ritual' => ['Használat és gondozás', 'textarea', 'A termékoldal „Használat és gondozás” fülének szövege.'],
-    '_mandala_art' => ['Illusztráció (fotó helyett)', 'text', 'bowl, incense, mala, buddha, chime, scarf, copper … – csak ha nincs termékkép.'],
-    '_mandala_tone' => ['Illusztráció tónusa', 'text', 'sand, saffron, sage, maroon, sky'],
-];
+/** A „Mandala adatok” mezői: kulcs => [címke, típus, súgó]. Típus: text, number, textarea, checkbox, date, audio. */
+function mandala_product_meta_fields(): array
+{
+    return apply_filters('mandala_product_meta_fields', [
+        '_mandala_hz' => ['Frekvencia (Hz)', 'number', 'Hangtál mért alapfrekvenciája – a szűrő csúszkája ebből dolgozik.'],
+        '_mandala_suly' => ['Súly (g)', 'number', 'Hangtál súlya grammban (szűrő).'],
+        '_mandala_place' => ['Eredethely', 'text', 'Pl. „Patan, Katmandu-völgy” – a termékoldal eredetkártyáján jelenik meg.'],
+        '_mandala_ritual' => ['Használat és gondozás', 'textarea', 'A termékoldal „Használat és gondozás” fülének szövege.'],
+        '_mandala_art' => ['Illusztráció (fotó helyett)', 'text', 'bowl, incense, mala, buddha, chime, scarf, copper … – csak ha nincs termékkép.'],
+        '_mandala_tone' => ['Illusztráció tónusa', 'text', 'sand, saffron, sage, maroon, sky'],
+    ]);
+}
 
 add_filter('woocommerce_product_data_tabs', function ($tabs) {
     $tabs['mandala'] = ['label' => 'Mandala adatok', 'target' => 'mandala_product_data', 'class' => [], 'priority' => 65];
@@ -68,10 +74,20 @@ add_filter('woocommerce_product_data_tabs', function ($tabs) {
 
 add_action('woocommerce_product_data_panels', function () {
     echo '<div id="mandala_product_data" class="panel woocommerce_options_panel"><div class="options_group">';
-    foreach (MANDALA_PRODUCT_META as $key => [$label, $type, $desc]) {
+    foreach (mandala_product_meta_fields() as $key => $def) {
+        [$label, $type, $desc] = $def;
         $args = ['id' => $key, 'label' => $label, 'description' => $desc, 'desc_tip' => true];
-        if ($type === 'textarea') {
+        if ($type === 'select') {
+            woocommerce_wp_select($args + ['options' => is_callable($def[3] ?? null) ? ($def[3])() : (array) ($def[3] ?? [])]);
+        } elseif ($type === 'textarea') {
             woocommerce_wp_textarea_input($args);
+        } elseif ($type === 'checkbox') {
+            woocommerce_wp_checkbox($args);
+        } elseif ($type === 'audio') {
+            woocommerce_wp_text_input($args + ['type' => 'url', 'placeholder' => 'https://…/hang.mp3']);
+            echo '<p class="form-field"><label></label><button type="button" class="button mandala-media" data-target="' . esc_attr($key) . '">Hangfájl a médiatárból</button></p>';
+        } elseif ($type === 'date') {
+            woocommerce_wp_text_input($args + ['type' => 'date']);
         } else {
             woocommerce_wp_text_input($args + ['type' => $type, 'custom_attributes' => $type === 'number' ? ['step' => 'any', 'min' => '0'] : []]);
         }
@@ -80,15 +96,50 @@ add_action('woocommerce_product_data_panels', function () {
 });
 
 add_action('woocommerce_admin_process_product_object', function (WC_Product $product) {
-    foreach (MANDALA_PRODUCT_META as $key => [, $type]) {
+    foreach (mandala_product_meta_fields() as $key => $def) {
+        $type = $def[1];
+        if ($type === 'checkbox') {
+            $product->update_meta_data($key, empty($_POST[$key]) ? 'no' : 'yes'); // phpcs:ignore
+            continue;
+        }
         if (!isset($_POST[$key])) { // phpcs:ignore WordPress.Security.NonceVerification -- a WooCommerce ellenőrzi
             continue;
         }
         $raw = wp_unslash($_POST[$key]); // phpcs:ignore
-        $value = $type === 'number' ? ($raw === '' ? '' : (string) (float) str_replace(',', '.', $raw)) : ($type === 'textarea' ? sanitize_textarea_field($raw) : sanitize_text_field($raw));
+        $value = match ($type) {
+            'number' => $raw === '' ? '' : (string) (float) str_replace(',', '.', $raw),
+            'textarea' => sanitize_textarea_field($raw),
+            'audio' => esc_url_raw($raw),
+            'date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) ? $raw : '',
+            'select' => sanitize_key($raw),
+            default => sanitize_text_field($raw),
+        };
         $product->update_meta_data($key, $value);
     }
 });
+
+/** Médiatár gomb a hangfájl mezőhöz. */
+add_action('admin_footer-post.php', 'mandala_admin_media_js');
+add_action('admin_footer-post-new.php', 'mandala_admin_media_js');
+function mandala_admin_media_js(): void
+{
+    if (get_post_type() !== 'product') {
+        return;
+    }
+    wp_enqueue_media();
+    ?>
+<script>
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('.mandala-media');
+  if (!b || !window.wp || !wp.media) return;
+  e.preventDefault();
+  var frame = wp.media({ title: 'Hangfájl', library: { type: 'audio' }, multiple: false });
+  frame.on('select', function () { document.getElementById(b.dataset.target).value = frame.state().get('selection').first().get('url'); });
+  frame.open();
+});
+</script>
+    <?php
+}
 
 /** A pa_szin kifejezések színkódja (a szűrő színmintái) – kifejezés meta: mandala_color. */
 add_action('pa_szin_edit_form_fields', function ($term) {

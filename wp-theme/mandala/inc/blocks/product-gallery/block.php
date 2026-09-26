@@ -28,7 +28,7 @@ function mandala_badges(WC_Product $product): string
     if ($stock !== 'out' && mandala_is_new($product)) {
         $out .= '<span class="badge">' . esc_html__('Új', 'mandala') . '</span>';
     }
-    return '<div class="product-badges">' . $out . '</div>';
+    return '<div class="product-badges">' . apply_filters('mandala_card_badges', $out, $product) . '</div>';
 }
 
 mandala_add_block('mandala/product-gallery', [

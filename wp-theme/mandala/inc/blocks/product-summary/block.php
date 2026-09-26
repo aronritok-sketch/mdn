@@ -54,9 +54,11 @@ mandala_add_block('mandala/product-summary', [
 <div class="product-summary">
   <div class="product-meta-row"><span class="origin origin-<?php echo esc_attr($origin); ?>"><?php echo esc_html($origin_label); ?></span><span><?php echo esc_html(mandala_term_name($sub ?: $cat)); ?></span><?php if ($product->get_sku()) : ?><span class="sku_wrapper"><?php esc_html_e('Cikkszám:', 'mandala'); ?> <span class="sku"><?php echo esc_html($product->get_sku()); ?></span></span><?php endif; ?></div>
   <h1 class="product_title iu-title"><?php echo esc_html($product->get_name()); ?></h1>
-  <div class="price-row"><span class="price"><?php echo $product->get_price_html(); // phpcs:ignore ?></span><span class="tax-note"><?php echo esc_html(sprintf(__('Tartalmazza a %1$d%% ÁFÁ-t (%2$s)', 'mandala'), (int) mandala_config('vatRate', 27), mandala_fmt(mandala_vat_of((float) wc_get_price_to_display($product))))); ?></span></div>
+  <div class="price-row"><span class="price"><?php echo $product->get_price_html(); // phpcs:ignore ?></span><span class="tax-note"><?php echo esc_html(apply_filters('mandala_tax_note', sprintf(__('Tartalmazza a %1$d%% ÁFÁ-t (%2$s)', 'mandala'), (int) mandala_config('vatRate', 27), mandala_fmt(mandala_vat_of((float) wc_get_price_to_display($product)))), $product)); ?></span></div>
+  <?php do_action('mandala_summary_after_price', $product); ?>
   <?php if ($product->get_short_description()) : ?><div class="woocommerce-product-details__short-description"><?php echo wp_kses_post(wpautop($product->get_short_description())); ?></div><?php endif; ?>
-  <?php echo mandala_stock_html($product); // phpcs:ignore ?>
+  <?php echo apply_filters('mandala_stock_html', mandala_stock_html($product), $product); // phpcs:ignore ?>
+  <?php do_action('mandala_summary_after_stock', $product); ?>
   <?php if ($out) : ?>
   <div class="product-notify"><strong><?php esc_html_e('Értesítünk, ha újra raktáron lesz', 'mandala'); ?></strong>
     <form class="mandala-form" data-mandala-form="stock-notify" novalidate data-success="<?php esc_attr_e('Rendben! Írunk, amint újra elérhető.', 'mandala'); ?>">
@@ -67,18 +69,23 @@ mandala_add_block('mandala/product-summary', [
     </form>
   </div>
   <?php elseif ($product->is_type('simple') && $product->is_purchasable()) : ?>
-  <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype="multipart/form-data" data-cart-form data-product-id="<?php echo (int) $id; ?>">
+  <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype="multipart/form-data" data-cart-form data-product-id="<?php echo (int) $id; ?>"<?php echo apply_filters('mandala_cart_form_native', false, $product) ? ' data-native' : ''; ?>>
+    <?php do_action('mandala_cart_form_fields', $product); ?>
+    <?php if (apply_filters('mandala_cart_show_qty', true, $product)) : ?>
     <div class="quantity" data-qty><button type="button" data-step="-1" aria-label="<?php esc_attr_e('Eggyel kevesebb', 'mandala'); ?>"><?php echo $icon('minus'); // phpcs:ignore ?></button>
       <input type="number" inputmode="numeric" name="quantity" min="1" max="<?php echo (int) $max; ?>" value="1" aria-label="<?php esc_attr_e('Mennyiség', 'mandala'); ?>"><button type="button" data-step="1" aria-label="<?php esc_attr_e('Eggyel több', 'mandala'); ?>"><?php echo $icon('plus'); // phpcs:ignore ?></button></div>
-    <button type="submit" name="add-to-cart" value="<?php echo (int) $id; ?>" class="iu-button iu-button-large single_add_to_cart_button"><?php echo $icon('bag'); // phpcs:ignore ?> <?php esc_html_e('Kosárba teszem', 'mandala'); ?></button>
+    <?php else : ?><input type="hidden" name="quantity" value="1"><?php endif; ?>
+    <button type="submit" name="add-to-cart" value="<?php echo (int) $id; ?>" class="iu-button iu-button-large single_add_to_cart_button"><?php echo $icon('bag'); // phpcs:ignore ?> <?php echo esc_html(apply_filters('mandala_add_to_cart_label', __('Kosárba teszem', 'mandala'), $product)); ?></button>
     <button type="button" class="iu-button iu-button-outline iu-button-large product-wish" data-wish="<?php echo (int) $id; ?>" aria-pressed="<?php echo mandala_wishlist_has($id) ? 'true' : 'false'; ?>" aria-label="<?php echo esc_attr(sprintf(__('Kedvencekhez: %s', 'mandala'), $product->get_name())); ?>"><?php echo $icon('heart'); // phpcs:ignore ?></button>
   </form>
   <?php else : ?>
   <div class="mandala-variable-cart"><?php woocommerce_template_single_add_to_cart(); ?></div>
   <?php endif; ?>
-  <?php if ($place) : ?>
-  <div class="origin-card"><?php echo $icon('pin'); // phpcs:ignore ?><p><strong><?php echo esc_html(sprintf(__('Eredet: %s', 'mandala'), $place)); ?></strong><?php esc_html_e('Közvetlenül a készítő műhelytől hozzuk be – minden darabot átnézünk, mielőtt a polcra kerül.', 'mandala'); ?></p></div>
-  <?php endif; ?>
+  <?php do_action('mandala_summary_after_cart', $product); ?>
+  <?php
+        $origin = $place ? '<div class="origin-card">' . $icon('pin') . '<p><strong>' . esc_html(sprintf(__('Eredet: %s', 'mandala'), $place)) . '</strong>' . esc_html__('Közvetlenül a készítő műhelytől hozzuk be – minden darabot átnézünk, mielőtt a polcra kerül.', 'mandala') . '</p></div>' : '';
+        echo apply_filters('mandala_origin_card', $origin, $product); // phpcs:ignore
+  ?>
   <?php
         $rows = [];
         foreach ($product->get_attributes() as $attribute) {

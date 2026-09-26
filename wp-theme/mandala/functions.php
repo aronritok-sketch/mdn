@@ -23,6 +23,12 @@ require_once __DIR__ . '/inc/wishlist.php';
 require_once __DIR__ . '/inc/rest.php';
 require_once __DIR__ . '/inc/setup.php';
 
+// Funkciómodulok: hangminta, műhelyek, előrendelés, események, értékelések, ajándék, hűségprogram…
+foreach (glob(__DIR__ . '/inc/features/*.php') ?: [] as $mandala_feature) {
+    require_once $mandala_feature;
+}
+unset($mandala_feature);
+
 if (defined('WP_CLI') && WP_CLI) {
     require_once __DIR__ . '/inc/cli.php';
 }

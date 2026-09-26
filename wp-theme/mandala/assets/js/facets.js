@@ -42,8 +42,8 @@ export const FACETS = [
   { key: 'anyag', label: 'Anyag', type: 'check', values: (p) => p.attrs.anyag || [] },
   { key: 'szin', label: 'Szín', type: 'swatch', values: (p) => p.attrs.szin || [], colors: COLORS },
   { key: 'allapot', label: 'Elérhetőség és ajánlat', type: 'check', mode: 'and',
-    values: (p) => [p.stock !== 'out' && 'raktaron', p.compare > p.price && 'akcios', p.isNew && 'uj'].filter(Boolean),
-    options: [['raktaron', 'Raktáron'], ['akcios', 'Akciós'], ['uj', 'Újdonság']] },
+    values: (p) => [['in', 'low'].includes(p.stock) && 'raktaron', p.compare > p.price && !p.wholesale && 'akcios', p.isNew && 'uj', p.audio && 'hangminta', p.unique && 'egyedi', p.incoming && 'elorendeles'].filter(Boolean),
+    options: [['raktaron', 'Raktáron'], ['akcios', 'Akciós'], ['uj', 'Újdonság'], ['hangminta', 'Hangmintával'], ['egyedi', 'Egyedi darab'], ['elorendeles', 'Előrendelhető']] },
 ];
 export const facetByKey = Object.fromEntries(FACETS.map((f) => [f.key, f]));
 

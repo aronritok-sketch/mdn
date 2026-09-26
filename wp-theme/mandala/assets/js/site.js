@@ -297,9 +297,51 @@ $$('form[data-mandala-form="stock-notify"]').forEach((form) => {
   });
 });
 
+// ---------- Hangminta (egy közös lejátszó: egyszerre csak egy szól) ----------
+const audio = new Audio();
+audio.preload = 'none';
+let soundUrl = '';
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function syncSound() {
+  const playing = !audio.paused && !audio.ended;
+  $$('[data-sound]').forEach((b) => b.setAttribute('aria-pressed', String(playing && b.dataset.sound === soundUrl)));
+  $$('[data-sound-player]').forEach((pl) => {
+    const mine = $('[data-sound]', pl)?.dataset.sound === soundUrl;
+    const seek = $('[data-sound-seek]', pl);
+    pl.classList.toggle('is-playing', playing && mine);
+    if (!mine) return;
+    seek.disabled = !audio.duration;
+    if (audio.duration) { seek.value = (audio.currentTime / audio.duration) * 100; seek.style.setProperty('--p', `${seek.value}%`); }
+    $('[data-sound-time]', pl).textContent = `${fmtTime(audio.currentTime)}${audio.duration ? ` / ${fmtTime(audio.duration)}` : ''}`;
+  });
+}
+['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata'].forEach((ev) => audio.addEventListener(ev, syncSound));
+function toggleSound(url) {
+  if (soundUrl === url && !audio.paused) { audio.pause(); return; }
+  if (soundUrl !== url) { soundUrl = url; audio.src = url; }
+  audio.play().catch(() => toast('A hangminta most nem játszható le.'));
+}
+document.addEventListener('input', (e) => {
+  const seek = e.target.closest?.('[data-sound-seek]');
+  if (seek && audio.duration && $('[data-sound]', seek.closest('[data-sound-player]'))?.dataset.sound === soundUrl) audio.currentTime = (seek.value / 100) * audio.duration;
+});
+
+// ---------- Általános űrlap-ellenőrzés (data-validate-form, pl. értékelés) ----------
+$$('form[data-validate-form]').forEach((form) => {
+  bindValidation(form);
+  form.addEventListener('submit', (e) => {
+    const errors = validateForm(form);
+    const star = form.querySelector('.star-input');
+    if (star && !form.querySelector('.star-input input:checked')) { errors.unshift({ el: star.querySelector('input'), msg: 'Válassz csillagot.' }); star.classList.add('is-invalid'); }
+    if (errors.length) { e.preventDefault(); errors[0].el.focus(); toast(esc(errors[0].msg)); }
+  });
+});
+
 // ---------- Globális kattintáskezelés ----------
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-open-cart],[data-open-search],[data-close],[data-wish],[data-step],[data-term],[data-cookie],[data-cookie-settings],[data-lang],[data-copy],[data-map-load],.mobile-toggle,.mega-trigger');
+  const snd = e.target.closest('[data-sound]');
+  if (snd) { e.preventDefault(); toggleSound(snd.dataset.sound); return; }
+  const t = e.target.closest('[data-open-cart],[data-open-search],[data-close],[data-wish],.quantity [data-step],[data-term],[data-cookie],[data-cookie-settings],[data-lang],[data-copy],[data-map-load],.mobile-toggle,.mega-trigger');
   if (!t) {
     const layer = openLayers.at(-1);
     if (layer && e.target === layer) closeLayer(layer);
@@ -315,7 +357,7 @@ document.addEventListener('click', async (e) => {
     toast(on ? `<strong>Kedvencekhez adva:</strong> ${esc(name)}` : `Eltávolítva a kedvencek közül: ${esc(name)}`, { action: on && M.wishlistPage ? `<a class="iu-button" href="${esc(M.wishlistPage)}">Kedvencek</a>` : '' });
     const list = t.closest('[data-wishlist]');
     if (list && !on) { t.closest('li.product')?.remove(); if (!$('li.product', list)) location.reload(); }
-  } else if (t.dataset.step) {
+  } else if (t.matches('.quantity [data-step]')) {
     const box = t.closest('.quantity');
     const input = $('input', box);
     if (!input) return;

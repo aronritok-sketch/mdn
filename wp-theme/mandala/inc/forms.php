@@ -17,6 +17,7 @@ const MANDALA_FORMS = [
     'kapcsolat' => ['subject' => 'Üzenet a weboldalról', 'mail' => true],
     'termekkerdes' => ['subject' => 'Kérdés egy termékről', 'mail' => true],
     'viszontelado' => ['subject' => 'Viszonteladói jelentkezés', 'mail' => true],
+    'tanacsadas' => ['subject' => 'Tanácsadás / időpontkérés', 'mail' => true],
 ];
 
 /** Az iu/form belső blokkjaiból: mezőnév → [címke, blokktípus]. */
