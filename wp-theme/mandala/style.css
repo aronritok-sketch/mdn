@@ -1056,6 +1056,53 @@ main > .iu-woocommerce-account, main > .woocommerce { width: var(--iu-row-width)
   .intent-card p { display: none; }
 }
 
+/* ===== Mandala-grafikák (tools/gen-mandalas.py) ===== */
+/* Felirat előtti dísz: apró mandala jel + vonal */
+.eyebrow::before { width: 14px; height: 14px; background: currentColor; -webkit-mask: url(assets/mandala/glyph.svg) center / contain no-repeat; mask: url(assets/mandala/glyph.svg) center / contain no-repeat; }
+.eyebrow::after { content: ''; width: 20px; height: 1px; background: currentColor; opacity: .5; order: -1; }
+
+/* Szekció-vízjel: nagy, halvány vonalas mandala a sarokban (lassan forog, ha a látogató nem kért kevesebb mozgást) */
+.iu-section.deco { position: relative; overflow: hidden; isolation: isolate; }
+.iu-section.deco::before { content: ''; position: absolute; z-index: -1; width: 560px; height: 560px; background: var(--c-accent); opacity: .07; pointer-events: none;
+  -webkit-mask: url(assets/mandala/lines-2.svg) center / contain no-repeat; mask: url(assets/mandala/lines-2.svg) center / contain no-repeat; }
+.iu-section.deco-tr::before { right: -200px; top: -200px; }
+.iu-section.deco-bl::before { left: -220px; bottom: -240px; -webkit-mask-image: url(assets/mandala/lines-3.svg); mask-image: url(assets/mandala/lines-3.svg); }
+.iu-section.deco-night::before { left: -260px; top: 50%; margin-top: -330px; width: 660px; height: 660px; background: #E2B77A; opacity: .09; -webkit-mask-image: url(assets/mandala/lines-1.svg); mask-image: url(assets/mandala/lines-1.svg); }
+@media (prefers-reduced-motion: no-preference) {
+  .iu-section.deco::before { animation: mandala-spin 360s linear infinite; }
+}
+@media (max-width: 767px) { .iu-section.deco::before { width: 380px; height: 380px; } .iu-section.deco-night::before { width: 420px; height: 420px; margin-top: -210px; } }
+
+/* Szándék kártyák: színes mandala-medál */
+.intent-card .iu-card-image .art.medal { width: 112px; height: 112px; border-radius: 0; transition: transform .8s var(--ease); }
+a.intent-card:hover .art.medal { transform: rotate(30deg) scale(1.04); }
+@media (max-width: 767px) { .intent-card .iu-card-image .art.medal { width: 72px; height: 72px; } }
+
+/* Választássegítő: medál az ikon mögött */
+.guide-ico { position: relative; width: 60px; height: 60px; background: none; }
+.guide-ico .guide-medal { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform .8s var(--ease); }
+.guide-ico > span { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--c-white); color: var(--c-accent-deep); box-shadow: 0 0 0 2px rgba(255,255,255,.6); }
+.guide-ico > span .ico { width: 16px; height: 16px; }
+.guide-card:hover .guide-medal { transform: rotate(45deg); }
+.guide-card-chat .guide-ico > span { background: var(--c-night); color: #E2B77A; box-shadow: none; }
+
+/* Üres lista: kis mandala fölötte */
+.empty-note::before { content: ''; display: block; width: 72px; height: 72px; margin-bottom: var(--space-4); background: url(assets/mandala/medal-sand.svg) center / contain no-repeat; }
+@keyframes mandala-spin { to { transform: rotate(360deg); } }
+
+/* Kategóriasáv: mandala-koszorú a kör körül (hoverre elfordul) */
+.cat-nav a { position: relative; }
+.cat-nav-img { position: relative; overflow: visible; border: 0; background: none; }
+.cat-nav-img img { position: relative; z-index: 1; border-radius: 50%; border: var(--border); background: var(--c-white); }
+.cat-nav-img::before { content: ''; position: absolute; inset: -17%; background: var(--c-accent); opacity: .42; transition: transform 1.2s var(--ease), opacity .3s;
+  -webkit-mask: url(assets/mandala/lines-3.svg) center / contain no-repeat; mask: url(assets/mandala/lines-3.svg) center / contain no-repeat; }
+.cat-nav a:hover .cat-nav-img { transform: none; box-shadow: none; }
+.cat-nav a:hover .cat-nav-img::before { transform: rotate(40deg); opacity: .5; }
+.cat-nav a:hover .cat-nav-img img { box-shadow: var(--shadow-m); }
+.cat-nav ul { padding-top: var(--space-5); row-gap: var(--space-7); }
+@media (max-width: 767px) { .cat-nav li { flex-basis: 104px; padding-top: 14px; } .cat-nav-img { max-width: 76px; margin-inline: auto; } }
+.cat-nav-img { margin-bottom: var(--space-5); }
+
 
 /* ==========================================================================
    Funkciómodulok: hangminta, egyedi darab, előrendelés, műhelyek, események,

@@ -32,7 +32,8 @@ mandala_add_block('mandala/route-map', [
 mandala_add_block('mandala/hero-mandala', [
     'title' => 'Díszítő mandala',
     'template' => function ($attributes) {
-        $svg = @file_get_contents(MANDALA_DIR . '/assets/art/mandala.svg') ?: '';
-        return preg_replace('/<svg[^>]*?class="mandala"/', '<svg class="hero-mandala"', str_replace(' xmlns="http://www.w3.org/2000/svg"', '', $svg), 1);
+        // Generált, rétegzett vonalas mandala (tools/gen-mandalas.py); a színe currentColor.
+        $svg = @file_get_contents(MANDALA_DIR . '/assets/mandala/lines-1.svg') ?: '';
+        return str_replace(['<svg xmlns="http://www.w3.org/2000/svg"', 'class="mandala-art"'], ['<svg', 'class="hero-mandala"'], $svg);
     },
 ]);

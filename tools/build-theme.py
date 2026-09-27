@@ -68,6 +68,8 @@ def build_assets():
     shutil.copytree(ROOT / 'assets/img', img)
     shutil.copy(ROOT / 'assets/favicon.svg', THEME / 'assets/favicon.svg')
     shutil.copytree(ROOT / 'assets/logo', THEME / 'assets/logo', dirs_exist_ok=True)
+    # Generált mandala-grafikák (tools/gen-mandalas.py)
+    shutil.copytree(ROOT / 'assets/mandala', THEME / 'assets/mandala', dirs_exist_ok=True)
     subprocess.run(['node', str(ROOT / 'tools/export-data.mjs'), str(THEME)], check=True)
 
 
@@ -328,7 +330,7 @@ def templates():
                         group(f_text('email', 'E-mail-cím', V_EMAIL, 'nev@pelda.hu', 'email'), className='nl-row'),
                         f_accept(label='Elfogadom az <a href="[mandala_url page=privacy]">adatkezelési tájékoztatót</a>, és bármikor leiratkozhatok.'),
                     ], 'Feliratkozom', 'Köszönjük! Küldtünk egy megerősítő levelet – kattints a benne lévő linkre.', className='nl-form')),
-                    v='center'), className='newsletter'),
+                    v='center'), className='newsletter deco deco-bl'),
         section(
             row('1-4|1-4|1-4|1-4',
                 col('1-4', dyn('mandala/logo'), p('Hangtálak, füstölők, szobrok, textilek és ajándékok – kézzel válogatva Nepál és India műhelyeiből, hogy a csendnek otthon is helye legyen.'), dyn('mandala/contact', variant='social')),
@@ -450,9 +452,9 @@ def page_home():
         section(one(section_head('Kínálat', 'Mit keresel ma?', button=('Teljes kínálat', '[mandala_url page=shop]', 'outline')),
                     dyn('mandala/category-nav', limit='10'))),
         section(one(section_head('Vásárlóink kedvencei', 'Legnépszerűbb darabok', 'Amit a legtöbben választanak – raktárról, azonnal.', button=('Mind a népszerűek', '[mandala_url page=shop]?orderby=popularity', 'outline'), anchor='legnepszerubbek'),
-                    dyn('mandala/products', mode='featured', limit='8', columns='4')), bg='sand'),
+                    dyn('mandala/products', mode='featured', limit='8', columns='4')), bg='sand', className='deco deco-tr'),
         section(one(section_head('Segítünk választani', 'Nem tudod, melyiket válaszd?', 'Pár kérdés, és személyre szabott válogatást kapsz – vagy kérdezd meg a tanácsadónkat.', anchor='segitunk-valasztani'),
-                    dyn('mandala/guide-cards'))),
+                    dyn('mandala/guide-cards')), className='deco deco-bl'),
         section(one(section_head('Szándék szerint', 'Mire van most szükséged?', 'Nem mindig tudjuk, milyen tárgyat keresünk – de azt igen, mit szeretnénk érezni. Kezdd innen.')),
                 one(dyn('mandala/intents')), bg='sand'),
         section(one(section_head('Kínálat', 'Négy világ, egy hangulat', button=('Teljes kínálat', '[mandala_url page=shop]', 'outline'))),
@@ -487,8 +489,8 @@ def page_home():
                         html('<div class="origin-facts"><div><h3><span class="origin origin-nepal" aria-hidden="true"></span>Nepál</h3><p>Hangtálak, csengők és tingsha Patan öntőműhelyeiből, kézzel sodort tibeti füstölők, mala láncok, imazászlók.</p></div><div><h3><span class="origin origin-india" aria-hidden="true"></span>India</h3><p>Moradabad rézművessége, jaipuri blokknyomott textilek és ékszerek, dél-indiai kézzel sodort füstölők.</p></div></div>'),
                         buttons(('Ismerd meg az utat', '[mandala_url page=rolunk]')), className='reveal'),
                     col('1-2', dyn('mandala/picture', image='nepali-mester', alt='Hangtálválogatás egy katmandui műhelyben, a hangtálkészítő mesterrel', sizes='(max-width: 991px) 100vw, 50vw', position='50% 35%', className='media-frame-43 origin-photo'), className='reveal'), v='center'),
-                className='origin-band', light=True, bg='night'),
-        section(one(section_head('Vásárlóink mondták', 'Több, mint egy vásárlás'), dyn('mandala/testimonials')), bg='sand'),
+                className='origin-band deco deco-night', light=True, bg='night'),
+        section(one(section_head('Vásárlóink mondták', 'Több, mint egy vásárlás'), dyn('mandala/testimonials')), bg='sand', className='deco deco-tr'),
         section(one(dyn('mandala/events', limit='3', eyebrow='Programok', heading='Hangfürdők és workshopok')), className='mandala-optional'),
         section(one(section_head('Magazin', 'Tudni, mit tartasz a kezedben', button=('Összes cikk', '[mandala_url page=magazin]', 'outline')),
                     dyn('iu/query', main_query=False, params='"post_type": "post", "posts_per_page": 3', template='[mandala_post_card]', columns='3')), className='mandala-needs-posts'),
