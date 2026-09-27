@@ -39,7 +39,9 @@
       pages = r.pages;
       r.data.forEach((c) => cats.set(c.id, c));
     }
-    const catPath = (id) => { const parts = []; for (let c = cats.get(id), n = 0; c && n < 10; c = cats.get(c.parent), n++) parts.unshift(c.name.replace(/,/g, '\\,')); return parts.join(' > '); };
+    // A REST a kategória- és címkeneveket HTML-kódolva adja (&amp;) – az importhoz dekódolva kell.
+    const dec = (v) => { const t = document.createElement('textarea'); t.innerHTML = String(v ?? ''); return t.value; };
+    const catPath = (id) => { const parts = []; for (let c = cats.get(id), n = 0; c && n < 10; c = cats.get(c.parent), n++) parts.unshift(dec(c.name).replace(/,/g, '\\,')); return parts.join(' > '); };
 
     // Termékek 100-as adagokban (minden állapot: közzétett, piszkozat, privát). Ha egy adag szerverhibát ad
     // (egy hibás termék miatt), 10-es, majd 1-es adagokra bontja, és csak a hibás terméket hagyja ki.
@@ -113,7 +115,7 @@
         'Tax status': p.tax_status, 'Tax class': p.tax_class, 'In stock?': stock(p), Stock: p.manage_stock ? p.stock_quantity ?? '' : '', 'Backorders allowed?': p.backorders === 'yes' ? 1 : p.backorders === 'notify' ? 'notify' : 0,
         'Sold individually?': p.sold_individually ? 1 : 0, 'Weight (kg)': p.weight, 'Length (cm)': p.dimensions?.length, 'Width (cm)': p.dimensions?.width, 'Height (cm)': p.dimensions?.height,
         'Allow customer reviews?': p.reviews_allowed ? 1 : 0, 'Purchase note': txt(p.purchase_note), 'Sale price': p.sale_price, 'Regular price': p.regular_price,
-        Categories: (p.categories || []).map((c) => catPath(c.id) || c.name).join(', '), Tags: (p.tags || []).map((t) => t.name.replace(/,/g, '\\,')).join(', '), 'Shipping class': p.shipping_class,
+        Categories: (p.categories || []).map((c) => catPath(c.id) || c.name).join(', '), Tags: (p.tags || []).map((t) => dec(t.name).replace(/,/g, '\\,')).join(', '), 'Shipping class': p.shipping_class,
         Images: (p.images || (p.image ? [p.image] : [])).map((i) => i.src).join(', '), Upsells: (p.upsell_ids || []).map((id) => skuOf.get(id)).filter(Boolean).join(','),
         'Cross-sells': (p.cross_sell_ids || []).map((id) => skuOf.get(id)).filter(Boolean).join(','), Position: p.menu_order || 0, ...extra,
       };
@@ -122,11 +124,11 @@
     };
     for (const p of products) {
       const attrs = {};
-      p.attributes.forEach((a, i) => Object.assign(attrs, { [`Attribute ${i + 1} name`]: a.name, [`Attribute ${i + 1} value(s)`]: a.options.map((o) => String(o).replace(/,/g, '\\,')).join(', '), [`Attribute ${i + 1} visible`]: a.visible ? 1 : 0, [`Attribute ${i + 1} global`]: a.id ? 1 : 0 }));
+      p.attributes.forEach((a, i) => Object.assign(attrs, { [`Attribute ${i + 1} name`]: dec(a.name), [`Attribute ${i + 1} value(s)`]: a.options.map((o) => dec(o).replace(/,/g, '\\,')).join(', '), [`Attribute ${i + 1} visible`]: a.visible ? 1 : 0, [`Attribute ${i + 1} global`]: a.id ? 1 : 0 }));
       row({ ...p, sku: skuOf.get(p.id) }, attrs);
       for (const v of variations.get(p.id) || []) {
         const vattrs = {};
-        v.attributes.forEach((a, i) => Object.assign(vattrs, { [`Attribute ${i + 1} name`]: a.name, [`Attribute ${i + 1} value(s)`]: a.option, [`Attribute ${i + 1} global`]: a.id ? 1 : 0 }));
+        v.attributes.forEach((a, i) => Object.assign(vattrs, { [`Attribute ${i + 1} name`]: dec(a.name), [`Attribute ${i + 1} value(s)`]: dec(a.option), [`Attribute ${i + 1} global`]: a.id ? 1 : 0 }));
         row({ ...v, type: 'variation', name: `${p.name} – ${v.attributes.map((a) => a.option).join(', ')}`, categories: [], tags: [], images: v.image ? [v.image] : [], status: v.status }, { ...vattrs, Parent: skuOf.get(p.id), Position: v.menu_order || 0 });
       }
     }
