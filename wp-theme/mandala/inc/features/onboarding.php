@@ -24,6 +24,7 @@ function mandala_onboarding_settings(): array
         'min_desc' => 150,       // a leírás legalább ennyi karakter
         'daily' => 'yes',        // napi emlékeztető, ha van 2 napnál régebbi tétel
         'since' => 0,            // a sor bekapcsolásának ideje (a biztonsági háló ennél újabbakat néz)
+        'juta_sale' => 'wholesale', // a JUTA „Akciós ár” = nagyker ár (b2b.php); 'shop': bolti akciós ár
     ]);
 }
 function mandala_onboarding_on(): bool
@@ -409,13 +410,17 @@ function mandala_onboarding_page(): void
         wp_cache_delete('counts', 'mandala_onboarding');
         echo '<div class="notice notice-' . ($fail ? 'warning' : 'success') . '"><p>' . esc_html(sprintf('%d termék kész.', $ok)) . ($fail ? ' ' . esc_html('Nem élesíthető: ' . implode('; ', $fail)) : '') . '</p></div>';
     }
-    if ($tab === 'settings' && !empty($_POST['mandala_onboarding']) && check_admin_referer('mandala_onboarding_settings')) {
+    if ($tab === 'settings' && !empty($_POST['mandala_juta_migrate']) && check_admin_referer('mandala_onboarding_settings')) {
+        $done = mandala_juta_migrate_sales(true);
+        echo '<div class="notice notice-success"><p>' . esc_html(sprintf('%d termék akciós ára a nagyker árba került.', $done['count']) . ($done['left'] ? sprintf(' Még %d van hátra – kattints újra.', $done['left']) : '')) . '</p></div>';
+    } elseif ($tab === 'settings' && !empty($_POST['mandala_onboarding']) && check_admin_referer('mandala_onboarding_settings')) {
         $in = array_map('sanitize_text_field', (array) wp_unslash($_POST['mandala_onboarding']));
         $s = mandala_onboarding_settings();
         $s['enabled'] = empty($in['enabled']) ? 'no' : 'yes';
         $s['daily'] = empty($in['daily']) ? 'no' : 'yes';
         $s['recipients'] = implode(', ', array_filter(array_map('trim', explode(',', $in['recipients'] ?? '')), 'is_email'));
         $s['min_desc'] = max(0, (int) ($in['min_desc'] ?? 150));
+        $s['juta_sale'] = ($in['juta_sale'] ?? 'wholesale') === 'shop' ? 'shop' : 'wholesale';
         update_option('mandala_onboarding', $s, false);
         echo '<div class="notice notice-success"><p>Mentve.</p></div>';
     }
@@ -437,8 +442,17 @@ function mandala_onboarding_page(): void
             . '<tr><th scope="row"><label for="ob-rec">Értesítendők</label></th><td><input type="text" class="regular-text" id="ob-rec" name="mandala_onboarding[recipients]" value="' . esc_attr($s['recipients']) . '" placeholder="' . esc_attr(get_option('admin_email')) . '"><p class="description">E-mail-címek vesszővel (a webért felelős munkatárs).</p></td></tr>'
             . '<tr><th scope="row">Napi emlékeztető</th><td><label><input type="checkbox" name="mandala_onboarding[daily]" value="1"' . checked($s['daily'], 'yes', false) . '> ha van 2 napnál régebben váró termék</label></td></tr>'
             . '<tr><th scope="row"><label for="ob-min">Leírás legalább</label></th><td><input type="number" min="0" id="ob-min" name="mandala_onboarding[min_desc]" value="' . esc_attr((string) $s['min_desc']) . '" style="width:90px"> karakter</td></tr>'
+            . '<tr><th scope="row">JUTA „Akciós ár”</th><td><label><input type="radio" name="mandala_onboarding[juta_sale]" value="wholesale"' . checked($s['juta_sale'], 'wholesale', false) . '> <strong>nagyker ár</strong> (Wholesale Prices mező) – a bolti akciós árat a termékszerkesztőben állítjátok, a JUTA nem írja felül</label><br>'
+            . '<label><input type="radio" name="mandala_onboarding[juta_sale]" value="shop"' . checked($s['juta_sale'], 'shop', false) . '> bolti akciós ár (ahogy a JUTA küldi)</label></td></tr>'
             . '</table>';
         submit_button('Mentés');
+        if ($s['juta_sale'] === 'wholesale' && function_exists('mandala_juta_migrate_sales')) {
+            $pending = mandala_juta_migrate_sales(false);
+            if ($pending['count']) {
+                echo '<div class="notice notice-warning inline"><p><strong>' . (int) $pending['count'] . ' terméknél bolti akciós ár van, nagyker ár nincs</strong> – valószínűleg a korábbi JUTA-szinkron tette az akciós árba (pl. ' . esc_html(implode('; ', $pending['sample'])) . ').</p>'
+                    . '<p><button class="button" name="mandala_juta_migrate" value="1">Áthelyezés a nagyker árba</button> <span class="description">Az akciós ár nagyker ár lesz, a bolti akciós ár törlődik. Ha van köztük valódi bolti akció, azt utána a termékszerkesztőben állítsd vissza.</span></p></div>';
+            }
+        }
         echo '<h2>Kötelező szűrőadatok kategóriánként</h2><table class="widefat striped" style="max-width:900px"><thead><tr><th>Szűrő</th><th>Hol kötelező</th><th>Útmutató</th></tr></thead><tbody>';
         foreach (mandala_filter_schema() as $f) {
             $req = $f['required'] === true ? 'minden terméknél' : ($f['required'] ? implode(', ', array_merge((array) ($f['required']['cats'] ?? []), (array) ($f['required']['subs'] ?? []))) : '–');

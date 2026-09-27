@@ -25,6 +25,11 @@ A webért felelős munkatársnak. Hol: **WordPress admin → Termékek → Új t
 
 A JUTA ár- és készletfrissítése nem változtat ezen: a még nem élesített termék akkor is piszkozat marad.
 
+**Árak:** a JUTA „Ár”-a a bolti ár, a JUTA **„Akciós ár”-a a nagyker ár** (a viszonteladók ezt látják, a Wholesale
+Prices mezőjébe kerül). **Bolti akciót** a termékszerkesztőben állíts (Akciós ár mező) – a JUTA ezt nem írja
+felül. Ha a JUTA-ban törlöd az akciós árat, a terméknek nem lesz nagyker ára. Beállítás és a korábbi szinkronból
+bolti akcióként maradt árak áthelyezése: *Új termékek → Beállítások → JUTA „Akciós ár”*.
+
 ## 2. Meglévő termékek átsorolása az új szűrőkre (egyszeri migráció, Claude)
 
 Hol: **Új termékek → Claude migráció** fül. Előfeltétel: Anthropic API-kulcs (a fejlesztő a `wp-config.php`-ba

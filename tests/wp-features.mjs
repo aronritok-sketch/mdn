@@ -1150,6 +1150,32 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp(`foreach ([${created.join(',')}] as $id) { if ($o = wc_get_order($id)) $o->delete(true); } delete_option("mandala_test_collection_min"); delete_option("mandala_ai");`);
 }
 
+// ---------- JUTA „Akciós ár” = nagyker ár (a JUTA a WooCommerce REST API-n küldi) ----------
+{
+  const pid = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  const before = JSON.parse(wp(`$p = wc_get_product(${pid}); echo json_encode([$p->get_sale_price("edit"), $p->get_meta("wholesale_customer_wholesale_price")]);`));
+  const pass = wp('$r = WP_Application_Passwords::create_new_application_password(1, ["name" => "juta-teszt"]); echo $r[0];');
+  const auth = 'Basic ' + Buffer.from(`admin:${pass}`).toString('base64');
+  const juta = (body) => fetch(`${BASE}/wp-json/wc/v3/products/${pid}`, { method: 'PUT', headers: { Authorization: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  const state = () => JSON.parse(wp(`$p = wc_get_product(${pid}); echo json_encode([$p->get_sale_price("edit"), $p->get_meta("wholesale_customer_wholesale_price")]);`));
+  // A bolti akció a termékszerkesztőből (a teszt a mentést szerkesztőinek jelöli).
+  wp(`add_filter("mandala_is_editor_save", "__return_true"); $p = wc_get_product(${pid}); $p->set_sale_price("33000"); $p->save();`);
+  const r1 = await juta({ sale_price: '27500', regular_price: '37340' });
+  ok(r1.id == pid && JSON.stringify(state()) === '["33000","27500"]', 'JUTA akciós ár → nagyker ár; a bolti akciós ár marad', JSON.stringify(state()));
+  await juta({ sale_price: '' });
+  ok(JSON.stringify(state()) === '["33000",""]', 'JUTA-ban törölt akciós ár → nincs nagyker ár, a bolti akció marad', JSON.stringify(state()));
+  // Meglévő termék a régi szinkronból: akciós ár van, nagyker nincs → áthelyezés gombbal.
+  wp(`$p = wc_get_product(${pid}); $p->set_sale_price("26000"); $p->save();`);
+  const pending = JSON.parse(wp('echo json_encode(mandala_juta_migrate_sales(false));'));
+  wp(`mandala_juta_migrate_sales(true, [${pid}]);`);
+  ok(pending.count >= 1 && JSON.stringify(state()) === '["","26000"]', 'meglévő akciós árak áthelyezése a nagyker árba', `${pending.count} db → ${JSON.stringify(state())}`);
+  wp('update_option("mandala_onboarding", array_merge((array) get_option("mandala_onboarding", []), ["juta_sale" => "shop"]));');
+  await juta({ sale_price: '25000' });
+  ok(state()[0] === '25000', 'kikapcsolva: a JUTA akciós ára bolti akció (ahogy küldi)');
+  wp('$s = (array) get_option("mandala_onboarding", []); unset($s["juta_sale"]); update_option("mandala_onboarding", $s);');
+  wp(`WP_Application_Passwords::delete_all_application_passwords(1); $p = wc_get_product(${pid}); $p->set_sale_price(${JSON.stringify(before[0])}); $p->update_meta_data("wholesale_customer_wholesale_price", ${JSON.stringify(String(before[1]))}); $p->save();`);
+}
+
 // ---------- Terhelhetőség (a terheléses teszt tanulságai, tests/load.mjs) ----------
 {
   const home = await (await fetch(`${BASE}/`)).text();

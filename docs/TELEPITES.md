@@ -176,7 +176,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - [ ] **Viszonteladó:** belépés `wholesale_customer` felhasználóval → Fiókom → Viszonteladói felület: nagyker árak,
   gyorsrendelés, árlista, fotók.
 - [ ] **JUTA:** egy új termék importja → a termék piszkozat, megjelenik a Termékek → Új termékek listában, értesítő
-  levél megy; egy ár/készlet frissítés nem teszi élővé.
+  levél megy; egy ár/készlet frissítés nem teszi élővé. A JUTA „Akciós ár”-a a termék **nagyker ára** lesz (a
+  viszonteladó látja), a boltban nem jelenik meg akcióként. Ha az Új termékek → Beállítások fülön figyelmeztetés
+  jelzi, hogy a korábbi szinkronból bolti akciós árak maradtak nagyker ár nélkül: „Áthelyezés a nagyker árba”.
 - [ ] **WPML:** az angol oldalak, a nyelvválasztó, egy angol termék szűrője.
 - [ ] **GTM:** előnézeti módban a `view_item_list`, `add_to_cart`, `purchase` események; a süti sáv választása a
   Consent Mode-ot frissíti. Meta pixel címkében `eventID` = `order_` + tranzakció azonosító.

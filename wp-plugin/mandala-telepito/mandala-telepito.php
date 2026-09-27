@@ -715,7 +715,11 @@ function mandala_wiz_step_products(): void
     echo '<p>Közzétett termék: <strong>' . $n . '</strong>' . ($draft ? ' · piszkozat: ' . $draft : '') . '</p>';
     echo '<h3>Ha a termékek egy másik (régi) boltból jönnek</h3><ol><li>A régi boltban: Termékek → Exportálás (CSV, minden oszlop).</li><li>Itt: Termékek → Importálás, a CSV-t feltöltve („Meglévő termékek frissítése” cikkszám alapján).</li><li>A képeket a CSV címeiről tölti le – ehhez a régi boltnak elérhetőnek kell maradnia az import idejére.</li></ol>'
         . '<p>' . mandala_wiz_link(admin_url('edit.php?post_type=product&page=product_importer'), 'Termékimport') . ' ' . mandala_wiz_link(admin_url('edit.php?post_type=product'), 'Termékek') . '</p>'
-        . '<h3>JUTA</h3><p>A JUTA-ból érkező új termékek piszkozatként, ellenőrzőlistával a Termékek → Új termékek sorba kerülnek; az ár- és készletfrissítés nem élesít semmit.</p>';
+        . '<h3>JUTA</h3><p>A JUTA-ból érkező új termékek piszkozatként, ellenőrzőlistával a Termékek → Új termékek sorba kerülnek; az ár- és készletfrissítés nem élesít semmit.</p>'
+        . '<p>A JUTA „Akciós ár”-a a <strong>nagyker ár</strong> (Wholesale Prices mező) lesz, nem bolti akció – a bolti akciós árat a termékszerkesztőben állítjátok, a JUTA nem írja felül.</p>';
+    if (function_exists('mandala_juta_migrate_sales') && mandala_juta_sale_is_wholesale() && ($juta = mandala_juta_migrate_sales(false)) && $juta['count']) {
+        echo '<div class="notice notice-warning inline"><p><strong>' . (int) $juta['count'] . ' terméknél bolti akciós ár van, nagyker ár nincs</strong> – valószínűleg a korábbi JUTA-szinkron tette az akciós árba. Áthelyezés: ' . mandala_wiz_link(admin_url('edit.php?post_type=product&page=mandala-onboarding&tab=settings'), 'Új termékek → Beállítások') . '</p></div>';
+    }
     if (mandala_wiz_theme()) {
         echo '<p>' . mandala_wiz_link(admin_url('edit.php?post_type=product&page=mandala-onboarding'), 'Új termékek sora') . '</p>';
         echo '<h3>Bemutató tartalom</h3><p>Ha tesztszerveren bemutató termékeket telepítettél, élesítés előtt töröld őket: Megjelenés → Mandala telepítő → „Bemutató tartalom törlése”.</p>';

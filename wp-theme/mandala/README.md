@@ -122,7 +122,7 @@ nyelvenként) eltérő URL-ek mellett is jók.
 | `reviews.php` | Saját értékelések: személyes link a teljesített rendelés után (ellenőrzött vásárlás), csillag, szöveg, fotó; moderálás; csillagok a kártyán és a termékoldalon, `aggregateRating` | Termékek → Értékelések |
 | `gifts.php` | Ajándékcsomag-összeállító (`/ajandekcsomag/`: termékek + csomagolás + kártya szövege egy csomagként); ajándékutalvány egyenleggel, e-mailben és nyomtatható formában | Termék → Mandala adatok: Ajándékutalvány / Ajándékcsomagolás; WooCommerce → Ajándékutalványok; WooCommerce → Ajándék és hűség |
 | `loyalty.php` | Hűségpontok: gyűjtés teljesítéskor, beváltás a pénztárban, egyenleg és napló a Fiókomban, kézi jóváírás a felhasználó profilján | WooCommerce → Ajándék és hűség |
-| `b2b.php` | Viszonteladói felület (Fiókom → Viszonteladói felület): gyorsrendelő nagyker árakkal, árlista CSV, termékfotók ZIP-ben, heti levél az új érkezésekről | a `wholesale_customer` szerep (`mandala_wholesale_roles` szűrő) |
+| `b2b.php` | Viszonteladói felület (Fiókom → Viszonteladói felület): gyorsrendelő nagyker árakkal, árlista CSV, termékfotók ZIP-ben, heti levél az új érkezésekről; a JUTA „Akciós ár” → nagyker ár (a bolti akciót nem írja felül) | a `wholesale_customer` szerep (`mandala_wholesale_roles` szűrő) |
 | `wpml.php` | WPML + WooCommerce Multilingual támogatás (bővítmény nélkül hatástalan) | `wpml-config.xml` |
 | `eu.php` | Szállítás az EU-ba, országfüggő pénztári ellenőrzés, közösségi adószám | `wp mandala eu-shipping` |
 | `seo.php` | GYIK (FAQPage) az oldalak harmonika blokkjaiból, szűrt kínálat-URL-ek `noindex, follow`, egy BreadcrumbList a Yoast mellett, `countryOfOrigin` | – |
@@ -168,8 +168,10 @@ könyvelővel egyeztetve a tesztszerveren ellenőrizni kell. Lemondáskor az egy
 - **Számlázz.hu:** a pénztár adószám mezője a rendelésben `_billing_tax_number`. Ha a Számlázz.hu bővítmény
   más meta kulcsból olvassa: `add_filter('mandala_tax_number_meta_keys', fn() => ['<kulcs>']);` – a tesztszerveren
   ellenőrizendő.
-- **Viszonteladói ár:** a Wholesale Prices bővítmény „Wholesale Price” mezője (termékfelvételkor ide kerül a JUTA
-  „Akciós ár”-a), szerep: `wholesale_customer`. A pénztári és kosárárakat a bővítmény számolja; a téma a
+- **Viszonteladói ár:** a Wholesale Prices bővítmény „Wholesale Price” mezője, szerep: `wholesale_customer`. A JUTA
+  „Akciós ár”-a ide kerül: az importból (REST API, nem a termékszerkesztőből) érkező `sale_price`-t a `b2b.php`
+  a nagyker árba teszi, a bolti akciós árat nem írja felül (Új termékek → Beállítások; más import-csatornához:
+  `mandala_is_import_save` szűrő). A pénztári és kosárárakat a bővítmény számolja; a téma a
   terméklistán, a szűrőben és a keresőben is a nagyker árat mutatja „Nagyker ár” jelvénnyel. A közös
   (gyorsítótárazott) termékindex soha nem tartalmaz nagyker árat: viszonteladónak a REST végpont személyre
   szabottan (`Cache-Control: private`) adja. Oldalgyorsítótár esetén a belépett felhasználókat ki kell hagyni.

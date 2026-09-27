@@ -226,3 +226,97 @@ add_filter('render_block', function ($html, $block) {
     }
     return $html;
 }, 10, 2);
+
+/* ---------- JUTA „Akciós ár” = nagyker ár ---------- */
+
+/*
+ * A JUTA-Soft az „Akciós ár” mezőjét a WooCommerce normál akciós árába küldené, nálunk viszont az a
+ * NAGYKER ár. Ami importból érkezik (REST API, nem a termékszerkesztőből), annak akciós ára a Wholesale
+ * Prices bővítmény mezőjébe kerül; a bolti akciós ár (amit a termékszerkesztőben állítotok) érintetlen
+ * marad, a JUTA nem írja felül. Kikapcsolható: Termékek → Új termékek → Beállítások.
+ */
+
+function mandala_juta_sale_is_wholesale(): bool
+{
+    return (mandala_onboarding_settings()['juta_sale'] ?? 'wholesale') === 'wholesale';
+}
+
+/** Importból (JUTA: WooCommerce REST API kulccsal) jön-e a mentés – más csatornához: mandala_is_import_save szűrő. */
+function mandala_is_import_save(): bool
+{
+    return (bool) apply_filters('mandala_is_import_save', defined('REST_REQUEST') && REST_REQUEST && !mandala_is_editor_save());
+}
+
+function mandala_set_wholesale_price(WC_Product $product, string $value): void
+{
+    $key = (string) apply_filters('mandala_wholesale_meta_key', 'wholesale_customer_wholesale_price');
+    if ($value !== '' && (float) $value > 0) {
+        $product->update_meta_data($key, wc_format_decimal($value));
+        $product->update_meta_data('wholesale_customer_have_wholesale_price', 'yes');
+    } else {
+        // A JUTA-ban törölték az akciós árat → nincs nagyker ár (a bolti ár érvényes).
+        $product->delete_meta_data($key);
+        $product->delete_meta_data('wholesale_customer_have_wholesale_price');
+    }
+}
+
+foreach (['woocommerce_before_product_object_save', 'woocommerce_before_product_variation_object_save'] as $mandala_hook) {
+    add_action($mandala_hook, function ($product) {
+        if (!$product instanceof WC_Product || !mandala_juta_sale_is_wholesale() || !mandala_is_import_save()) {
+            return;
+        }
+        $changes = $product->get_changes();
+        if (!array_key_exists('sale_price', $changes)) {
+            return;
+        }
+        $orig = $product->get_data();
+        mandala_set_wholesale_price($product, (string) $changes['sale_price']);
+        // A bolti akciós ár és időszaka marad, ami volt.
+        $product->set_sale_price($orig['sale_price']);
+        foreach (['date_on_sale_from', 'date_on_sale_to'] as $prop) {
+            if (array_key_exists($prop, $changes)) {
+                $product->{"set_$prop"}($orig[$prop]);
+            }
+        }
+    });
+}
+unset($mandala_hook);
+
+/**
+ * Meglévő termékek: akciós ár van, nagyker ár nincs → az akciós ár a nagyker árba kerül, a bolti
+ * akciós ár törlődik (a régi JUTA-szinkron így hagyta). $apply = false: csak számol; $only: csak ezek a termékek.
+ */
+function mandala_juta_migrate_sales(bool $apply, array $only = []): array
+{
+    global $wpdb;
+    $key = (string) apply_filters('mandala_wholesale_meta_key', 'wholesale_customer_wholesale_price');
+    $ids = array_map('intval', $wpdb->get_col($wpdb->prepare(
+        "SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} s ON s.post_id = p.ID AND s.meta_key = '_sale_price' AND s.meta_value <> ''
+         LEFT JOIN {$wpdb->postmeta} w ON w.post_id = p.ID AND w.meta_key = %s
+         WHERE p.post_type IN ('product', 'product_variation') AND p.post_status NOT IN ('trash', 'auto-draft') AND (w.meta_value IS NULL OR w.meta_value = '')",
+        $key
+    )));
+    if ($only) {
+        $ids = array_values(array_intersect($ids, array_map('intval', $only)));
+    }
+    $names = [];
+    // Egy kattintásra legfeljebb 300 (időkorlát) – a gomb addig látszik, amíg van hátra.
+    foreach ($apply ? array_slice($ids, 0, 300) : $ids as $id) {
+        $product = wc_get_product($id);
+        if (!$product) {
+            continue;
+        }
+        if (count($names) < 5) {
+            $names[] = $product->get_name() . ' (' . wp_strip_all_tags(wc_price((float) $product->get_sale_price('edit'))) . ')';
+        }
+        if ($apply) {
+            mandala_set_wholesale_price($product, (string) $product->get_sale_price('edit'));
+            $product->set_sale_price('');
+            $product->set_date_on_sale_from('');
+            $product->set_date_on_sale_to('');
+            $product->save();
+        }
+    }
+    return ['count' => $apply ? min(300, count($ids)) : count($ids), 'left' => $apply ? max(0, count($ids) - 300) : count($ids), 'sample' => $names];
+}
+
