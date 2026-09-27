@@ -1,3 +1,11 @@
+<!-- wp:iu/section {"className":"pt-6 pb-0"} -->
+<section class="iu-section pt-6 pb-0"><!-- wp:iu/row {"columns":"1-1"} -->
+<div class="iu-row"><!-- wp:iu/column {"width":"1-1"} -->
+<div class="iu-column iu-column-1-1"><!-- wp:mandala/picture {"image":"viszontelado-polc","alt":"Szobrokkal, hangtálakkal és gyertyákkal teli polc","sizes":"(max-width: 1280px) 100vw, 1280px","className":"media-frame-banner"} /--></div>
+<!-- /wp:iu/column --></div>
+<!-- /wp:iu/row --></section>
+<!-- /wp:iu/section -->
+
 <!-- wp:iu/section -->
 <section class="iu-section"><!-- wp:iu/row {"columns":"1-4|1-4|1-4|1-4","className":"steps"} -->
 <div class="iu-row steps"><!-- wp:iu/column {"width":"1-4","className":"reveal"} -->
@@ -64,9 +72,11 @@
 <!-- /wp:iu/column -->
 <!-- wp:iu/column {"width":"2-3"} -->
 <div class="iu-column iu-column-2-3"><!-- wp:iu/form {"formId":"viszontelado","buttonLabel":"Jelentkezés elküldése","success":"Köszönjük a jelentkezést! 1–2 munkanapon belül jelentkezünk a megadott e-mail-címen.","className":"panel"} -->
-<form class="iu-form panel" data-form-id="viszontelado" novalidate><!-- wp:iu/form-steps {"steps":"Cég adatai\nKapcsolattartó\nÉrdeklődés"} -->
-<div class="iu-form-steps"><!-- wp:iu/form-step {"label":"Cég adatai"} -->
-<fieldset class="iu-form-step"><legend>Cég adatai</legend><!-- wp:iu/group {"className":"form-grid"} -->
+<form class="iu-form panel" data-form-id="viszontelado" novalidate><!-- wp:iu/group {"direction":"column","className":"form-section"} -->
+<div class="iu-group iu-group-column form-section"><!-- wp:paragraph {"className":"form-section-title"} -->
+<p class="form-section-title">Cég adatai</p>
+<!-- /wp:paragraph -->
+<!-- wp:iu/group {"className":"form-grid"} -->
 <div class="iu-group form-grid"><!-- wp:iu/form-text {"name":"ceg","label":"Cégnév","validate":"required|Add meg a cég nevét."} -->
 <div class="iu-form-field"><label>Cégnév<abbr class="required" title="kötelező">*</abbr></label><input type="text" name="ceg" placeholder=""/></div>
 <!-- /wp:iu/form-text -->
@@ -82,10 +92,13 @@
 <!-- wp:iu/form-text {"name":"weboldal","label":"Weboldal vagy közösségi oldal"} -->
 <div class="iu-form-field"><label>Weboldal vagy közösségi oldal</label><input type="text" name="weboldal" placeholder=""/></div>
 <!-- /wp:iu/form-text --></div>
-<!-- /wp:iu/group --></fieldset>
-<!-- /wp:iu/form-step -->
-<!-- wp:iu/form-step {"label":"Kapcsolattartó"} -->
-<fieldset class="iu-form-step"><legend>Kapcsolattartó</legend><!-- wp:iu/group {"className":"form-grid"} -->
+<!-- /wp:iu/group --></div>
+<!-- /wp:iu/group -->
+<!-- wp:iu/group {"direction":"column","className":"form-section"} -->
+<div class="iu-group iu-group-column form-section"><!-- wp:paragraph {"className":"form-section-title"} -->
+<p class="form-section-title">Kapcsolattartó</p>
+<!-- /wp:paragraph -->
+<!-- wp:iu/group {"className":"form-grid"} -->
 <div class="iu-group form-grid"><!-- wp:iu/form-text {"name":"nev","label":"Név","validate":"required|Add meg a kapcsolattartó nevét."} -->
 <div class="iu-form-field"><label>Név<abbr class="required" title="kötelező">*</abbr></label><input type="text" name="nev" placeholder=""/></div>
 <!-- /wp:iu/form-text -->
@@ -95,10 +108,13 @@
 <!-- wp:iu/form-text {"name":"email","label":"E-mail-cím","validate":"required|Add meg az e-mail-címed.\nemail|Ez nem tűnik érvényes e-mail-címnek.","type":"email"} -->
 <div class="iu-form-field"><label>E-mail-cím<abbr class="required" title="kötelező">*</abbr></label><input type="email" name="email" placeholder=""/></div>
 <!-- /wp:iu/form-text --></div>
-<!-- /wp:iu/group --></fieldset>
-<!-- /wp:iu/form-step -->
-<!-- wp:iu/form-step {"label":"Érdeklődés"} -->
-<fieldset class="iu-form-step"><legend>Érdeklődés</legend><!-- wp:iu/group {"className":"form-grid"} -->
+<!-- /wp:iu/group --></div>
+<!-- /wp:iu/group -->
+<!-- wp:iu/group {"direction":"column","className":"form-section"} -->
+<div class="iu-group iu-group-column form-section"><!-- wp:paragraph {"className":"form-section-title"} -->
+<p class="form-section-title">Érdeklődés</p>
+<!-- /wp:paragraph -->
+<!-- wp:iu/group {"className":"form-grid"} -->
 <div class="iu-group form-grid"><!-- wp:iu/form-select {"name":"forgalom","label":"Várható havi rendelés","options":"50 000 Ft alatt\n50 000 – 200 000 Ft\n200 000 Ft felett","default":"50 000 – 200 000 Ft"} -->
 <div class="iu-form-field"><label>Várható havi rendelés</label><select name="forgalom"><option>50 000 Ft alatt</option><option selected>50 000 – 200 000 Ft</option><option>200 000 Ft felett</option></select></div>
 <!-- /wp:iu/form-select -->
@@ -111,9 +127,8 @@
 <!-- /wp:iu/group -->
 <!-- wp:iu/form-accept {"name":"adatkezeles","label":"Elfogadom az \u003ca href=\u0022[mandala_url page=privacy]\u0022\u003eadatkezelési tájékoztatót\u003c/a\u003e.","error":"Az elküldéshez fogadd el az adatkezelési tájékoztatót."} -->
 <div class="iu-form-accept"><label><input type="checkbox" name="adatkezeles" value="1"/> <span>Elfogadom az <a href="[mandala_url page=privacy]">adatkezelési tájékoztatót</a>.</span></label></div>
-<!-- /wp:iu/form-accept --></fieldset>
-<!-- /wp:iu/form-step --></div>
-<!-- /wp:iu/form-steps --><div class="iu-form-submit"><button type="submit" class="iu-button">Jelentkezés elküldése</button></div><p class="form-message" role="status"></p></form>
+<!-- /wp:iu/form-accept --></div>
+<!-- /wp:iu/group --><div class="iu-form-submit"><button type="submit" class="iu-button">Jelentkezés elküldése</button></div><p class="form-message" role="status"></p></form>
 <!-- /wp:iu/form --></div>
 <!-- /wp:iu/column --></div>
 <!-- /wp:iu/row --></section>

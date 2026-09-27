@@ -225,6 +225,12 @@ visszaállítása”; a Claude futtatás a Claude migráció fülön visszavonha
 feltöltöttre”. A telepítő csak az új lépéseket futtatja, és amit kézzel módosítottatok (beállítás, oldal), azt nem
 írja felül – kiírja, hogy kihagyta. A „Mandala bolt adatai” oldalon mentett adatokat a frissítés nem érinti.
 
+A téma saját oldalai (kezdőlap, Eredetünk, Viszonteladóknak, Hangtál-választó…) a feltöltés utáni első admin
+oldalbetöltéskor frissülnek, ha azóta nem szerkesztettétek őket. Ha mégis igen, a Megjelenés → Mandala telepítő
+oldalon látszik, melyiket hagyta ki; ott a „pages” lépés újrafuttatható.
+
+Termékimport közben ne cseréljetek témát: az import adagjai a téma kódját is betöltik, egy félig feltöltött téma megszakíthatja.
+
 ---
 
 ## 9. Nagy forgalom (kampány, akció, hírlevél-kiküldés)

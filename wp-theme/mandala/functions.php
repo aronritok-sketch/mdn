@@ -13,6 +13,7 @@ defined('ABSPATH') || exit;
 define('MANDALA_VERSION', '1.0.0.' . (int) @filemtime(__DIR__ . '/style.css'));
 define('MANDALA_DIR', __DIR__);
 define('MANDALA_URL', get_stylesheet_directory_uri());
+const MANDALA_LOGO_VIEWBOX = '-1 -1 686 143.9'; // assets/logo/mandala-logo.svg
 
 require_once __DIR__ . '/inc/helpers.php';
 require_once __DIR__ . '/inc/theme.php';

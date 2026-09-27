@@ -755,7 +755,7 @@ body > header, header.site-header { position: sticky; top: 0; z-index: 50; }
 .hero .iu-column > :not(.hero-media):not(.hero-mandala), .page-hero .iu-column > :not(.page-hero-media) { position: relative; z-index: 2; }
 .hero .iu-column-2-3, .page-hero .iu-column-2-3 { padding-top: 160px; }
 .hero .iu-row { padding-top: 0; }
-.page-hero-media img { width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.page-hero-media img { width: 100%; height: 100%; object-fit: cover; opacity: .85; }
 
 /* Szándék kártyák és vélemények: saját rács (a blokk egy oszlopban él) */
 .intent-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gutter); }
@@ -922,6 +922,40 @@ select.country_to_state--single { appearance: none; -webkit-appearance: none; bo
   .woocommerce-MyAccount-navigation ul { display: flex; gap: var(--space-2); width: max-content; }
   .woocommerce-MyAccount-navigation a { white-space: nowrap; border: var(--border); border-radius: var(--radius-pill); min-height: 40px; }
 }
+
+/* ---------- Mandala logó (assets/logo/mandala-logo.svg) ---------- */
+.site-logo { --logo-accent: #E8962A; gap: 0; }
+.site-logo svg.logo-full { width: auto; height: 38px; aspect-ratio: 686 / 143.9; color: var(--c-ink); display: block; }
+.site-footer .site-logo { --logo-accent: #FEAA30; }
+.site-footer .site-logo svg.logo-full { height: 36px; color: var(--c-white); }
+@media (max-width: 575.8px) { .site-logo svg.logo-full { height: 30px; } }
+
+/* ---------- Fotók a régi oldalról ---------- */
+.iu-section.pb-0 { padding-bottom: 0; }
+.media-frame-banner { aspect-ratio: 16 / 5; }
+.media-frame-banner img { height: 100%; object-fit: cover; }
+@media (max-width: 767.8px) { .media-frame-banner { aspect-ratio: 16 / 9; } }
+.origin-photo { box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.consult-photo { margin-bottom: var(--space-5); }
+/* Ajándéktárgyak: széles csempe fotóval (a kép jobbra, a szöveg a világos felületen) */
+.cat-tile-wide.has-photo img { left: auto; right: 0; width: 44%; z-index: -1;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 38%); mask-image: linear-gradient(90deg, transparent 0, #000 38%); }
+.cat-tile-wide.has-photo .cat-body > div { max-width: min(52ch, 58%); }
+@media (max-width: 767.8px) {
+  .cat-tile-wide.has-photo { flex-direction: column; align-items: stretch; min-height: 0; }
+  .cat-tile-wide.has-photo img { position: relative; width: 100%; height: 220px; -webkit-mask-image: none; mask-image: none; }
+  .cat-tile-wide.has-photo .cat-body > div { max-width: none; }
+}
+/* Oldalfej fotóval: a szöveg oldalán sötétebb, hogy az arcok és a felirat ne keveredjenek */
+.page-hero .page-hero-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--c-night) 0, rgba(22, 18, 15, .78) 38%, rgba(22, 18, 15, 0) 78%); }
+@media (max-width: 767.8px) { .page-hero .page-hero-media::after { background: rgba(22, 18, 15, .55); } }
+
+/* Űrlap szakaszokra bontva (viszonteladói jelentkezés) */
+.form-section { gap: var(--space-4); }
+.form-section + .form-section { margin-top: var(--space-6); padding-top: var(--space-6); border-top: var(--border); }
+.form-section-title { margin: 0; font: 500 1.375rem/1.2 var(--font-display); color: var(--c-ink); }
+/* A lépéskártyák sora (a .steps lista-reset ne vegye el a sor középre igazítását) */
+.iu-row.steps { margin-inline: auto; }
 
 
 /* ==========================================================================

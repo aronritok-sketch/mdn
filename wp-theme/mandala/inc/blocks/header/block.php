@@ -56,9 +56,13 @@ function mandala_mega_panel(): string
 
 function mandala_logo(): string
 {
-    $svg = @file_get_contents(MANDALA_DIR . '/assets/art/logo-mark.svg') ?: '';
-    $svg = preg_replace('/<svg /', '<svg class="logo-mark" aria-hidden="true" ', str_replace(' xmlns="http://www.w3.org/2000/svg"', '', $svg), 1);
-    return '<a class="site-logo" href="' . esc_url(home_url('/')) . '" aria-label="' . esc_attr(get_bloginfo('name') . ' – ' . __('kezdőlap', 'mandala')) . '">' . $svg . '<span>' . esc_html(get_bloginfo('name')) . '</span></a>';
+    // A Mandala logó (jel + felirat) külső SVG-ből: a böngésző egyszer tölti le, a színét a CSS adja
+    // (a felirat a szöveg színét követi, a jel narancs része a --logo-accent változót).
+    $name = get_bloginfo('name');
+    return '<a class="site-logo" href="' . esc_url(home_url('/')) . '" aria-label="' . esc_attr($name . ' – ' . __('kezdőlap', 'mandala')) . '">'
+        . '<svg class="logo-full" viewBox="' . esc_attr(MANDALA_LOGO_VIEWBOX) . '" aria-hidden="true" focusable="false">'
+        . '<use href="' . esc_url(MANDALA_URL . '/assets/logo/mandala-logo.svg?ver=' . rawurlencode(MANDALA_VERSION) . '#logo') . '"/></svg>'
+        . '</a>';
 }
 
 mandala_add_block('mandala/header', [

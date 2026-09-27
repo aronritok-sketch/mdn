@@ -57,7 +57,8 @@ mandala_add_block('mandala/category-tile', [
             $count += (int) get_term($child, 'product_cat')->count;
         }
         $heading = $attributes['heading'] ?: $term->name;
-        $out = '<a class="' . mandala_classes($attributes, 'cat-tile', 'cat-tile-' . $size, 'reveal') . '" href="' . esc_url(get_term_link($term)) . '">' . $media
+        $photo = $size === 'wide' && empty($attributes['art']) && $media !== '' ? 'has-photo' : '';
+        $out = '<a class="' . mandala_classes($attributes, 'cat-tile', 'cat-tile-' . $size, $photo, 'reveal') . '" href="' . esc_url(get_term_link($term)) . '">' . $media
             . '<div class="cat-body"><div>'
             . ($attributes['eyebrow'] ? '<p class="eyebrow">' . esc_html($attributes['eyebrow']) . '</p>' : '')
             . '<h3>' . esc_html($heading) . '</h3>'

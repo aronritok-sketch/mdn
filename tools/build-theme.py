@@ -67,6 +67,7 @@ def build_assets():
         shutil.rmtree(img)
     shutil.copytree(ROOT / 'assets/img', img)
     shutil.copy(ROOT / 'assets/favicon.svg', THEME / 'assets/favicon.svg')
+    shutil.copytree(ROOT / 'assets/logo', THEME / 'assets/logo', dirs_exist_ok=True)
     subprocess.run(['node', str(ROOT / 'tools/export-data.mjs'), str(THEME)], check=True)
 
 
@@ -286,9 +287,10 @@ def form(form_id, fields, button, success, className=''):
                  f'<div class="iu-form-submit"><button type="submit" class="iu-button">{button}</button></div><p class="form-message" role="status"></p></form>')
 
 
-def form_steps(steps):
-    inner = [block('iu/form-step', {'label': label}, fields, f'<fieldset class="iu-form-step"><legend>{label}</legend>', '</fieldset>') for label, fields in steps]
-    return block('iu/form-steps', {'steps': '\n'.join(l for l, _ in steps)}, inner, '<div class="iu-form-steps">', '</div>')
+def form_sections(sections):
+    """Hosszabb űrlap szakaszokra bontva, egymás alatt. (Az iu/form-step lépésenkénti űrlapja élesben a
+    keretrendszer JS-ére és lapozógombjaira épül; a szakaszos változat mindenhol működik és rövidebb is.)"""
+    return [group(p(label, 'form-section-title'), *fields, direction='column', className='form-section') for label, fields in sections]
 
 
 V_EMAIL = 'required|Add meg az e-mail-címed.\nemail|Ez nem tűnik érvényes e-mail-címnek.'
@@ -340,7 +342,7 @@ def templates():
     t['single_page_content'] = '\n\n'.join([page_head(''), dyn('iu/content')])
     t['front_page_content'] = dyn('iu/content')
     t['404_content'] = section(row('1-2|1-2',
-        col('1-2', p('404', 'error-code')),
+        col('1-2', dyn('mandala/picture', image='lotusz', alt='Lótuszvirág a csendes víz tükrén', sizes='(max-width: 991px) 100vw, 50vw', className='media-frame-43')),
         col('1-2', eyebrow('Hiba 404'), h('Ez az oldal elcsendesedett', 1, 'iu-title'),
             lead('Lehet, hogy elköltözött, vagy elgépelődött a cím. Keress rá arra, amit szerettél volna, vagy induljunk újra a kezdőlapról.'),
             dyn('iu/search', placeholder='Hangtál, füstölő, mala…'),
@@ -396,6 +398,7 @@ def templates():
     t['archive_mandala_event_content'] = '\n\n'.join([
         section(one(dyn('iu/breadcrumbs'), eyebrow('Programok'), h('Események és hangfürdők', 1, 'iu-title'),
                     lead('Hangfürdők, workshopok és bemutatók a budapesti bemutatóteremben. A jegyet a webshopban veheted meg.')), className='page-head'),
+        section(one(dyn('mandala/picture', image='hangfurdo', alt='Hangfürdő: fekvő résztvevő körül megszólaltatott hangtálak', sizes='(max-width: 1280px) 100vw, 1280px', className='media-frame-banner')), className='pt-6 pb-0'),
         section(one(dyn('mandala/events', limit='24')), className='pt-7'),
     ])
     t['single_product_content'] = '\n\n'.join([
@@ -445,10 +448,10 @@ def page_home():
                     col('2-3', dyn('mandala/category-tile', category='szakralis-targyak', size='tall', image='fustolok-csakra', alt='Füstölők, csakra illatok, lótuszvirág és backflow füstölőtartó',
                                    text='Hangtálak, füstölők, mala láncok, csengők és imazászlók a csendesebb pillanatokhoz.')),
                     col('1-3', group(
-                        dyn('mandala/category-tile', category='lakberendezes', size='half', image='rez-sarkanyok', alt='Réz sárkány- és főnixszobor bambusz alátéten', text='Szobrok, szélcsengők, textilek.'),
+                        dyn('mandala/category-tile', category='lakberendezes', size='half', image='lakberendezes-belso', alt='Faragott fotel és állólámpa meleg fényű szobában', text='Szobrok, szélcsengők, textilek.', position='50% 60%'),
                         dyn('mandala/category-tile', category='ruhazat-es-kiegeszitok', size='half', image='ruhazat-to', alt='Mintás indiai tunikát viselő nő a vízparton', text='Könnyű indiai textilek.', position='50% 22%'),
                         direction='column', className='cat-stack'))),
-                one(dyn('mandala/category-tile', category='ajandektargyak', size='wide', art='gift-saffron', eyebrow='Ajándéktárgyak', heading='Ajándék, ami jelent is valamit',
+                one(dyn('mandala/category-tile', category='ajandektargyak', size='wide', image='szerencsemacska', alt='Arany integető szerencsemacska piros párnán', position='50% 30%', eyebrow='Ajándéktárgyak', heading='Ajándék, ami jelent is valamit',
                         text='Réz kulacsok, teák és összeállított ajándékcsomagok – kérésre kézzel írt kártyával, díszdobozban.')),
                 bg='sand'),
         section(one(dyn('mandala/products', mode='new', layout='carousel', limit='12', eyebrow='Frissen érkezett', heading='Újdonságok', linkText='Összes újdonság', linkUrl='[mandala_url page=shop]?orderby=date'))),
@@ -458,7 +461,7 @@ def page_home():
                         lead('Minden tárgyunknak van egy helye és egy keze, amely elkészítette. Nepál és India kis műhelyeivel dolgozunk – ahol a mesterség generációkon át öröklődik.'),
                         html('<div class="origin-facts"><div><h3><span class="origin origin-nepal" aria-hidden="true"></span>Nepál</h3><p>Hangtálak, csengők és tingsha Patan öntőműhelyeiből, kézzel sodort tibeti füstölők, mala láncok, imazászlók.</p></div><div><h3><span class="origin origin-india" aria-hidden="true"></span>India</h3><p>Moradabad rézművessége, jaipuri blokknyomott textilek és ékszerek, dél-indiai kézzel sodort füstölők.</p></div></div>'),
                         buttons(('Ismerd meg az utat', '[mandala_url page=rolunk]')), className='reveal'),
-                    col('1-2', dyn('mandala/route-map'), className='reveal'), v='center'),
+                    col('1-2', dyn('mandala/picture', image='nepali-mester', alt='Hangtálválogatás egy katmandui műhelyben, a hangtálkészítő mesterrel', sizes='(max-width: 991px) 100vw, 50vw', position='50% 35%', className='media-frame-43 origin-photo'), className='reveal'), v='center'),
                 className='origin-band', light=True, bg='night'),
         section(row('1-2|1-2',
                     col('1-2', dyn('mandala/picture', image='hangtalak-studio', alt='Két nepáli hangtál párnán, filcütőkkel és acél nyelvdobbal', sizes='(max-width: 991px) 100vw, 50vw'), className='reveal'),
@@ -470,7 +473,7 @@ def page_home():
         section(one(section_head('A tudatos választás', 'Kedvenceink', 'Darabok, amelyekhez mi magunk is újra és újra visszatérünk.'),
                     dyn('mandala/products', mode='featured', limit='4', columns='4')), bg='sand'),
         section(row('1-2|1-2',
-                    col('1-2', dyn('mandala/picture', image='meditacio-erdo', alt='Csukott szemmel meditáló nő az erdőben', sizes='(max-width: 991px) 100vw, 50vw', position='40% 50%', className='media-frame-43'), className='reveal'),
+                    col('1-2', dyn('mandala/picture', image='meditacios-sarok', alt='Meditációs sarok párnával, Buddha-szoborral, hangtállal és gyertyákkal', sizes='(max-width: 991px) 100vw, 50vw', className='media-frame-43'), className='reveal'),
                     col('1-2', eyebrow('A Mandala világa'), h('Tárgyak, amelyek túlmutatnak a funkciójukon', anchor='calm-title'),
                         lead('Egy hangtál, egy füstölő vagy egy Buddha-szobor nem dísz, hanem emlékeztető: hogy megállj, figyelj, és jobban érezd magad a saját teredben.'),
                         p('Ezért nem a „mindent egy helyen” elv szerint válogatunk. Csak azt hozzuk el, amit mi magunk is használnánk – és amiről el tudjuk mondani, honnan jön, ki készítette, és mire való.'),
@@ -490,7 +493,7 @@ def steps(items):
 def page_about():
     return '\n\n'.join([
         section(row('2-3|1-3',
-                    col('2-3', dyn('mandala/picture', image='hangtalak-gyertyafeny', frame='page-hero', eager=True),
+                    col('2-3', dyn('mandala/picture', image='katmandui-muhely', alt='Hangtálak átvizsgálása egy katmandui műhelyben', frame='page-hero', eager=True, position='70% 40%'),
                         eyebrow('Eredetünk'), h('Minden tárgynak van egy helye és egy keze', 2, 'display-title'),
                         lead('A Mandala tárgyai Nepál és India műhelyeiből érkeznek. Nem nagykereskedelmi katalógusból válogatunk, hanem onnan, ahol ezek a tárgyak ma is a mindennapok részei.')),
                     col('1-3')),
@@ -499,10 +502,10 @@ def page_about():
                     col('1-2', eyebrow('Nepál'), h('A Katmandu-völgy műhelyei'),
                         lead('Patan évszázadok óta a fémöntés és a szoborkészítés központja. Innen érkeznek hangtálaink, csengőink, tingsháink és réz szobraink.'),
                         p('A tibeti közösségek kézzel sodort, pálca nélküli füstölői, a mala láncok és az imazászlók szintén nepáli kézművesek munkái. A hangtálakat egyenként meghallgatjuk, és megmérjük az alapfrekvenciájukat, mielőtt kiválasztjuk őket.'), className='reveal'),
-                    col('1-2', dyn('mandala/picture', image='hangtalak-studio', alt='Nepáli hangtálak ütőkkel', sizes='(max-width: 991px) 100vw, 50vw'), className='reveal'),
+                    col('1-2', dyn('mandala/picture', image='imazaszlok-himalaja', alt='Tibeti imazászlók a Himalája hegyei előtt', sizes='(max-width: 991px) 100vw, 50vw', className='media-frame-43'), className='reveal'),
                     v='center')),
         section(row('1-2|1-2',
-                    col('1-2', dyn('mandala/picture', image='ruhazat-to', alt='Mintás indiai tunikát viselő nő', sizes='(max-width: 991px) 100vw, 50vw', className='media-frame-45'), className='reveal'),
+                    col('1-2', dyn('mandala/picture', image='indiai-falikarpit', alt='Kézzel nyomott, mandala mintás indiai falikárpit', sizes='(max-width: 991px) 100vw, 50vw', className='media-frame-45'), className='reveal'),
                     col('1-2', eyebrow('India'), h('Réz, textil és illat'),
                         lead('Moradabad a „réz városa”: szélcsengőink, mécsestartóink, kulacsaink és füstölőtartóink innen jönnek.'),
                         p('Rádzsasztán fővárosa, Jaipur a blokknyomott textilek és a kézműves ékszerek otthona – sálaink, ruháink és gyűrűink nagy része itt készül. Kézzel sodort füstölőinket dél-indiai családi manufaktúrák készítik.'), className='reveal'),
@@ -525,6 +528,7 @@ def page_about():
 
 def page_b2b():
     return '\n\n'.join([
+        section(one(dyn('mandala/picture', image='viszontelado-polc', alt='Szobrokkal, hangtálakkal és gyertyákkal teli polc', sizes='(max-width: 1280px) 100vw, 1280px', className='media-frame-banner')), className='pt-6 pb-0'),
         section(steps([('Jelentkezés', 'Töltsd ki a háromlépéses űrlapot a céges adataiddal.'),
                        ('Jóváhagyás', '1–2 munkanapon belül visszajelzünk, és aktiváljuk a viszonteladói fiókodat.'),
                        ('Rendelés', 'Belépés után minden terméknél a nagykereskedelmi ár látszik; ÁFÁ-s számlát állítunk ki.'),
@@ -533,7 +537,7 @@ def page_b2b():
                     col('1-3', eyebrow('Jelentkezés'), h('Legyünk partnerek'),
                         lead('A minimális rendelési érték és a kedvezménysávok a jóváhagyás után, a fiókodban jelennek meg.'),
                         ul(['Hangtálak mért frekvencia- és súlyadatokkal', 'Termékfotók és leírások a saját felületeidre', 'ÁFÁ-s számla, személyes átvétel vagy futár', 'Utánrendelés és félretétel új érkezéskor'], 'check-list')),
-                    col('2-3', form('viszontelado', [form_steps([
+                    col('2-3', form('viszontelado', [*form_sections([
                         ('Cég adatai', [group(
                             f_text('ceg', 'Cégnév', 'required|Add meg a cég nevét.'),
                             f_text('adoszam', 'Adószám', 'required|Add meg az adószámot.', '12345676-2-41'),
@@ -555,7 +559,7 @@ def page_b2b():
 
 def consultation_section():
     return section(row('1-3|2-3',
-        col('1-3', eyebrow('Személyes tanács'), h('Kérdezz tőlünk', anchor='tanacsadas'),
+        col('1-3', dyn('mandala/picture', image='hangtal-tanacsadas', alt='Hangtálat megszólaltató nő, ülve', sizes='(max-width: 991px) 100vw, 33vw', className='media-frame-43 consult-photo'), eyebrow('Személyes tanács'), h('Kérdezz tőlünk', anchor='tanacsadas'),
             p('Hallgasd meg a tálakat a budapesti bemutatóteremben, vagy videóhívásban mutatjuk meg őket – egyeztetünk egy időpontot.', 'text-muted'),
             ul(['Bemutatóterem: a tálakat kézbe veheted, meghallgathatod', 'Videóhívás: élőben megszólaltatjuk a kiválasztott tálakat', 'Telefon: gyors kérdésekre'], 'check-list')),
         col('2-3', form('tanacsadas', [
@@ -621,7 +625,7 @@ LEGAL = {
     ]),
     'adatkezelesi-tajekoztato': ('Adatkezelési tájékoztató', [
         ('Adatkezelő', '[Cégadatok – kitöltendő]'),
-        ('Kezelt adatok', 'Rendelés teljesítéséhez: név, cím, e-mail, telefonszám, számlázási adatok. Hírlevélhez: e-mail-cím.'),
+        ('Kezelt adatok', 'Rendelés teljesítéséhez: név, cím, e-mail, telefonszám, számlázási adatok. Hírlevélhez: e-mail-cím. Ha feliratkoztál, és a marketing sütikhez is hozzájárultál, rögzítjük, mely termékeinket nézted meg (legfeljebb az utolsó 10-et, 180 napig), hogy ritkán – legfeljebb hetente – emlékeztetőt küldhessünk róluk. A levél alján bármikor leiratkozhatsz, a sütibeállítást pedig visszavonhatod.'),
         ('Adatfeldolgozók', 'Tárhelyszolgáltató, futárszolgálat (GLS), fizetési szolgáltató (Teya), számlázó (Számlázz.hu) – [pontosítandó].'),
         ('Sütik', 'A szükséges sütik a működéshez kellenek; statisztikai és marketing sütiket csak hozzájárulással használunk. A beállítás a lábléc „Sütibeállítások” linkjén módosítható.'),
         ('Jogaid', 'Hozzáférés, helyesbítés, törlés, korlátozás, adathordozhatóság, tiltakozás; panasz a NAIH-nál.'),

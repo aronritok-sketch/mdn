@@ -25,7 +25,7 @@ final class Mandala_Setup
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 8,
+        'pages' => 9,
         'menus' => 1,
     ];
     public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
