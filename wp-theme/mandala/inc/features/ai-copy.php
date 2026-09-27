@@ -174,7 +174,7 @@ function mandala_copy_run_batch(?array $ids = null): int
         return 0;
     }
     $ids ??= array_map('intval', get_posts(['post_type' => 'product', 'post_status' => 'any', 'posts_per_page' => 20, 'fields' => 'ids', 'suppress_filters' => true,
-        'meta_query' => [['key' => '_mandala_onboarding', 'value' => 'new'], ['key' => '_thumbnail_id', 'compare' => 'EXISTS'], ['key' => '_mandala_ai_copy', 'compare' => 'NOT EXISTS']]]));
+        'meta_query' => [['key' => '_mandala_onboarding', 'value' => 'new'], ['key' => '_thumbnail_id', 'compare' => 'EXISTS'], ['key' => '_mandala_ai_copy', 'compare' => 'NOT EXISTS'], ['key' => '_mandala_ai_skip', 'compare' => 'NOT EXISTS']]]));
     $done = 0;
     foreach (array_chunk($ids, 4) as $chunk) {
         $products = array_values(array_filter(array_map('wc_get_product', $chunk), fn($p) => $p && mandala_copy_needed($p)));

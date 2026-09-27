@@ -568,7 +568,7 @@ add_action('mandala_onboarding_new_product', function ($id) {
 });
 add_action('mandala_ai_new_batch', function () {
     $ids = get_posts(['post_type' => 'product', 'post_status' => 'any', 'posts_per_page' => 40, 'fields' => 'ids',
-        'meta_query' => [['key' => '_mandala_onboarding', 'value' => 'new'], ['key' => '_mandala_ai', 'compare' => 'NOT EXISTS']]]);
+        'meta_query' => [['key' => '_mandala_onboarding', 'value' => 'new'], ['key' => '_mandala_ai', 'compare' => 'NOT EXISTS'], ['key' => '_mandala_ai_skip', 'compare' => 'NOT EXISTS']]]);
     if (!$ids) {
         return;
     }

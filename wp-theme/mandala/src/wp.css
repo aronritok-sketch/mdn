@@ -243,3 +243,12 @@ select.country_to_state--single { appearance: none; -webkit-appearance: none; bo
 .form-section-title { margin: 0; font: 500 1.375rem/1.2 var(--font-display); color: var(--c-ink); }
 /* A lépéskártyák sora (a .steps lista-reset ne vegye el a sor középre igazítását) */
 .iu-row.steps { margin-inline: auto; }
+
+/* Szöveges táblázatok (pl. szállítási díjak) mobilon kártyaként: ne kelljen oldalra görgetni */
+@media (max-width: 599.8px) {
+  .table-wrap table, .table-wrap tbody, .table-wrap tr, .table-wrap td { display: block; width: 100%; }
+  .table-wrap thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .table-wrap tr { padding: var(--space-4) 0; border-bottom: var(--border); }
+  .table-wrap td { padding: 2px 0; border: 0; }
+  .table-wrap td:last-child { margin-top: var(--space-2); font-weight: 500; }
+}

@@ -25,7 +25,7 @@ final class Mandala_Setup
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 9,
+        'pages' => 10,
         'menus' => 1,
     ];
     public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
@@ -468,6 +468,13 @@ final class Mandala_Setup
             }
         }
         update_option(self::MANIFEST, $manifest, false);
+        // A WordPress mintabejegyzése („Hello Világ!”), ha senki nem szerkesztette: kukába (a Magazinban ne látszódjon).
+        foreach (get_posts(['post_type' => 'post', 'name' => 'hello-vilag', 'post_status' => 'any', 'numberposts' => 1]) ?: get_posts(['post_type' => 'post', 'name' => 'hello-world', 'post_status' => 'any', 'numberposts' => 1]) as $hello) {
+            if ($hello->post_modified_gmt === $hello->post_date_gmt) {
+                wp_trash_post($hello->ID);
+                $this->log[] = '„' . $hello->post_title . '” mintabejegyzés a kukába került.';
+            }
+        }
     }
 
     private function find_page(string $slug, string $role): ?WP_Post

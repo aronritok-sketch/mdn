@@ -442,6 +442,7 @@ function mandala_onboarding_page(): void
 
     if ($tab === 'settings') {
         $s = mandala_onboarding_settings();
+        do_action('mandala_onboarding_settings_top');
         echo '<form method="post">';
         wp_nonce_field('mandala_onboarding_settings');
         echo '<table class="form-table">'
@@ -481,6 +482,9 @@ function mandala_onboarding_page(): void
     $ids = mandala_onboarding_ids($state, 50, ($paged - 1) * 50, $search);
     $total = $search ? count(mandala_onboarding_ids($state, -1, 0, $search)) : mandala_onboarding_count($state);
 
+    if ($state === 'new') {
+        do_action('mandala_onboarding_new_top', $total);
+    }
     echo '<p>' . esc_html($state === 'new'
         ? 'Ezek a termékek importból érkeztek, és még nem láthatók a webshopban. A hiányzó adatokat a termék szerkesztésével pótold; ha minden kötelező tétel megvan, élesítheted.'
         : 'Ezek élő termékek, amelyeknél az automatikus kategorizálás nem tudott biztosan dönteni. Ellenőrizd a kategóriát és a szűrőadatokat, majd jelöld késznek.') . '</p>';

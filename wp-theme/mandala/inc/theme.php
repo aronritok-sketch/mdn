@@ -133,7 +133,8 @@ function mandala_category_tree(): array
     $tree = [];
     $mains = get_terms(['taxonomy' => 'product_cat', 'parent' => 0, 'hide_empty' => false, 'orderby' => 'meta_value_num', 'meta_key' => 'order']);
     foreach (is_wp_error($mains) ? [] : $mains as $main) {
-        if ($main->term_id === $uncat) {
+        // A WooCommerce „Egyéb / Uncategorized” kategóriája (és a WPML-es másolata) nem kínálati kategória.
+        if ($main->term_id === $uncat || str_starts_with($main->slug, 'uncategorized')) {
             continue;
         }
         $subs = get_terms(['taxonomy' => 'product_cat', 'parent' => $main->term_id, 'hide_empty' => false, 'orderby' => 'meta_value_num', 'meta_key' => 'order']);

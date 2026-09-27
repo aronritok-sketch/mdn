@@ -10,6 +10,7 @@ A csomag tartalma:
 | `UJ-TERMEKEK.md` | Munkafolyamat a webért felelős munkatársnak: új JUTA-termékek élesítése, Claude-os kategória-migráció. |
 | `TERHELESI-TESZT.md` | Terheléses teszt (3000 termék, egyszerre vásárlók): eredmények, javítások, szerverbeállítások nagy forgalomhoz. |
 | `regi-bolt-export.js` | Ha a régi bolt WooCommerce termékexportja elakad: a régi bolt adminjában, a böngésző konzoljában futtatva adagokban letölti ugyanazt az importálható CSV-t (változatokkal, nagyker árral). |
+| Termékek → Új termékek → Beállítások → **Átköltöztetés a régi boltból** | Ha az importált termékek mind a jóváhagyási sorba kerültek (piszkozatként): ugyanazt a CSV-t feltöltve a régi boltban közzétett termékek egy lépésben élesek lesznek, a téma és a régi bolt eltérő nevű dupla kategóriái (pl. „…-2”) összevonódnak, a sorban maradó régi piszkozatoknál pedig nem indul automatikus Claude-hívás. |
 | `wp-config-kiegeszites.php` | Sorok a szerver `wp-config.php` fájljába (Claude API-kulcs, memória, ütemezés). |
 
 > **Mindig először tesztszerveren** (az éles bolt másolatán, „staging”) telepítsd és próbáld ki. Az éles bolton
