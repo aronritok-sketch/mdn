@@ -321,8 +321,9 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(sug(ids[0]).decision === 'auto' && sug(ids[1]).decision === 'review' && sug(ids[2]).decision === 'review', 'Claude próbafuttatás: biztos → automatikus, bizonytalan → ellenőrizendő');
   ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'Claude próbafuttatás: nem ír a termékbe');
   const mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
-  ok(mock.model === 'claude-opus-5' && mock.tool_choice.type === 'auto' && mock.tool === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell, eszköz (auto – minden modellen működik), gyorsítótárazott rendszerprompt');
-  ok(mock.fallbacks === 'default' && mock.beta === 'server-side-fallback-2026-07-01', 'Claude kérés: szerveroldali visszaesés elutasítás esetére');
+  ok(mock.model === 'claude-sonnet-5' && mock.tool_choice.type === 'auto' && mock.tool === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell (Sonnet 5), eszköz (auto – minden modellen működik), gyorsítótárazott rendszerprompt');
+  ok(!mock.fallbacks && !mock.beta, 'Claude kérés: Sonnet 5-ön nincs szerveroldali visszaesés (csak Opus / Fable modelleken kérjük)');
+  ok(wp('echo mandala_claude_supports_fallbacks("claude-opus-5") && !mandala_claude_supports_fallbacks("claude-sonnet-5") ? 1 : 0;').trim() === '1', 'Claude kérés: Opus 5-re állítva a szerveroldali visszaesés bekapcsol');
   ok(sug(ids[2]).problems.length === 0 && sug(ids[2]).missing.includes('Illat'), 'Claude: a bizonytalan kötelező szűrő (illat) miatt ellenőrizendő');
 
   const out = W(`mandala ai-migrate --ids=${ids.join(',')}`);
@@ -517,7 +518,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await page.waitForSelector('#mandala-chat .chat-msg-bot:nth-of-type(3)', { timeout: 15000 });
   let mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_chat_mock"));'));
   const lastCall = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
-  ok(lastCall.model === 'claude-opus-5' && lastCall.effort === 'low' && lastCall.cached && lastCall.fallbacks === 'default', 'chat: Claude kérés (alapmodell, gyors mód, gyorsítótárazott rendszerprompt, visszaesés)');
+  ok(lastCall.model === 'claude-sonnet-5' && lastCall.effort === 'low' && lastCall.cached && !lastCall.fallbacks, 'chat: Claude kérés (alapmodell Sonnet 5, alacsony erőfeszítés, gyorsítótárazott rendszerprompt)');
   ok(mock.tools.join() === 'search_products,get_product,order_status,contact_human' && mock.system.includes('GLS') && mock.system.includes('Hangtálak'), 'chat: eszközök, bolti tudnivalók és kategóriák a rendszerpromptban');
   ok(mock.echo_ok && mock.tool_result.products.length > 0 && mock.tool_result.products.every((p) => /hangtál/i.test(p.name) && /Ft/.test(p.price) && p.url), 'chat: termékkeresés eszköz a téma keresőjével, a gondolkodásblokk változatlanul vissza');
   const bot = (await page.textContent('#mandala-chat .chat-log')).replace(/\s+/g, ' ');
