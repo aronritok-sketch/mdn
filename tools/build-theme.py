@@ -402,7 +402,8 @@ def templates():
         section(one(dyn('mandala/events', limit='24')), className='pt-7'),
     ])
     t['single_product_content'] = '\n\n'.join([
-        section(one(dyn('iu/breadcrumbs', separator='/')),
+        # Saját morzsamenü: az iu/breadcrumbs több kategóriás terméknél súlyos hibával leáll.
+        section(one(dyn('mandala/product-breadcrumbs')),
                 row('1-2|1-2', col('1-2', dyn('mandala/product-gallery')), col('1-2', dyn('mandala/product-summary'))),
                 className='product-layout pb-8'),
         section(row('3-4|1-4', col('3-4', dyn('mandala/product-tabs')), col('1-4')), bg='white', className='pt-8'),

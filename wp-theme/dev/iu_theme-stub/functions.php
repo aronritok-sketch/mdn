@@ -154,6 +154,10 @@ add_action('init', function () {
             $items[] = ['Magazin', get_permalink((int) get_option('page_for_posts'))];
         }
         if (is_singular('product') && ($terms = get_the_terms(get_queried_object_id(), 'product_cat'))) {
+            // Mint a valódi iu_theme (dev szerver, 2026-09): több kategóriás terméknél súlyos hibával leáll.
+            if (count($terms) > 1) {
+                throw new Error('iu/breadcrumbs: több kategóriás termék (a valódi keretrendszer itt leáll)');
+            }
             $term = end($terms);
             foreach (array_reverse(get_ancestors($term->term_id, 'product_cat')) as $a) {
                 $items[] = [get_term($a)->name, get_term_link($a)];
