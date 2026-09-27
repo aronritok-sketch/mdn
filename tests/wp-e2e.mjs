@@ -96,8 +96,15 @@ if (outUrl) {
   ok(await page.isVisible('form[data-mandala-form] .form-message.is-success'), 'készletértesítő: feliratkozás');
 } else ok(false, 'elfogyott termék a mintában');
 
-// ---------- Élő kereső ----------
+// ---------- Főoldal (konverziós felépítés) ----------
 await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+ok(await page.isVisible('.hero .hero-proof'), 'főoldal: bizalmi sor a hős alatt');
+ok((await page.$$('.cat-nav li')).length >= 4, 'főoldal: kategóriasáv (a kínálat szélessége)', String((await page.$$('.cat-nav li')).length));
+ok((await page.$$('.iu-column:has(#legnepszerubbek) ul.products li.product')).length >= 4, 'főoldal: legnépszerűbbek rács');
+ok((await page.$$('.guide-grid .guide-card')).length >= 3, 'főoldal: választássegítő kártyák');
+ok((await page.getAttribute('.hero a[href="#legnepszerubbek"]', 'href')) === '#legnepszerubbek' && !!(await page.$('#legnepszerubbek')), 'főoldal: a fő gomb a legnépszerűbbekhez ugrik');
+
+// ---------- Élő kereső ----------
 await page.keyboard.press('/');
 await page.fill('#search-input', 'hangt');
 await page.waitForSelector('#search-results .search-hits li', { timeout: 8000 }).catch(() => {});

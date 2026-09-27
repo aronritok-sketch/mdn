@@ -22,6 +22,16 @@ mandala_add_block('mandala/hero-pick', [
             $ids = wc_get_featured_product_ids();
             $id = $ids ? max($ids) : 0;
         }
+        if (!$id) {
+            // Nincs ilyen cikkszám és kiemelt termék sem: a legkelendőbb, fotós, raktáron lévő hangtál.
+            foreach (wc_get_products(['status' => 'publish', 'category' => ['hangtalak'], 'stock_status' => 'instock', 'limit' => 12, 'return' => 'ids',
+                'meta_key' => 'total_sales', 'orderby' => ['meta_value_num' => 'DESC', 'date' => 'DESC']]) as $cand) {
+                if (get_post_thumbnail_id($cand)) {
+                    $id = $cand;
+                    break;
+                }
+            }
+        }
         $product = $id ? wc_get_product($id) : null;
         if (!$product || $product->get_status() !== 'publish') {
             return '';

@@ -297,6 +297,7 @@ function mandala_product_index_row(WC_Product $product): array
         'stockQty' => $qty,
         'isNew' => mandala_is_new($product),
         'featured' => $product->is_featured(),
+        'sales' => (int) $product->get_total_sales(),
         'intents' => mandala_attr($product, 'pa_szandek', 'slug'),
         'origin' => mandala_attr($product, 'pa_eredet', 'slug')[0] ?? '',
         'region' => mandala_attr($product, 'pa_regio')[0] ?? '',

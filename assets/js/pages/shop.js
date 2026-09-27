@@ -19,7 +19,7 @@ const openGroups = new Set(storage.get(OPEN_KEY, ['kategoria', 'szandek', 'ar', 
 const SORT = {
   menu_order: (a, b) => (a.stock === 'out') - (b.stock === 'out') || (b.featured ? 1 : 0) - (a.featured ? 1 : 0),
   date: (a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0) || b.id - a.id,
-  popularity: (a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || a.price - b.price,
+  popularity: (a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || (b.sales || 0) - (a.sales || 0) || a.price - b.price,
   price: (a, b) => a.price - b.price,
   'price-desc': (a, b) => b.price - a.price,
   'weight-asc': (a, b) => (a.attrs.suly || 1e9) - (b.attrs.suly || 1e9),
