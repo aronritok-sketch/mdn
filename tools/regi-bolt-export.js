@@ -18,16 +18,18 @@
     ajax.searchParams.set('action', 'rest-nonce');
     const nonce = (await (await fetch(ajax, { credentials: 'same-origin' })).text()).trim();
     if (!/^[a-f0-9]{10}$/.test(nonce)) throw new Error('Nem vagy belépve adminként (vagy a REST API tiltva van). Lépj be a wp-adminba, és ott futtasd.');
-    const get = async (path, params = {}) => {
-      const url = new URL(`${root}/wc/v3/${path}`);
+    const get = async (path, params = {}, tries = 4, base = 'wc/v3') => {
+      const url = new URL(`${root}/${base}/${path}`);
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
       for (let attempt = 1; ; attempt++) {
         const r = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce } });
         if (r.ok) return { data: await r.json(), pages: Number(r.headers.get('X-WP-TotalPages') || 1), total: Number(r.headers.get('X-WP-Total') || 0) };
-        if (attempt >= 4) throw new Error(`${path}: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
-        await new Promise((res) => setTimeout(res, 2000 * attempt)); // lassú szerver: újrapróbálás
+        if (attempt >= tries) throw new Error(`${path}: HTTP ${r.status}`);
+        await new Promise((res) => setTimeout(res, 1500 * attempt)); // lassú szerver: újrapróbálás
       }
     };
+    // A régi boltban hibás (lekérdezéskor összeomló) termékek: kihagyjuk és a végén kilistázzuk.
+    const skipped = [];
 
     // Kategóriák teljes útvonallal (Szülő > Gyerek).
     log('Kategóriák…');
@@ -39,14 +41,37 @@
     }
     const catPath = (id) => { const parts = []; for (let c = cats.get(id), n = 0; c && n < 10; c = cats.get(c.parent), n++) parts.unshift(c.name.replace(/,/g, '\\,')); return parts.join(' > '); };
 
-    // Termékek 100-as adagokban (minden állapot: közzétett, piszkozat, privát).
+    // Termékek 100-as adagokban (minden állapot: közzétett, piszkozat, privát). Ha egy adag szerverhibát ad
+    // (egy hibás termék miatt), 10-es, majd 1-es adagokra bontja, és csak a hibás terméket hagyja ki.
+    const q = { status: 'any', orderby: 'id', order: 'asc' };
+    const total = (await get('products', { ...q, per_page: 1 }, 4).catch(() => get('product', { status: 'any', per_page: 1, context: 'edit' }, 4, 'wp/v2'))).total;
+    const which = async (offset) => {
+      try {
+        const [p] = (await get('product', { status: 'any', per_page: 1, offset, orderby: 'id', order: 'asc', context: 'edit', _fields: 'id,title,status' }, 2, 'wp/v2')).data;
+        return p ? { id: p.id, name: p.title?.raw ?? p.title?.rendered ?? '', status: p.status } : { offset };
+      } catch { return { offset }; }
+    };
+    const range = async (offset, size) => {
+      try {
+        return (await get('products', { ...q, per_page: size, offset }, size === 100 ? 4 : 2)).data;
+      } catch (e) {
+        if (size === 1) {
+          const bad = await which(offset);
+          skipped.push(bad);
+          console.warn('[Mandala export] Hibás termék a régi boltban, kihagyva:', bad);
+          return [];
+        }
+        log(`Hibás adag (${offset + 1}–${offset + size}), szűkítés…`);
+        const step = size === 100 ? 10 : 1;
+        const out = [];
+        for (let o = offset; o < Math.min(offset + size, total); o += step) out.push(...await range(o, step));
+        return out;
+      }
+    };
     const products = [];
-    let total = 0;
-    for (let page = 1, pages = 1; page <= pages; page++) {
-      const r = await get('products', { per_page: 100, page, status: 'any', orderby: 'id', order: 'asc' });
-      pages = r.pages; total = r.total;
-      products.push(...r.data);
-      log(`Termékek: ${products.length} / ${total}`);
+    for (let offset = 0; offset < total; offset += 100) {
+      products.push(...await range(offset, 100));
+      log(`Termékek: ${Math.min(offset + 100, total)} / ${total}${skipped.length ? ` (${skipped.length} hibás kihagyva)` : ''}`);
     }
     // Változatok (változó termékeknél).
     const variable = products.filter((p) => p.type === 'variable');
@@ -54,9 +79,13 @@
     for (let i = 0; i < variable.length; i += 4) {
       await Promise.all(variable.slice(i, i + 4).map(async (p) => {
         const list = [];
-        for (let page = 1, pages = 1; page <= pages; page++) {
-          const r = await get(`products/${p.id}/variations`, { per_page: 100, page });
-          pages = r.pages; list.push(...r.data);
+        try {
+          for (let page = 1, pages = 1; page <= pages; page++) {
+            const r = await get(`products/${p.id}/variations`, { per_page: 100, page });
+            pages = r.pages; list.push(...r.data);
+          }
+        } catch {
+          skipped.push({ id: p.id, name: `${p.name} – változatai (a termék maga benne van)`, status: p.status });
         }
         variations.set(p.id, list);
       }));
@@ -106,8 +135,12 @@
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     a.download = `mandala-termekek-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a); a.click();
-    log(`Kész: ${products.length} termék, ${[...variations.values()].flat().length} változat, ${cats.size} kategória. A CSV letöltődött (${a.download}).`);
-    window.mandalaExport = { products: products.length, variations: [...variations.values()].flat().length, rows: rows.length, file: a.download };
+    const skippedText = skipped.map((b) => (b.id ? `#${b.id} ${b.name} (${b.status})` : `ismeretlen, sorszám ${b.offset + 1}`)).join('\n');
+    log(`Kész: ${products.length} termék, ${[...variations.values()].flat().length} változat, ${cats.size} kategória. A CSV letöltődött (${a.download}).`
+      + (skipped.length ? `\n\nA régi boltban hibás, kihagyott termékek (${skipped.length}) – ezeket kézzel kell átvinni vagy javítani:\n${skippedText}` : ''));
+    box.style.whiteSpace = 'pre-line';
+    if (skipped.length) console.table(skipped);
+    window.mandalaExport = { products: products.length, variations: [...variations.values()].flat().length, rows: rows.length, file: a.download, skipped };
   } catch (e) {
     log('HIBA: ' + e.message);
     window.mandalaExport = { error: e.message };
