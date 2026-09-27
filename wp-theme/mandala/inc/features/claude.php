@@ -13,7 +13,31 @@
 
 defined('ABSPATH') || exit;
 
-const MANDALA_CLAUDE_DEFAULT_MODEL = 'claude-opus-5';
+// Claude Sonnet 5: a bolt feladataihoz (besorolás, leírás, chat) elég, és a Claude Opus 5 árának ~40%-a.
+const MANDALA_CLAUDE_DEFAULT_MODEL = 'claude-sonnet-5';
+
+/**
+ * Egyszeri átállás: ahol a beállításokban a korábbi alapértelmezés (claude-opus-5) maradt, ott Sonnet 5 lesz
+ * (kategorizálás, leírás, SEO, chat); a becsléshez az ár is (2 / 10 USD per millió token). Kézzel választott
+ * más modellhez nem nyúl.
+ */
+add_action('init', function () {
+    if ((int) get_option('mandala_claude_model_v') >= 2) {
+        return;
+    }
+    foreach (['mandala_ai', 'mandala_chat', 'mandala_seo_ai'] as $opt) {
+        $v = get_option($opt);
+        if (is_array($v) && ($v['model'] ?? '') === 'claude-opus-5') {
+            $v['model'] = MANDALA_CLAUDE_DEFAULT_MODEL;
+            if ($opt === 'mandala_ai' && in_array((string) ($v['price_in'] ?? ''), ['', '5'], true) && in_array((string) ($v['price_out'] ?? ''), ['', '25'], true)) {
+                $v['price_in'] = '2';
+                $v['price_out'] = '10';
+            }
+            update_option($opt, $v);
+        }
+    }
+    update_option('mandala_claude_model_v', 2, true);
+});
 
 /** Modellek, amelyeken a szerveroldali visszaesés (fallbacks: "default") elérhető. */
 function mandala_claude_supports_fallbacks(string $model): bool

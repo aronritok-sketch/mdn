@@ -222,7 +222,7 @@ Részletes munkafolyamat a webért felelős munkatársnak: [`docs/UJ-TERMEKEK.md
   készletfrissítése nem élesít. Élesítés: a sorban (egyenként vagy csoportosan) vagy a szerkesztőben közzététellel –
   mindkettő csak teljes ellenőrzőlistával.
 - **Claude:** API-kulcs a `wp-config.php`-ban (`MANDALA_ANTHROPIC_API_KEY`). A kérés csak termékadatot visz
-  (név, cikkszám, régi kategória és tulajdonságok, leírás) – személyes adatot nem. Alapmodell: `claude-opus-5`
+  (név, cikkszám, régi kategória és tulajdonságok, leírás) – személyes adatot nem. Alapmodell: `claude-sonnet-5`
   (állítható). A kategória és a szűrőértékek felsorolt listából jönnek (strukturált kimenet), a szerver még
   egyszer ellenőrzi őket; a biztos javaslat érvénybe lép, a bizonytalan az „Élő, ellenőrizendő” fülre kerül.
 - **Telepítő varázsló:** külön bővítmény (`wp-plugin/mandala-telepito`, csomagolva: `dist/mandala-telepito-varazslo.zip`, benne a téma zip-je). 16 lépés állapotfelismeréssel, egy gombos műveletekkel – lásd `docs/TELEPITES.md` 0. fejezet.

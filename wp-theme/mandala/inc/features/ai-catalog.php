@@ -31,8 +31,8 @@ function mandala_ai_settings(): array
         'keep_old' => 'yes',     // a régi kategóriák megmaradnak (URL-ek, SEO) – külön lépésben bonthatók
         'create_terms' => 'yes', // nyitott listás szűrőknél (illat, anyag…) új érték létrehozható
         'auto_new' => 'yes',     // új JUTA termékekhez automatikus javaslat
-        'price_in' => '',        // USD / millió bemeneti token – csak a becsléshez
-        'price_out' => '',       // USD / millió kimeneti token
+        'price_in' => '2',       // USD / millió bemeneti token – csak a becsléshez (Claude Sonnet 5)
+        'price_out' => '10',     // USD / millió kimeneti token
     ]);
 }
 function mandala_ai_key(): string
@@ -765,7 +765,7 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
     wp_nonce_field('mandala_ai');
     echo '<input type="hidden" name="mandala_ai_do" value="settings"><table class="form-table">'
         . '<tr><th scope="row"><label for="ai-key">Anthropic API-kulcs</label></th><td>' . (defined('MANDALA_ANTHROPIC_API_KEY') ? '<p>A wp-config.php-ból (MANDALA_ANTHROPIC_API_KEY).</p>' : '<input type="password" id="ai-key" name="mandala_ai[api_key]" class="regular-text" autocomplete="off" value="' . ($key_set ? '••••••••' : '') . '">' . ($key_set ? ' <label><input type="checkbox" name="mandala_ai_forget_key" value="1"> kulcs törlése</label>' : '') . '<p class="description">Biztonságosabb a wp-config.php-ban megadni.</p>') . '</td></tr>'
-        . '<tr><th scope="row"><label for="ai-model">Modell</label></th><td><input type="text" id="ai-model" name="mandala_ai[model]" value="' . esc_attr($s['model']) . '" list="ai-models" class="regular-text"><datalist id="ai-models"><option value="claude-opus-5"><option value="claude-opus-5-5"><option value="claude-sonnet-5"><option value="claude-haiku-4-5"></datalist><p class="description">Alapból Claude Opus 5. Nagy tömegnél a próbafuttatással érdemes összevetni egy olcsóbbal (pl. claude-sonnet-5).</p></td></tr>'
+        . '<tr><th scope="row"><label for="ai-model">Modell</label></th><td><input type="text" id="ai-model" name="mandala_ai[model]" value="' . esc_attr($s['model']) . '" list="ai-models" class="regular-text"><datalist id="ai-models"><option value="claude-opus-5"><option value="claude-opus-5-5"><option value="claude-sonnet-5"><option value="claude-haiku-4-5"></datalist><p class="description">Alapból Claude Sonnet 5 (2 / 10 USD millió tokenenként). Ha a próbafuttatás javaslatai nem elég pontosak, claude-opus-5 (5 / 25 USD).</p></td></tr>'
         . '<tr><th scope="row"><label for="ai-th">Automatikus, ha a megbízhatóság legalább</label></th><td><input type="number" step="0.01" min="0.5" max="1" id="ai-th" name="mandala_ai[threshold]" value="' . esc_attr((string) $s['threshold']) . '" style="width:80px"> <span class="description">(0,5–1; alatta a termék ellenőrizendő)</span></td></tr>'
         . '<tr><th scope="row"><label for="ai-batch">Termék / kérés</label></th><td><input type="number" min="1" max="20" id="ai-batch" name="mandala_ai[batch]" value="' . esc_attr((string) $s['batch']) . '" style="width:80px"></td></tr>'
         . '<tr><th scope="row">Régi kategóriák</th><td><label><input type="checkbox" name="mandala_ai[keep_old]" value="1"' . checked($s['keep_old'], 'yes', false) . '> megmaradnak a termék mellett (a régi URL-ek és a SEO miatt; élesítés után külön bonthatók, átirányítással)</label></td></tr>'
