@@ -1,0 +1,31 @@
+.iu-card {
+	margin-bottom: 1.8rem;
+}
+.iu-card-image {
+	display: block;
+	position: relative;
+	height: 0;
+	padding-top: 75%;
+}
+.iu-card-image img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center;
+}
+.iu-card-has-background .iu-card-content {
+	padding: 0 1.4rem 1.7rem;
+}
+.iu-card-button-wrap {
+	margin-top: 1.3rem;
+}
+.iu-card-button {
+	font-size: var(--iu-text-font-size);
+	text-decoration: underline;
+}
+.iu-card-button:hover {
+	text-decoration: none;
+}

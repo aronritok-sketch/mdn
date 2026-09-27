@@ -1,0 +1,21 @@
+.iu-breadcrumbs {
+	font-family: var(--iu-text-font-family);
+	font-size: var(--iu-text-font-size);
+	line-height: var(--iu-text-line-height);
+	color: var(--iu-text-color);
+	display: flex;
+}
+.iu-breadcrumbs-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 .7rem;
+}
+.iu-breadcrumbs-separator {
+	color: var(--wp--preset--color--primary);
+}
+.iu-breadcrumbs.iu-breadcrumbs-align-center {
+	justify-content: center;
+}
+.iu-breadcrumbs.iu-breadcrumbs-align-right {
+	justify-content: flex-end;
+}

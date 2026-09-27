@@ -1,0 +1,11 @@
+.iu-search form {
+	display: flex;
+}
+.iu-search form .iu-form-field {
+	flex: 1;
+	margin: 0;
+}
+.iu-search form .iu-button {
+	padding: .6rem 1rem;
+	cursor: pointer;
+}

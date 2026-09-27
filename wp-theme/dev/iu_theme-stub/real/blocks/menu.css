@@ -1,0 +1,177 @@
+.iu-menu-block {
+	padding: 0;
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: var(--iu-menu-gap);
+}
+.iu-menu-block li {
+	display: block;
+	position: relative;
+}
+.iu-menu-block > li {
+	padding: 2.8rem 0;
+}
+.iu-menu-block li a {
+	font-family: var(--iu-menu-font-family);
+	font-weight: var(--iu-menu-font-weight);
+	font-size: var(--iu-menu-font-size);
+	color: var(--iu-menu-color);
+}
+.iu-menu-block li.menu-item-has-children > a:after {
+	content: "\f347";
+	font-family: Dashicons;
+	margin-left: .45rem;
+	vertical-align: bottom;
+}
+.iu-menu-block .sub-menu {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	visibility: hidden;
+	padding: 2.1rem 0;
+	background: var(--wp--preset--color--light);
+	border-radius: .6rem;
+	min-width: 18rem;
+	z-index: 9999;
+	opacity: 0;
+	box-shadow: 0 0 .3rem .15rem rgba(0,0,0,.09);
+	transform: translateY(3rem);
+	transition: opacity .3s, transform .3s, visibility 0s .3s;
+}
+.iu-menu-block .sub-menu li a {
+	display: block;
+	padding: 0 2.1rem;
+	color: var(--iu-submenu-color);
+}
+.iu-menu-block .sub-menu .sub-menu {
+	top: 0;
+	left: 100%;
+}
+.iu-menu-block .menu-item-has-children > .sub-menu .sub-menu {
+	transform: translateX(3rem);
+}
+.iu-menu-block .menu-item-has-children:hover > .sub-menu {
+	visibility: visible;
+	opacity: 1;
+	transform: translate(0,0);
+	transition: opacity .3s, transform .3s;
+}
+.iu-menu-block .sub-menu li.menu-item-has-children > a:after {
+	display: block;
+	margin-left: auto;
+	transform: rotate(-90deg);
+}
+.iu-menu-block.vertical ul {
+	display: block;
+}
+.iu-menu-block-wrapper .mobile-toggle {
+	display: none;
+}
+.iu-menu-block-wrapper .mobile-toggle:after {
+	content: '\f349';
+	font-family: Dashicons;
+	color: var(--iu-text-color);
+	font-size: 1.4rem;
+	vertical-align: middle;
+}
+.iu-menu-block-wrapper .mobile-toggle.iu-menu-close {
+	position: absolute;
+	top: var(--iu-section-default-padding);
+	right: 4.2%;
+}
+body.admin-bar .iu-menu-block-wrapper .mobile-toggle.iu-menu-close {
+	top: calc(var(--wp-admin--admin-bar--height) + 2.1rem);
+}
+.iu-menu-block-wrapper .mobile-toggle.iu-menu-close:after {
+	content: '\f335';
+	font-size: 2rem;
+}
+.iu-menu-trigger, .iu-menu-back {
+	display: none;
+}
+
+@media screen and (max-width: 991.8px){
+	.iu-menu-block-wrapper .mobile-toggle {
+		display: block;
+	}
+
+	.iu-menu-container {
+		position: fixed;
+		top: 0;
+		left: 100%;
+		width: 90vw;
+		height: 100vh;
+		background: white;
+		transition: transform .6s;
+		padding-top: 8rem;
+		z-index: 999;
+	}
+	.iu-menu-container:before {
+		content: '';
+		position: absolute;
+		top: 0;
+		right: 100%;
+		width: 200vw;
+		height: 100vh;
+		transition: background .6s;
+		pointer-events: none;
+	}
+	body.admin-bar .iu-menu-container {
+		padding-top: calc(var(--wp-admin--admin-bar--height) + 8rem);
+	}
+	.iu-menu-block-wrapper.iu-menu-open .iu-menu-container {
+		transform: translateX(-100%);
+	}
+	.iu-menu-block-wrapper.iu-menu-open .iu-menu-container:before {
+		background: rgba(0,0,0,.81);
+	}
+	.iu-menu-block {
+		display: block;
+		position: relative;
+	}
+	.iu-menu-block li a, .iu-menu-block .sub-menu li a {
+		display: block;
+		padding: .9rem 5vw;
+	}
+	.iu-menu-block li.menu-item-has-children > a {
+		display: flex;
+		align-items: center;
+	}
+	.iu-menu-block li.menu-item-has-children > a:after {
+		content: none;
+	}
+	body .iu-menu-block-wrapper .iu-menu-block li {
+		position: static;
+		padding: 0;
+		border-top: 1px solid rgba(0,0,0,.1);
+	}
+	body .iu-menu-block-wrapper .iu-menu-block li:last-child {
+		border-bottom: 1px solid rgba(0,0,0,.1);
+	}
+	body .iu-menu-block-wrapper .iu-menu-block li > ul.sub-menu {
+		padding: 0;
+		visibility: visible;
+		opacity: 1;
+		transform: unset;
+		width: 100%;
+		height: 100vh;
+		top: 0 !important;
+		left: 100%;
+		transition: transform .6s;
+	}
+	body .iu-menu-block-wrapper .iu-menu-block li > ul.sub-menu.active {
+		transform: translateX(-100%);
+	}
+	.iu-menu-trigger, .iu-menu-back {
+		display: block;
+	}
+	.iu-menu-trigger {
+		margin-left: auto;
+	}
+	.iu-menu-back {
+		position: absolute;
+		left: 5%;
+		top: -5.4rem;
+	}
+}

@@ -1,0 +1,17 @@
+.iu-accordion-item-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	transition: transform .3s;
+	transform-origin: center;
+	cursor: pointer;
+}
+.iu-accordion-item-open .iu-accordion-item-toggle {
+	transform: rotate(90deg);
+}
+body:not(.editor-styles-wrapper) .iu-accordion-item-body {
+	display: none;
+}
+body:not(.editor-styles-wrapper) .iu-accordion-item:first-child .iu-accordion-item-body {
+	display: block;
+}

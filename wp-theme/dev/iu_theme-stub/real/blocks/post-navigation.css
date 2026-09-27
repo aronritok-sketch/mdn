@@ -1,0 +1,13 @@
+.iu-post-navigation {
+	display: flex;
+	justify-content: space-between;
+}
+.iu-post-navigation > * {
+	font-family: var(--iu-heading-font-family);
+	font-weight: bold;
+	font-size: var(--iu-heading-4-font-size);
+	line-height: var(--iu-heading-line-height);
+}
+.iu-post-navigation .placeholder {
+	visibility: hidden;
+}

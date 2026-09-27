@@ -146,6 +146,49 @@ select.country_to_state--single { appearance: none; -webkit-appearance: none; bo
 .footer-bottom p { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .display-title { font-size: var(--fs-h1); max-width: 16ch; }
 
+/* WooCommerce saját gombjai (belépés, regisztráció, jelszó, adatok mentése …) a téma gombjaként.
+   Egy osztálynyi specificitás: minden célzottabb szabály felülírja. */
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--tap); padding: 0 var(--space-5); border: 1px solid var(--c-ink); border-radius: var(--radius-pill);
+  background: var(--c-ink); color: var(--c-white); font: 500 var(--iu-button-font-size)/1 var(--font-text);
+  text-decoration: none; cursor: pointer; white-space: nowrap; transition: background var(--dur), border-color var(--dur);
+}
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button:hover { background: var(--c-accent-deep); border-color: var(--c-accent-deep); color: var(--c-white); }
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button:disabled { opacity: .45; cursor: not-allowed; }
+.woocommerce-form-login .woocommerce-form-login__rememberme { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+
+/* ---------- Kosár: a WooCommerce alap sablonja a prototípus elrendezésében (tételek | összesítő) ---------- */
+.woocommerce:has(> .woocommerce-cart-form) { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 0 var(--space-7); align-items: start; }
+.woocommerce:has(> .woocommerce-cart-form) > * { grid-column: 1 / -1; }
+.woocommerce:has(> .woocommerce-cart-form) > .woocommerce-cart-form { grid-column: 1; }
+.woocommerce:has(> .woocommerce-cart-form) > .cart-collaterals { grid-column: 2; }
+.woocommerce-cart-form .actions { padding-top: var(--space-5); }
+.woocommerce-cart-form td.actions { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; border-bottom: 0; }
+.woocommerce-cart-form .actions button[name="update_cart"] { --c-ink: var(--c-muted); background: transparent; color: var(--c-ink); }
+.woocommerce-cart-form .actions button[name="update_cart"]:disabled { display: none; }
+.cart_totals { background: var(--c-white); border: var(--border); border-radius: var(--radius-l); padding: var(--space-6); }
+.cart_totals h2 { margin: 0 0 var(--space-4); }
+.cart_totals table.shop_table { font-size: .9375rem; }
+.cart_totals table.shop_table th, .cart_totals table.shop_table td { padding: var(--space-3) 0; text-align: left; font-weight: 400; vertical-align: top; border: 0; }
+.cart_totals table.shop_table td { text-align: right; font-variant-numeric: tabular-nums; }
+.cart_totals table.shop_table tr.order-total th, .cart_totals table.shop_table tr.order-total td { border-top: 1px solid var(--c-ink); padding-top: var(--space-4); font-size: 1.25rem; font-weight: 600; }
+.cart_totals .includes_tax { display: block; font-size: var(--fs-xs); color: var(--c-muted); font-weight: 400; margin-top: var(--space-1); }
+.cart_totals .woocommerce-shipping-methods { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.cart_totals .woocommerce-shipping-methods li { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: var(--space-1) var(--space-2); text-align: right; }
+.cart_totals .woocommerce-shipping-methods li > :not(input, label) { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--c-muted); }
+.cart_totals .woocommerce-shipping-methods input { margin: 4px 0 0; accent-color: var(--c-ink); }
+.cart_totals .woocommerce-shipping-methods label { display: block; flex: 0 1 auto; max-width: calc(100% - 24px); padding: 0; border: 0; background: none; min-height: 0; }
+.cart_totals .woocommerce-shipping-destination, .cart_totals .woocommerce-shipping-calculator { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--c-muted); }
+.cart_totals .wc-proceed-to-checkout .checkout-button { width: 100%; }
+/* A WooCommerce a frissített értesítésre fókuszál (akadálymentesség) – ne kapjon fókuszkeretet */
+.woocommerce-notices-wrapper [tabindex="-1"]:focus, .woocommerce-NoticeGroup[tabindex="-1"]:focus { box-shadow: none; outline: none; }
+@media (max-width: 991.8px) {
+  .woocommerce:has(> .woocommerce-cart-form) { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .woocommerce:has(> .woocommerce-cart-form) > .cart-collaterals { grid-column: 1; }
+  .cart_totals { position: static; padding: var(--space-5); }
+}
+
 /* ---------- Fiókom (belépve): navigáció + tartalom ---------- */
 .woocommerce-account .woocommerce:has(> .woocommerce-MyAccount-navigation) { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--space-8); align-items: start; }
 .woocommerce-MyAccount-navigation { position: sticky; top: calc(var(--header-h, 72px) + var(--space-5)); }

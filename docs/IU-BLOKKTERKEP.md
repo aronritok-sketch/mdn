@@ -12,7 +12,7 @@ A HTML-prototípus 1:1-ben az **Infinite Unity (iu_theme)** keretrendszer szerke
 | `assets/css/vars.css` | `vars.css` | `--iu-*` felülírások + tokenek (térköz, lekerekítés, árnyék) |
 | `assets/css/site.css` | `style.css` (a `Template: iu_theme` fejléc alá) | vizuális réteg az iu osztályokra |
 | `assets/css/shop.css` | `assets/shop.css` | klasszikus WooCommerce markup osztályaira írva, változtatás nélkül átvihető |
-| `assets/css/iu.css` | **nem kell** | csak a prototípusban pótolja az iu_theme szerkezeti CSS-ét |
+| `assets/css/iu.css` | `src/iu-compat.css` → `style.css` eleje | a valódi iu_theme tipográfiája (block-styles.css) és blokk-CSS-e ütközik a dizájnnal, ezért a téma ezt a réteget adja helyettük |
 | `assets/js/*.js` | `assets/shop.js` + saját blokkok `view_script`-jei | a prototípus adat- és tárolórétege (store.js) élesben a WooCommerce |
 
 ## 2. Globális sablonok

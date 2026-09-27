@@ -1,0 +1,48 @@
+.iu-form-accept {
+	width: 100%;
+}
+.iu-form-accept .iu-form-checkbox-wrap {
+	display: flex;
+	gap: .7rem;
+}
+.iu-form-accept .iu-form-checkbox-input {
+	position: relative;
+	width: 1.2rem;
+	height: 1.2rem;
+	border: 1px solid;
+	display: inline-block;
+	background: white;
+}
+.iu-form-accept .iu-form-checkbox-input input {
+	position: absolute;
+	top: 0;
+	left: 0;
+	appearance: none;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	margin: 0;
+	cursor: pointer;
+}
+.iu-form-accept .iu-form-checkbox-input:after {
+	content: "\f147";
+	font-family: Dashicons;
+	position: absolute;
+	top: -0.15rem;
+    left: -.3rem;
+    font-size: 1.5em;
+    line-height: 1;
+	pointer-events: none;
+	transform: scale(0);
+	transition: transform .15s;
+}
+.iu-form-accept .iu-form-checkbox-input:has(input:checked):after {
+	transform: scale(1);
+}
+.iu-form-accept .iu-form-checkbox-label {
+	flex: 1;
+}
+.iu-form .iu-form-accept.iu-form-error .iu-form-checkbox-input {
+	background: #ffe6e6;
+	border-color: #fe6060;
+}

@@ -1,6 +1,62 @@
 /*
 Theme Name: iu_theme (TESZT HELYETTESÍTŐ)
-Description: CSAK FEJLESZTÉSHEZ. Az Infinite Unity keretrendszer minimális utánzata a Mandala child téma helyi teszteléséhez (sablonzónák, iucb_add_block, dinamikus iu blokkok, iu/form feldolgozás). Élesben a valódi iu_theme és az iu_* mu-pluginek kellenek.
+Description: CSAK FEJLESZTÉSHEZ. A CSS a valódi iu_theme másolata (style.css, variables.css, inc/blocks/block-styles.css, real/). Az Infinite Unity keretrendszer minimális utánzata a Mandala child téma helyi teszteléséhez (sablonzónák, iucb_add_block, dinamikus iu blokkok, iu/form feldolgozás). Élesben a valódi iu_theme és az iu_* mu-pluginek kellenek.
 Version: 0.1.0
 Text Domain: iu_theme
 */
+
+
+@import url(./variables.css);
+@import url(./inc/blocks/block-styles.css);
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	font-size: var(--iu-text-font-size);
+	scroll-behavior: smooth;
+}
+body {
+	margin: 0;
+	font-family: var(--iu-text-font-family);
+}
+
+#wpadminbar {
+	position: fixed !important;
+}
+
+a {
+	text-decoration: none;
+	color: var(--iu-link-color);
+}
+
+img {
+	max-width: 100%;
+}
+
+span.dashicons {
+	font-size: 1.5rem;
+	width: unset;
+	height: unset;
+}
+
+@media (min-width: 991.8px) {
+	
+	.d-block { display: block !important; }
+	.d-inline-block { display: inline-block !important; }
+	.d-flex { display: flex !important; }
+	.d-inline-flex { display: inline-flex !important;  }
+	.d-none { display: none !important; }
+
+}
+
+@media (max-width: 991.2px){
+
+	.m-block { display: block !important; }
+	.m-inline-block { display: inline-block !important; }
+	.m-flex { display: flex !important; }
+	.m-inline-flex { display: inline-flex !important;  }
+	.m-none { display: none !important;  }
+
+}

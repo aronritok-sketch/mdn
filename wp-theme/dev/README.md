@@ -13,6 +13,13 @@ referenciája alapján: három zónás sablonmotor (`templates/{type}_{position}
 dinamikus `iu/*` blokkok (title, content, breadcrumbs, query, terms, search, post-navigation),
 shortcode-ok, `iu/form` feldolgozás az `iu_form_submit_{formId}` szűrővel. **Élesben nem használható.**
 
+A **CSS viszont a valódi keretrendszeré** (a dev szerverről másolva, 2026-09): `style.css` (@import `variables.css` +
+`inc/blocks/block-styles.css`), a blokkok inline CSS-e (`real/blocks/*.css`, ugyanazokkal a handle-ökkel, pl.
+`iu-row-style`) és az iu_woocommerce `real/iu-woocommerce.css`-e. Ugyanúgy viselkedik, mint élesben: a stíluslapok
+URL-jéből levágja a `?ver=` részt, a `<body>` csak `admin-bar` / `front-page` osztályt kap, és nincs `wp_body_open`.
+A téma ezeket kezeli (inc/theme.php: `mandala_iu_base_styles`, `mandala_iu_dequeue_block_styles`,
+`mandala_body_fallback`; a szerkezeti és tipográfiai alap a `src/iu-compat.css`-ben).
+
 ## Helyi WordPress + WooCommerce teszt
 
 ```bash

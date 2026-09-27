@@ -1,0 +1,16 @@
+.iu-section {
+	background-repeat: no-repeat;
+	padding-top: var(--iu-section-default-padding);
+	padding-bottom: var(--iu-section-default-padding);
+	position: relative;
+}
+.iu-section.iu-section-light,
+.iu-section.iu-section-light .iu-text,
+.iu-section.iu-section-light .iu-heading,
+.iu-section.iu-section-light .iu-list-item,
+.iu-section.iu-section-light .iu-text a,
+.iu-section.iu-section-light .iu-heading a,
+.iu-section.iu-section-light .iu-list-item a,
+.iu-section.iu-section-light .iu-icon.iu-icon-default .dashicon {
+	color: white !important;
+}

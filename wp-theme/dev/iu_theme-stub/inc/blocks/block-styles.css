@@ -1,0 +1,51 @@
+p {
+	font-family: var(--iu-text-font-family);
+	font-size: var(--iu-text-font-size);
+	line-height: var(--iu-text-line-height);
+	color: var(--iu-text-color);
+}
+.iu-text-align-left {
+	text-align: left;
+}
+.iu-text-align-center {
+	text-align: center;
+}
+.iu-text-align-right {
+	text-align: right;
+}
+.iu-text-small {
+	font-size: var(--iu-text-small-font-size);
+	line-height: var(--iu-text-small-line-height);
+}
+.iu-text-muted {
+	color: var(--iu-text-color-muted);
+}
+
+h1:not(.wp-block-post-title), h2, h3, h4, h5, h6 {
+	font-family: var(--iu-heading-font-family);
+	line-height: var(--iu-heading-line-height);
+	color: var(--iu-heading-color);
+}
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+	color: var(--iu-heading-color);
+}
+h1 a mark, h2 a mark, h3 a mark, h4 a mark, h5 a mark, h6 a mark {
+	text-decoration: inherit;
+}
+h1:not(.wp-block-post-title) { font-size: var(--iu-heading-1-font-size); }
+h2 { font-size: var(--iu-heading-2-font-size); }
+h3 { font-size: var(--iu-heading-3-font-size); }
+h4 { font-size: var(--iu-heading-4-font-size); }
+h5 { font-size: var(--iu-heading-5-font-size); }
+h6 { font-size: var(--iu-heading-6-font-size); }
+
+.iu-list ::marker, :where(ol:not([class]), ul:not([class])) ::marker {
+	color: var(--wp--preset--color--primary);
+}
+
+.iu-list-item, :where(ol:not([class]), ul:not([class])) li {
+	font-family: var(--iu-text-font-family);
+	font-size: var(--iu-text-font-size);
+	line-height: var(--iu-text-line-height);
+	color: var(--iu-text-color);
+}

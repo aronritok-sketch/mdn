@@ -76,7 +76,10 @@ woocommerce/                      klasszikus pénztár (5 lépés), összesítő
 setup/content/, setup/data/       oldaltartalmak és adatok a telepítőhöz
 assets/js/                        site.js (közös), filter.js + facets.js (szűrő), product.js, checkout.js,
                                   finder.js, gift.js, b2b.js, track.js (mérés), validate.js
+src/iu-compat.css                 iu keretrendszer alap: rács, címsorok, bekezdések (a build a style.css elejére teszi;
+                                  az iu_theme block-styles.css-e és a dizájnt adó blokk-CSS-ek helyett – inc/theme.php)
 src/wp.css, src/features.css      WordPress-specifikus és funkciómodul stílusok (a build a style.css végére fűzi)
+assets/fonts/                     Cormorant Garamond + Inter, saját tárhelyről (nincs Google Fonts)
 ```
 
 A `style.css`, `vars.css`, `assets/css/shop.css`, `assets/js/facets.js`, `assets/js/filter.js`, a

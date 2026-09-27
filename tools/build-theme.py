@@ -58,7 +58,8 @@ def build_assets():
     (THEME / 'assets/css').mkdir(parents=True, exist_ok=True)
     shutil.copy(css / 'vars.css', THEME / 'vars.css')
     wp_css = (THEME / 'src/wp.css').read_text() + '\n\n' + (THEME / 'src/features.css').read_text()
-    (THEME / 'style.css').write_text(HEADER + (css / 'site.css').read_text() + '\n\n' + wp_css)
+    compat = (THEME / 'src/iu-compat.css').read_text()
+    (THEME / 'style.css').write_text(HEADER + compat + '\n\n' + (css / 'site.css').read_text() + '\n\n' + wp_css)
     shutil.copy(css / 'shop.css', THEME / 'assets/css/shop.css')
     shutil.copy(ROOT / 'theme/theme.json', THEME / 'theme.json')
     img = THEME / 'assets/img'
@@ -696,6 +697,8 @@ def build_content():
         old.unlink()
     for name, markup in templates().items():
         (tdir / f'{name}.html').write_text(markup + '\n')
+    # Az iu_theme a kínálat oldal típusát az első termék típusából számolja: termék nélkül „archive_” lesz.
+    shutil.copy(tdir / 'archive_product_content.html', tdir / 'archive__content.html')
     cdir = THEME / 'setup/content'
     cdir.mkdir(parents=True, exist_ok=True)
     config = json.loads((THEME / 'setup/data/config.json').read_text())

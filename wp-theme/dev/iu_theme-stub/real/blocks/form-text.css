@@ -1,0 +1,13 @@
+.iu-form-text {
+	width: 100%;
+}
+.iu-form-text input {
+	width: 100%;
+	display: block;
+	font-family: var(--iu-text-font-family);
+	font-size: var(--iu-text-font-size);
+}
+.iu-form .iu-form-text.iu-form-error input {
+	background: #ffe6e6;
+	border-color: #fe6060;
+}

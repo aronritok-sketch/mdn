@@ -12,13 +12,31 @@ add_action('after_setup_theme', function () {
     add_theme_support('title-tag');
 });
 
+/*
+ * Stílusok: a VALÓDI keretrendszer CSS-e (real/ – a dev szerverről másolva), ugyanazokkal a handle-ökkel
+ * és sorrendben, mint élesben: blokk-CSS inline a <head> elején, aztán iu-woocommerce, parent-style
+ * (@import variables.css + block-styles.css), a child téma „style” handle-lel. Élesben a stíluslapok
+ * URL-jéből a lekérdezés-rész lekerül – ezt is utánozzuk, hogy a helyi teszt ugyanazt a hibát mutassa.
+ */
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('iu-theme', get_template_directory_uri() . '/iu.css', [], '0.1');
-    wp_enqueue_style('iu-child-style', get_stylesheet_uri(), ['iu-theme'], wp_get_theme()->get('Version'));
+    $real = get_template_directory_uri() . '/real';
+    foreach (glob(__DIR__ . '/real/blocks/*.css') as $file) {
+        $handle = 'iu-' . basename($file, '.css') . '-style';
+        wp_register_style($handle, false);
+        wp_enqueue_style($handle);
+        wp_add_inline_style($handle, (string) file_get_contents($file));
+    }
+    if (class_exists('WooCommerce')) {
+        wp_enqueue_style('iu-woocommerce', $real . '/iu-woocommerce.css');
+    }
+    wp_enqueue_style('parent-style', get_template_directory_uri() . '/style.css');
+    wp_enqueue_style('style', get_stylesheet_uri(), ['parent-style']);
     wp_dequeue_style('wp-block-library');
     wp_dequeue_style('wp-block-library-theme');
     wp_enqueue_script('iu-stub', get_template_directory_uri() . '/stub.js', [], '0.1', true);
 }, 10);
+add_filter('style_loader_src', fn($src) => strtok((string) $src, '?'), 99);
+add_filter('script_loader_src', fn($src) => strtok((string) $src, '?'), 99);
 
 /* ---------- Sablonmotor (templates.php) ---------- */
 

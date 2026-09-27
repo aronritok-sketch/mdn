@@ -1,0 +1,61 @@
+.iu-form {
+	position: relative;
+}
+.iu-form.iu-form-loading:after {
+	content: '';
+	position: absolute;
+	top: -.5rem;
+	left: -.5rem;
+	width: calc(100% + 1rem);
+	height: calc(100% + 1rem);
+	background: transparent;
+	backdrop-filter: blur(3px);
+	z-index: 1;
+}
+.iu-form-field label {
+	font-family: var(--iu-text-font-family);
+	font-size: var(--iu-text-font-size);
+}
+.iu-form-field-required label:after {
+	content: '*';
+	margin-left: .3rem;
+	color: var(--wp--preset--color--primary);
+}
+.iu-form ::placeholder {
+	color: rgba(0,0,0,.36);
+}
+.iu-form-field-error-message {
+	color: #fe6060;
+	display: block;
+	padding: .3rem .3rem 0;
+}
+.iu-form-field-error-message:empty {
+	display: none;
+}
+.iu-form-success-message {
+	background: #caffca;
+	color: #5e8f5e;
+	border: 1px solid #5e8f5e;
+	padding: .7rem 1.2rem;
+	display: block;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%,-50%);
+	width: 80%;
+	z-index: 2;
+	text-align: center;
+}
+.iu-form:not(.iu-form-success) .iu-form-success-message {
+	display: none;
+}
+.iu-form.iu-form-success > :not(.iu-form-success-message) {
+	visibility: hidden;
+}
+.iu-form-foot {
+	margin-top: 1.8rem;
+	margin-bottom: .3rem;
+}
+.iu-form-submit {
+	cursor: pointer;
+}

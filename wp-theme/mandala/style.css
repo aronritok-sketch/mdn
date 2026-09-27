@@ -12,6 +12,141 @@ License: Proprietary
 */
 
 /* ==========================================================================
+   iu keretrendszer alap – a child téma saját szerkezeti és tipográfiai rétege
+   A valódi iu_theme block-styles.css-e (p, li, h1–h6 betű, méret, szín) és a
+   dizájnt felülíró blokk-CSS-ek (iu/row, iu/column, iu/section, iu/group,
+   iu/button, iu/query, iu/card, iu/icon, iu/menu …) nem töltődnek be
+   (inc/theme.php: mandala_iu_base_styles). Helyettük ez a réteg adja a rácsot,
+   a címsorokat és a bekezdéseket – ugyanazt, amire a prototípus épül.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 16px); }
+body {
+  margin: 0;
+  font-family: var(--iu-text-font-family);
+  font-size: var(--iu-text-font-size);
+  line-height: var(--iu-text-line-height);
+  color: var(--iu-text-color);
+  background: var(--c-paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+img { height: auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--iu-link-color); }
+
+/* Címsorok (block-styles.css megfelelője) */
+h1, h2, h3, h4, h5, h6, .iu-heading, .is-h1, .is-h2, .is-h3 {
+  font-family: var(--iu-heading-font-family);
+  line-height: var(--iu-heading-line-height);
+  color: var(--iu-heading-color);
+  font-weight: 500;
+  letter-spacing: var(--ls-heading);
+  margin: 0 0 .5em;
+  text-wrap: balance;
+}
+h1, .is-h1 { font-size: var(--iu-heading-1-font-size); }
+.is-h2 { font-size: var(--iu-heading-2-font-size); }
+.is-h3 { font-size: var(--iu-heading-3-font-size); }
+h2 { font-size: var(--iu-heading-2-font-size); }
+h3 { font-size: var(--iu-heading-3-font-size); }
+h4 { font-size: var(--iu-heading-4-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: -.005em; line-height: 1.3; }
+h5 { font-size: var(--iu-heading-5-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: 0; line-height: 1.35; }
+h6 { font-size: var(--iu-heading-6-font-size); font-family: var(--font-text); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; line-height: 1.3; }
+p { margin: 0 0 1em; text-wrap: pretty; }
+p.is-small, .has-small-font-size { font-size: var(--iu-text-small-font-size); }
+p.is-muted, .has-muted-color { color: var(--iu-text-color-muted); }
+
+/* iu/section */
+.iu-section { position: relative; padding: var(--iu-section-default-padding) 0; background-size: cover; background-position: center; }
+.iu-section-fullwidth { padding-left: var(--iu-section-fullwidth-padding); padding-right: var(--iu-section-fullwidth-padding); }
+.iu-section-fullwidth > .iu-row { width: 100%; max-width: none; }
+.iu-section-light, .iu-section-light h1, .iu-section-light h2, .iu-section-light h3, .iu-section-light h4, .iu-section-light h5, .iu-section-light h6 { color: var(--c-white); }
+
+/* iu/row: 12 oszlopos rács, mobilon egymás alá */
+.iu-row { width: var(--iu-row-width); margin: 0 auto; display: flex; flex-wrap: wrap; gap: var(--iu-column-gap); }
+.iu-row + .iu-row { margin-top: var(--space-7); }
+.iu-row-vertical-center { align-items: center; }
+.iu-row-vertical-flex-end { align-items: flex-end; }
+
+/* iu/column: szélesség a row columns attribútumából */
+.iu-column { min-width: 0; flex: 0 0 auto; }
+.iu-column-1-1 { width: 100%; }
+.iu-column-1-2 { width: calc((100% - var(--iu-column-gap)) / 2); }
+.iu-column-1-3 { width: calc((100% - 2 * var(--iu-column-gap)) / 3); }
+.iu-column-2-3 { width: calc((100% - 2 * var(--iu-column-gap)) / 3 * 2 + var(--iu-column-gap)); }
+.iu-column-1-4 { width: calc((100% - 3 * var(--iu-column-gap)) / 4); }
+.iu-column-3-4 { width: calc((100% - 3 * var(--iu-column-gap)) / 4 * 3 + 2 * var(--iu-column-gap)); }
+.iu-column-align-center { text-align: center; }
+.iu-column-align-right { text-align: right; }
+
+/* iu/group: flexbox csoport */
+.iu-group { display: flex; flex-wrap: wrap; gap: var(--iu-group-gap); min-width: 0; }
+.iu-group-column { flex-direction: column; flex-wrap: nowrap; }
+.iu-group-equal > * { flex: 1 1 0; min-width: 0; }
+.iu-group-horizontal-center { justify-content: center; }
+.iu-group-horizontal-flex-end { justify-content: flex-end; }
+.iu-group-horizontal-space-between { justify-content: space-between; }
+.iu-group-vertical-center { align-items: center; }
+.iu-group-vertical-flex-end { align-items: flex-end; }
+.iu-group-vertical-flex-start { align-items: flex-start; }
+.iu-group-column.iu-group-horizontal-center { align-items: center; }
+
+/* iu/button-group */
+.iu-button-group { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.iu-button-group-center { justify-content: center; }
+
+/* iu/image */
+.iu-image-wrap { display: flex; }
+.iu-image-justify-center { justify-content: center; }
+.iu-image-crop img { width: 100%; height: 100%; object-fit: cover; }
+
+/* iu/query */
+.iu-query { display: grid; gap: var(--iu-column-gap); }
+.iu-query-col-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.iu-query-col-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.iu-query-col-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Reszponzív segédosztályok (iu_theme style.css) */
+@media (min-width: 992px) {
+  .d-block { display: block !important; } .d-flex { display: flex !important; }
+  .d-inline-flex { display: inline-flex !important; } .d-none { display: none !important; }
+}
+@media (max-width: 991.8px) {
+  .m-block { display: block !important; } .m-flex { display: flex !important; }
+  .m-inline-flex { display: inline-flex !important; } .m-none { display: none !important; }
+  .iu-column-1-2, .iu-column-1-3, .iu-column-2-3, .iu-column-1-4, .iu-column-3-4 { width: 100%; }
+  .iu-query-col-3, .iu-query-col-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .iu-query-col-2, .iu-query-col-3 { grid-template-columns: 1fr; }
+}
+
+
+/* Az iu_theme style.css-ének megtartott részei */
+#wpadminbar { position: fixed !important; }
+span.dashicons { font-size: 1.5rem; width: unset; height: unset; }
+.iu-text-align-left { text-align: left; }
+.iu-text-align-center { text-align: center; }
+.iu-text-align-right { text-align: right; }
+.iu-text-small { font-size: var(--iu-text-small-font-size); }
+.iu-text-muted { color: var(--iu-text-color-muted); }
+
+/* Az iu/form blokk a gomb CSS-ét újra betölti (a:hover fehér háttér) – a téma gombszínei maradjanak. */
+a.iu-button:hover { background: var(--btn-bg); color: var(--btn-fg); }
+.iu-form-field label { font: inherit; }
+.iu-form-text input { font: inherit; }
+
+/* iu/breadcrumbs – a valódi keretrendszer markupja (span-ek, külön elválasztóval) */
+.iu-breadcrumbs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); }
+.iu-breadcrumbs-separator { opacity: .5; }
+.iu-breadcrumbs-current { color: var(--c-ink); }
+
+
+/* ==========================================================================
    Mandala – child téma stílus (style.css)
    Csak iu_theme osztályokra és a projekt saját blokkjaira épül.
    Minden érték a vars.css tokenjeiből jön.
@@ -723,6 +858,49 @@ ul.products li.product { position: relative; }
 select.country_to_state--single { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 0; min-height: 0; pointer-events: none; font-weight: 500; color: var(--c-ink); }
 .footer-bottom p { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .display-title { font-size: var(--fs-h1); max-width: 16ch; }
+
+/* WooCommerce saját gombjai (belépés, regisztráció, jelszó, adatok mentése …) a téma gombjaként.
+   Egy osztálynyi specificitás: minden célzottabb szabály felülírja. */
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--tap); padding: 0 var(--space-5); border: 1px solid var(--c-ink); border-radius: var(--radius-pill);
+  background: var(--c-ink); color: var(--c-white); font: 500 var(--iu-button-font-size)/1 var(--font-text);
+  text-decoration: none; cursor: pointer; white-space: nowrap; transition: background var(--dur), border-color var(--dur);
+}
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button:hover { background: var(--c-accent-deep); border-color: var(--c-accent-deep); color: var(--c-white); }
+:where(.woocommerce, .woocommerce-page) :where(a, button, input).button:disabled { opacity: .45; cursor: not-allowed; }
+.woocommerce-form-login .woocommerce-form-login__rememberme { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+
+/* ---------- Kosár: a WooCommerce alap sablonja a prototípus elrendezésében (tételek | összesítő) ---------- */
+.woocommerce:has(> .woocommerce-cart-form) { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 0 var(--space-7); align-items: start; }
+.woocommerce:has(> .woocommerce-cart-form) > * { grid-column: 1 / -1; }
+.woocommerce:has(> .woocommerce-cart-form) > .woocommerce-cart-form { grid-column: 1; }
+.woocommerce:has(> .woocommerce-cart-form) > .cart-collaterals { grid-column: 2; }
+.woocommerce-cart-form .actions { padding-top: var(--space-5); }
+.woocommerce-cart-form td.actions { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; border-bottom: 0; }
+.woocommerce-cart-form .actions button[name="update_cart"] { --c-ink: var(--c-muted); background: transparent; color: var(--c-ink); }
+.woocommerce-cart-form .actions button[name="update_cart"]:disabled { display: none; }
+.cart_totals { background: var(--c-white); border: var(--border); border-radius: var(--radius-l); padding: var(--space-6); }
+.cart_totals h2 { margin: 0 0 var(--space-4); }
+.cart_totals table.shop_table { font-size: .9375rem; }
+.cart_totals table.shop_table th, .cart_totals table.shop_table td { padding: var(--space-3) 0; text-align: left; font-weight: 400; vertical-align: top; border: 0; }
+.cart_totals table.shop_table td { text-align: right; font-variant-numeric: tabular-nums; }
+.cart_totals table.shop_table tr.order-total th, .cart_totals table.shop_table tr.order-total td { border-top: 1px solid var(--c-ink); padding-top: var(--space-4); font-size: 1.25rem; font-weight: 600; }
+.cart_totals .includes_tax { display: block; font-size: var(--fs-xs); color: var(--c-muted); font-weight: 400; margin-top: var(--space-1); }
+.cart_totals .woocommerce-shipping-methods { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.cart_totals .woocommerce-shipping-methods li { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: var(--space-1) var(--space-2); text-align: right; }
+.cart_totals .woocommerce-shipping-methods li > :not(input, label) { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--c-muted); }
+.cart_totals .woocommerce-shipping-methods input { margin: 4px 0 0; accent-color: var(--c-ink); }
+.cart_totals .woocommerce-shipping-methods label { display: block; flex: 0 1 auto; max-width: calc(100% - 24px); padding: 0; border: 0; background: none; min-height: 0; }
+.cart_totals .woocommerce-shipping-destination, .cart_totals .woocommerce-shipping-calculator { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--c-muted); }
+.cart_totals .wc-proceed-to-checkout .checkout-button { width: 100%; }
+/* A WooCommerce a frissített értesítésre fókuszál (akadálymentesség) – ne kapjon fókuszkeretet */
+.woocommerce-notices-wrapper [tabindex="-1"]:focus, .woocommerce-NoticeGroup[tabindex="-1"]:focus { box-shadow: none; outline: none; }
+@media (max-width: 991.8px) {
+  .woocommerce:has(> .woocommerce-cart-form) { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .woocommerce:has(> .woocommerce-cart-form) > .cart-collaterals { grid-column: 1; }
+  .cart_totals { position: static; padding: var(--space-5); }
+}
 
 /* ---------- Fiókom (belépve): navigáció + tartalom ---------- */
 .woocommerce-account .woocommerce:has(> .woocommerce-MyAccount-navigation) { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--space-8); align-items: start; }

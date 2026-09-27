@@ -91,7 +91,7 @@ theme/theme.json         paletta és betűk (child téma theme.json)
 assets/css/vars.css      tokenek, --iu-* felülírások (child téma vars.css)
 assets/css/site.css      vizuális réteg az iu osztályokra (child téma style.css)
 assets/css/shop.css      WooCommerce klasszikus markup (child téma assets/shop.css)
-assets/css/iu.css        CSAK prototípus: az iu_theme szerkezeti CSS-ét pótolja
+assets/css/iu.css        az iu szerkezeti alap (prototípus; a WP témában: src/iu-compat.css)
 assets/js/data.js        konfiguráció (ÁFA, szállítás, fizetés, kuponok), termékek, cikkek
 assets/js/facets.js      szűrőmotor és -konfiguráció (mandala/filter)
 assets/js/store.js       kosár, kedvencek, kupon, összesítés, rendelések (élesben: WooCommerce)

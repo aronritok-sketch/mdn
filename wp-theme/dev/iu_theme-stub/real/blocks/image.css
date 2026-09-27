@@ -1,0 +1,48 @@
+.iu-image-placeholder {
+	background: #f0f0f0;
+	height: 0;
+	padding-top: 56.25%;
+	min-width: 10rem;
+}
+.iu-image-placeholder:after {
+	content: "\f128";
+	font-family: Dashicons;
+	font-size: 9rem;
+	color: #dedede;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.iu-image img {
+	max-width: 100%;
+	display: inline-block;
+	vertical-align: top;
+}
+.iu-image.iu-image-justify-center {
+	text-align: center;
+}
+.iu-image.iu-image-justify-right {
+	text-align: right;
+}
+
+.iu-image .iu-image-wrap {
+	display: inline-block;
+}
+.iu-image.iu-image-crop .iu-image-wrap {
+	position: relative;
+}
+.iu-image.iu-image-crop img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center;
+}

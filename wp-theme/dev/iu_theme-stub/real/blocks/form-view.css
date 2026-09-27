@@ -1,0 +1,31 @@
+.iu-button {
+	font-family: var(--iu-heading-font-family);
+	font-size: var(--iu-button-font-size);
+	padding: .9rem 1.2rem;
+	color: var(--wp--preset--color--white);
+	background: var(--wp--preset--color--primary);
+	font-weight: 600;
+	letter-spacing: .02rem;
+	border: 2px solid var(--wp--preset--color--primary);
+	transition: opacity .3s;
+	user-select: none;
+	display: inline-block;
+	text-align: center;
+	white-space: nowrap;
+}
+a.iu-button:hover {
+	background: var(--wp--preset--color--white);
+	color: var(--wp--preset--color--primary);
+}
+.iu-button.iu-button-invert {
+	background: none;
+	color: var(--wp--preset--color--primary);
+}
+.iu-button.iu-button-invert:hover {
+	color: var(--wp--preset--color--primary);
+}
+
+.iu-button:disabled {
+	cursor: not-allowed !important;
+	opacity: .5;
+}

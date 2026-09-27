@@ -43,7 +43,9 @@ add_action('after_setup_theme', function () {
 /** Stílusok: az iu_theme a saját és a child style.css-t tölti; ide a tokenek és a bolt jönnek. */
 add_action('wp_enqueue_scripts', function () {
     $v = MANDALA_VERSION;
-    wp_enqueue_style('mandala-fonts', 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap', [], null);
+    // Saját tárhelyről (a Google Fonts nem kell: adatvédelem, és az iu_theme a stíluslap-URL-ek
+    // lekérdezés-részét levágja, amitől a Google címe 400-as hibát ad).
+    wp_enqueue_style('mandala-fonts', MANDALA_URL . '/assets/fonts/fonts.css', [], $v);
     wp_enqueue_style('mandala-vars', MANDALA_URL . '/vars.css', [], $v);
     // A child style.css-t az iu_theme is betölti (saját handle-lel); ha mégsem, itt pótoljuk.
     $child_loaded = false;
@@ -173,8 +175,58 @@ add_action('wp_head', function () {
     if (!has_site_icon()) {
         echo '<link rel="icon" href="' . esc_url(MANDALA_URL . '/assets/favicon.svg') . '" type="image/svg+xml">' . "\n";
     }
-    echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
+    foreach (['inter-normal-latin', 'cormorant-normal-latin'] as $font) {
+        echo '<link rel="preload" href="' . esc_url(MANDALA_URL . '/assets/fonts/' . $font . '.woff2') . '" as="font" type="font/woff2" crossorigin>' . "\n";
+    }
 }, 2);
+
+/**
+ * Az iu_theme alap stíluslapja (block-styles.css) minden p, li és h1–h6 elemre közvetlenül ráteszi a
+ * keretrendszer betűtípusát, méretét, sorközét és színét. Emiatt a sötét sávokban sötét lett a szöveg,
+ * és a kis feliratok (értesítősáv, kártyák) 16 px-esek. A child téma saját tipográfiát ad (style.css eleje:
+ * „iu keretrendszer alap”), ezért az iu_theme lapjából csak a változókat töltjük be. A blokkok saját CSS-e
+ * (iu/row, iu/column …) marad. Kikapcsolható: add_filter('mandala_iu_base_styles', '__return_false').
+ */
+function mandala_iu_base_styles($src)
+{
+    static $on = null;
+    $on ??= apply_filters('mandala_iu_base_styles', true) && is_readable(get_template_directory() . '/variables.css');
+    if ($on && is_string($src) && strtok($src, '?') === trailingslashit(get_template_directory_uri()) . 'style.css') {
+        return trailingslashit(get_template_directory_uri()) . 'variables.css';
+    }
+    return $src;
+}
+add_filter('style_loader_src', 'mandala_iu_base_styles', 5);
+
+/** Az iu blokkok és az iu_woocommerce dizájnt adó CSS-e helyett a téma saját rétege; a működéshez kellők maradnak. */
+function mandala_iu_dequeue_block_styles(): void
+{
+    if (!apply_filters('mandala_iu_base_styles', true)) {
+        return;
+    }
+    foreach (['row', 'column', 'section', 'group', 'button', 'button-group', 'query', 'card', 'icon', 'icon-group', 'menu', 'breadcrumbs', 'search', 'post-navigation'] as $block) {
+        wp_dequeue_style('iu-' . $block . '-style');
+    }
+    // Az iu_woocommerce saját bolt-kinézete (keretes kosár és pénztár, fél szélességű mezők, rejtett
+    // akadálymentes szövegek) ütközik a téma boltjával (assets/css/shop.css) – a téma adja a teljes kinézetet.
+    wp_dequeue_style('iu-woocommerce');
+}
+add_action('wp_print_styles', 'mandala_iu_dequeue_block_styles', 1);
+add_action('wp_print_footer_scripts', 'mandala_iu_dequeue_block_styles', 1);
+
+/**
+ * Az iu_theme a stíluslapok és szkriptek URL-jéből levágja a verziót (?ver=). A saját fájljainknál
+ * visszatesszük, különben egy témafrissítés után a böngészők napokig a régi CSS-t / JS-t használnák.
+ */
+function mandala_keep_asset_version($src, $handle = '')
+{
+    if (!is_string($src) || $src === '' || strpos($src, '?') !== false || strpos($src, MANDALA_URL . '/') !== 0) {
+        return $src;
+    }
+    return $src . '?ver=' . rawurlencode(MANDALA_VERSION);
+}
+add_filter('style_loader_src', 'mandala_keep_asset_version', PHP_INT_MAX, 2);
+add_filter('script_loader_src', 'mandala_keep_asset_version', PHP_INT_MAX, 2);
 
 /** Body osztályok: pénztár fejléc-változat, kosár állapot. */
 add_filter('body_class', function ($classes) {
@@ -184,15 +236,38 @@ add_filter('body_class', function ($classes) {
     return $classes;
 });
 
+/*
+ * Az iu_theme a <body> osztályait a sajátjaira cseréli (admin-bar, front-page), így elvesznének a WordPress és
+ * a WooCommerce osztályai (woocommerce-cart, woocommerce-checkout, logged-in …), amelyekre a téma CSS-e és JS-e
+ * épít. A korai állapotot megjegyezzük és a végén visszatesszük; ha a keretrendszer a szűrőt meg sem hívja,
+ * a láblécben egy sor szkript pótolja (mandala_body_fallback).
+ */
+add_filter('body_class', function ($classes) {
+    $GLOBALS['mandala_body_classes'] = (array) $classes;
+    return $classes;
+}, 11);
+add_filter('body_class', function ($classes) {
+    return array_values(array_unique(array_merge((array) $classes, $GLOBALS['mandala_body_classes'] ?? [])));
+}, PHP_INT_MAX);
+
 /** Ugrás a tartalomra link az oldal elején. */
 add_action('wp_body_open', function () {
     echo '<a class="skip-link" href="#main">' . esc_html__('Ugrás a tartalomra', 'mandala') . '</a>';
 }, 1);
 
-/** A <main> kapjon azonosítót a skip-linkhez (az iu_theme index.php-ja rendereli). */
-add_action('wp_footer', function () {
-    echo "<script>(function(){var m=document.querySelector('main');if(m&&!m.id){m.id='main';m.tabIndex=-1;}})();</script>\n";
-}, 1);
+/**
+ * A <main> kapjon azonosítót a skip-linkhez (az iu_theme index.php-ja rendereli). Az iu_theme a wp_body_open
+ * horgot és a body_class() kimenetét sem adja: a body osztályait és a skip-linket ez pótolja.
+ */
+add_action('wp_footer', 'mandala_body_fallback', 1);
+function mandala_body_fallback(): void
+{
+    $classes = wp_json_encode(array_values(array_map('sanitize_html_class', get_body_class())));
+    $skip = wp_json_encode(__('Ugrás a tartalomra', 'mandala'));
+    echo "<script>(function(){var b=document.body,m=document.querySelector('main');b.classList.add.apply(b.classList,{$classes});"
+        . "if(m&&!m.id){m.id='main';m.tabIndex=-1;}"
+        . "if(!document.querySelector('.skip-link')){var a=document.createElement('a');a.className='skip-link';a.href='#main';a.textContent={$skip};b.insertBefore(a,b.firstChild);}})();</script>\n";
+}
 
 /** Globális rétegek: kereső, minikosár, értesítések helye. A cookie sávot a site.js rajzolja ki. */
 add_action('wp_footer', function () {

@@ -1,0 +1,42 @@
+:root {
+	--iu-text-font-family: sans-serif;
+	--iu-heading-font-family: var(--iu-text-font-family);
+	--iu-menu-font-family: var(--iu-text-font-family);
+
+	--iu-text-font-size: 1vw;
+	--iu-text-small-font-size: calc(var(--iu-text-font-size) * 0.87);
+	--iu-heading-1-font-size: 3.4rem;
+	--iu-heading-2-font-size: 2.4rem;
+	--iu-heading-3-font-size: 1.5rem;
+	--iu-heading-4-font-size: 1.3rem;
+	--iu-heading-5-font-size: 1.2rem;
+	--iu-heading-6-font-size: 1.1rem;
+	--iu-button-font-size: 1rem;
+	--iu-menu-font-size: 1rem;
+	--iu-back-to-top-font-size: var(--iu-text-font-size);
+
+	--iu-text-line-height: 1.5em;
+	--iu-text-small-line-height: calc(var(--iu-text-line-height) * 0.87);
+	--iu-heading-line-height: 1.1;
+
+	--iu-text-color: var(--wp--preset--color--dark-gray);
+	--iu-text-color-muted: var(--wp--preset--color--light-gray);
+	--iu-heading-color: var(--iu-text-color);
+	--iu-menu-color: var(--iu-text-color);
+	--iu-submenu-color: var(--iu-text-color);
+	--iu-link-color: var(--wp--preset--color--primary);
+
+	--iu-menu-font-weight: normal;
+	
+	--iu-section-fullwidth-padding: 2rem;
+	--iu-section-default-padding: 2.5rem;
+	--iu-row-width: 80%;
+	
+	--iu-column-gap: 2.1rem;
+	--iu-group-gap: .9rem;
+	--iu-menu-gap: 1.5rem;
+
+	--iu-icon-default-color: var(--iu-text-color);
+	--iu-icon-highlight-color: var(--wp--preset--color--primary);
+	--iu-icon-inverted-color: var(--wp--preset-color--dart-gray);
+}

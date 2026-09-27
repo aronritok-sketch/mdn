@@ -1,8 +1,10 @@
 /* ==========================================================================
-   iu_theme szerkezeti alap – CSAK A PROTOTÍPUSHOZ
-   WordPressben ezt az iu_theme saját style.css-e és blokk-CSS-e adja,
-   ezért a child témába NEM kell átvinni. A vizuális réteg a site.css-ben
-   és a shop.css-ben van, az már átvihető.
+   iu keretrendszer alap – a child téma saját szerkezeti és tipográfiai rétege
+   A valódi iu_theme block-styles.css-e (p, li, h1–h6 betű, méret, szín) és a
+   dizájnt felülíró blokk-CSS-ek (iu/row, iu/column, iu/section, iu/group,
+   iu/button, iu/query, iu/card, iu/icon, iu/menu …) nem töltődnek be
+   (inc/theme.php: mandala_iu_base_styles). Helyettük ez a réteg adja a rácsot,
+   a címsorokat és a bekezdéseket – ugyanazt, amire a prototípus épül.
    ========================================================================== */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -109,3 +111,23 @@ p.is-muted, .has-muted-color { color: var(--iu-text-color-muted); }
 @media (max-width: 560px) {
   .iu-query-col-2, .iu-query-col-3 { grid-template-columns: 1fr; }
 }
+
+
+/* Az iu_theme style.css-ének megtartott részei */
+#wpadminbar { position: fixed !important; }
+span.dashicons { font-size: 1.5rem; width: unset; height: unset; }
+.iu-text-align-left { text-align: left; }
+.iu-text-align-center { text-align: center; }
+.iu-text-align-right { text-align: right; }
+.iu-text-small { font-size: var(--iu-text-small-font-size); }
+.iu-text-muted { color: var(--iu-text-color-muted); }
+
+/* Az iu/form blokk a gomb CSS-ét újra betölti (a:hover fehér háttér) – a téma gombszínei maradjanak. */
+a.iu-button:hover { background: var(--btn-bg); color: var(--btn-fg); }
+.iu-form-field label { font: inherit; }
+.iu-form-text input { font: inherit; }
+
+/* iu/breadcrumbs – a valódi keretrendszer markupja (span-ek, külön elválasztóval) */
+.iu-breadcrumbs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); }
+.iu-breadcrumbs-separator { opacity: .5; }
+.iu-breadcrumbs-current { color: var(--c-ink); }

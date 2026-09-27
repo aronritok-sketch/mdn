@@ -1,0 +1,8 @@
+.iu-button-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--iu-group-gap);
+}
+.iu-button-group-justify-flex-start { justify-content: flex-start; }
+.iu-button-group-justify-center { justify-content: center; }
+.iu-button-group-justify-flex-end { justify-content: flex-end; }

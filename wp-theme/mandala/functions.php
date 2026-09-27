@@ -9,7 +9,8 @@
 
 defined('ABSPATH') || exit;
 
-define('MANDALA_VERSION', '1.0.0');
+// A stíluslap ideje is benne van: frissítés után a böngésző biztosan az új CSS/JS-t kéri.
+define('MANDALA_VERSION', '1.0.0.' . (int) @filemtime(__DIR__ . '/style.css'));
 define('MANDALA_DIR', __DIR__);
 define('MANDALA_URL', get_stylesheet_directory_uri());
 

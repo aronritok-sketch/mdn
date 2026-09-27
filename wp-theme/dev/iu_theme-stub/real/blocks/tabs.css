@@ -1,0 +1,30 @@
+.iu-tabs .iu-tabs-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .6rem;
+}
+.iu-tabs .iu-tabs-tabs a {
+	color: var(--iu-text-color);
+	cursor: pointer;
+}
+
+.iu-tabs .iu-tabs-contents {
+	position: relative;
+}
+.iu-tabs:not(.wp-block-iu-tabs) .iu-tabs-contents > * {
+	position: absolute;
+	top: 0;
+	left: 0;
+	opacity: 0;
+	transition: opacity .3s;
+}
+.iu-tabs .iu-tabs-contents .iu-tabs-active {
+	position: relative;
+	opacity: 1;
+}
+.iu-tabs .iu-tabs-contents .iu-tab :first-child {
+	margin-top: 0;
+}
+.iu-tabs .iu-tabs-contents .iu-tab :last-child {
+	margin-bottom: 0;
+}
