@@ -19,7 +19,7 @@ final class Mandala_Setup
     /** Lépés => verzió. Új lépés vagy módosított lépés: verzió emelés. */
     public const STEPS = [
         'site' => 1,
-        'woocommerce' => 2,
+        'woocommerce' => 3,
         'tax' => 1,
         'shipping' => 2,
         'payments' => 1,
@@ -219,13 +219,28 @@ final class Mandala_Setup
             'woocommerce_catalog_columns' => 3,
             'woocommerce_catalog_rows' => 4,
             'woocommerce_coming_soon' => 'no',
-            // Levelek: a Mandala arculata (automatizmusok és WooCommerce értesítők).
+            // Levelek: a Mandala arculata (automatizmusok és WooCommerce értesítők). A WooCommerce 9.9+
+            // „színek a témából” szinkronja lilára írná át őket – kikapcsoljuk.
+            'woocommerce_email_auto_sync_with_theme' => 'no',
             'woocommerce_email_base_color' => '#A9581A',
             'woocommerce_email_background_color' => '#F7F4EE',
             'woocommerce_email_body_background_color' => '#FFFFFF',
             'woocommerce_email_text_color' => '#1C1916',
             'woocommerce_email_footer_text' => get_bloginfo('name') . ' – hangtálak, füstölők és szakrális tárgyak Nepálból és Indiából',
+            'woocommerce_email_footer_text_color' => '#6E6357',
+            // A vásárló válasza a bolt címére menjen (nem a feladó technikai címére).
+            'woocommerce_email_reply_to_enabled' => 'yes',
+            'woocommerce_email_reply_to_name' => get_bloginfo('name'),
+            'woocommerce_email_reply_to_address' => mandala_config('contact')['email'] ?? get_option('admin_email'),
         ];
+        // Ha a szinkron már felülírta a színeket, az nem kézi módosítás: újra beírjuk őket.
+        if (get_option('woocommerce_email_auto_sync_with_theme') === 'yes') {
+            $written = (array) get_option('mandala_setup_written', []);
+            foreach (['woocommerce_email_base_color', 'woocommerce_email_background_color', 'woocommerce_email_body_background_color', 'woocommerce_email_text_color', 'woocommerce_email_footer_text_color'] as $k) {
+                unset($written[$k]);
+            }
+            update_option('mandala_setup_written', $written, false);
+        }
         foreach ($options as $key => $value) {
             $this->set($key, $value);
         }

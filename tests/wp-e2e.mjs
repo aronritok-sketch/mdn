@@ -235,6 +235,9 @@ ok(await mp.isVisible('[data-filters].is-open'), 'mobil: szűrőpanel');
 await mp.click('.filters-apply [data-filters-close]');
 await mp.click('.mobile-toggle[aria-controls]');
 ok(await mp.isVisible('#main-menu.is-open'), 'mobil: menü nyílik');
+// A panel a teljes képernyőt fedje, és a menüpontok kattinthatók legyenek (nem szorulhat a fejlécbe).
+await mp.waitForTimeout(500); // beúszó animáció
+ok(await mp.evaluate(() => { const m = document.querySelector('#main-menu'); const r = m.getBoundingClientRect(); const a = [...m.querySelectorAll('a')].find((x) => x.textContent.trim() === 'Magazin'); if (!a) return false; const ar = a.getBoundingClientRect(); return r.height >= innerHeight - 1 && m.contains(document.elementFromPoint(ar.x + ar.width / 2, ar.y + ar.height / 2)); }), 'mobil: a menü a teljes képernyőt fedi, a menüpontok kattinthatók');
 ok((await mp.evaluate(() => document.documentElement.scrollWidth)) <= 390, 'mobil: nincs vízszintes görgetés');
 
 ok(errors.length === 0, 'nincs JS / szerver hiba', errors.slice(0, 5).join(' | '));

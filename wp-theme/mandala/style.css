@@ -95,7 +95,9 @@ a:hover { color: var(--c-ink); }
 .site-notice strong { color: var(--c-white); font-weight: 500; }
 .site-notice .sep { opacity: .4; }
 .site-header { position: sticky; top: 0; z-index: 50; }
-.site-masthead { padding: 0; background: rgba(247, 244, 238, .9); backdrop-filter: saturate(1.6) blur(14px); -webkit-backdrop-filter: saturate(1.6) blur(14px); border-bottom: 1px solid transparent; transition: border-color .3s, background .3s; }
+/* A homályosítás ál-elemen: a backdrop-filter a fejlécre téve a benne lévő fix mobilmenüt a fejléc méretére szorítaná. */
+.site-masthead { position: relative; isolation: isolate; padding: 0; background: rgba(247, 244, 238, .9); border-bottom: 1px solid transparent; transition: border-color .3s, background .3s; }
+.site-masthead::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; backdrop-filter: saturate(1.6) blur(14px); -webkit-backdrop-filter: saturate(1.6) blur(14px); }
 .site-header.is-scrolled .site-masthead { border-color: var(--c-line); background: rgba(247, 244, 238, .96); }
 .site-masthead .iu-row { min-height: var(--header-h); align-items: center; }
 .site-masthead .iu-group { flex-wrap: nowrap; }

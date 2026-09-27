@@ -147,7 +147,9 @@ function mandala_test_chat_mock(array $req): array
     $log['tool_result'] = $result;
     update_option('mandala_chat_mock', $log, false);
     $p = $result['products'][0] ?? (isset($result['url']) ? $result : null);
-    $reply = $p ? "Ezt ajánlom:\n- [{$p['name']}]({$p['url']}) – {$p['price']}, **{$p['stock']}**\n\nHa kérdésed van, szólj! [Külső](https://example.com/x)"
+    // A külső link csak a teszt első kérdésénél (a „külső link nem kattintható” ellenőrzéshez).
+    $external = str_contains((string) wp_json_encode($req['messages'], JSON_UNESCAPED_UNICODE), 'kezdőnek 30 000') ? ' [Külső](https://example.com/x)' : '';
+    $reply = $p ? "Ezt ajánlom:\n- [{$p['name']}]({$p['url']}) – {$p['price']}, **{$p['stock']}**\n\nHa kérdésed van, szólj!{$external}"
         : 'Sajnos nem találtam ilyet.';
     return $wrap(['stop_reason' => 'end_turn', 'content' => [['type' => 'text', 'text' => $reply]]]);
 }
