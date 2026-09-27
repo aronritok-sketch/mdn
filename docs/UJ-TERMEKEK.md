@@ -8,10 +8,14 @@ A webért felelős munkatársnak. Hol: **WordPress admin → Termékek → Új t
    (piszkozat), és bekerül az **„Új, élesítésre vár”** fülre.
 2. 15 percen belül összesítő e-mail jön az új termékekről (a címzettek a *Beállítások* fülön állíthatók).
    A menüben a „Új termékek” mellett a darabszám látszik; ha valami 2 napnál régebben vár, reggel emlékeztető jön.
-3. Ha a Claude be van kapcsolva, pár percen belül javaslatot ad a kategóriára és a szűrőadatokra. Ha biztos
+3. **Tölts fel fő képet** – pár percen belül a Claude a fotóból és a termék adataiból megírja a leírást, a rövid
+   leírást és a kép alt-szövegét (csak az üres mezőket; méretet, anyagot nem talál ki, gyógyhatást nem ígér).
+   A termék szerkesztőjében „Claude írta” jelzés és a bizonytalan pontok látszanak – élesítés előtt olvasd át.
+   Azonnal: „Leírás írása a képből (Claude)” gomb a szerkesztő „Új termék” dobozában.
+4. Ha a Claude be van kapcsolva, pár percen belül javaslatot ad a kategóriára és a szűrőadatokra. Ha biztos
    benne, ezeket be is írja (a termék ettől még nem lesz élő); ha nem, a sorban „Claude: … · 62%” jelzés és a
    termék szerkesztőjében a javaslat látszik – egy kattintással alkalmazható, utána érdemes ellenőrizni.
-4. A sorban minden terméknél látszik, mi hiányzik még (piros: kötelező, szürke: ajánlott):
+5. A sorban minden terméknél látszik, mi hiányzik még (piros: kötelező, szürke: ajánlott):
    - **Kategória** (fő- és alkategória),
    - **Fő termékkép**,
    - **Leírás** (alapból legalább 150 karakter),
@@ -19,7 +23,7 @@ A webért felelős munkatársnak. Hol: **WordPress admin → Termékek → Új t
    - **Szűrőadatok** – mindenhol: szándék, eredet; hangtálnál: hang, frekvencia, súly, csakra, készítés;
      füstölőnél: illat, típus; ruházatnál: méret, szín,
    - ajánlott: további képek, rövid leírás, hangtálnál hangminta.
-5. **Szerkesztés** → pótold a hiányzókat (a szerkesztő jobb oldalán az ellenőrzőlista is látszik) → **Élesítés**
+6. **Szerkesztés** → pótold a hiányzókat (a szerkesztő jobb oldalán az ellenőrzőlista is látszik) → **Élesítés**
    a sorban, vagy **Közzététel** a szerkesztőben. Hiányos terméket a rendszer nem enged élesre: piszkozat marad,
    és kiírja, mi hiányzik.
 

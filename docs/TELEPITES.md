@@ -40,7 +40,7 @@ A csomag tartalma:
    | AI SEO, gyűjtőoldalak, ajánló, feedek | **egy gombbal indul**, utána magától fut; itt vannak a feed címek |
    | Jogi oldalak | jelzi, ha az ÁSZF / adatkezelés / impresszum kitöltendő részei maradtak |
    | Gyorsítás | gyorsítótár-bővítmény, **meglévő képek WebP-re** (gomb) |
-   | Próbarendelések | 8 próba pipálható listája (kártya, utánvét, utalás, számla, csomagszám, mobil, hírlevél, AI) |
+   | Próbarendelések | **önellenőrzés egy gombbal** (oldalak, pénztár, gyorsítótár, tömörítés, HTTPS, oldaltérkép, feed, levélküldés, háttérfeladatok) + 8 próba pipálható listája (kártya, utánvét, utalás, számla, csomagszám, mobil, hírlevél, AI) |
    | Élesítés | ami még nyitott, és az élesítés teendői |
 
 A lenti fejezetek ugyanezt írják le részletesen (ha valamit kézzel csinálnál, vagy elakadnál).
@@ -132,6 +132,8 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → Beállítások → Fizetés → **Előre utalás** | bankszámlaszám (a köszönőoldal és a levél innen veszi) |
 | WooCommerce → Beállítások → **Szállítás** | a GLS bővítmény módjai a „Magyarország” zónában (a személyes átvétel a lista végén) |
 | **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
+| Eszközök → **Átirányítások** | a régi címek magától az új helyükre visznek; ide csak a meg nem talált régi címek kerülnek (találatszámmal) – a gyakoriaknak adj célt; tömeges betöltés „régi;új” sorokkal |
+| Vezérlőpult → **Mandala őrszem** | óránkénti állapot (háttérfeladatok, hibák, rendelések, fizetések, levélküldés, feedek, tárhely, SSL); baj esetén levél megy |
 | WooCommerce → **Mandala feedek** | Árukereső, Árgép, Google Merchant, Meta katalógus feed címei (egyszer bemásolni a szolgáltatónál); óránként frissülnek |
 | WooCommerce → **Mandala SEO** | AI keresőoptimalizálás állapota (cím, meta leírás, kép alt, GYIK termékenként; napi korlát), gyűjtőoldalak |
 | WooCommerce → **Mandala kuponok** | feliratkozó ablak első vásárlási kuponnal (%, érvényesség, késleltetés), ajánlási program (a barát kedvezménye, az ajánló jutalma) |
@@ -247,4 +249,19 @@ Terheléses teszt 3000 termékkel és 5000 rendeléssel: eredmények és tanuls�
    háttérben küldést („Optimize Email Sending”).
 6. **Terheléses próba a tesztszerveren** (élesen soha – valódi utánvétes rendeléseket ad le!):
    `BASE=https://teszt.mandala.hu VUS=20 BUYERS=2 DURATION=60 node tests/load.mjs`
+
+---
+
+## 10. Indulás utáni biztonsági háló (egyszer beállítani, utána magától megy)
+
+1. **Őrszem:** Mandala levelek → Beállítások → *Őrszem* – címzett (alapból a bolt e-mail-címe). Óránként
+   ellenőriz, és csak baj esetén ír (pl. „3 órája nincs rendelés, pedig ilyenkor szokott”, „nem mennek ki a
+   levelek”, „állnak a háttérfeladatok”, „sok sikertelen fizetés”).
+2. **Külső figyelő (5 perc, ingyenes):** [uptimerobot.com](https://uptimerobot.com) → *New monitor* → HTTP(s) →
+   a Mandala levelek → Beállítások alatt látható titkos állapot-cím (`?mandala_health=…`). Akkor is jelez
+   (e-mailben / SMS-ben), ha a teljes oldal vagy a szerver áll le – ezt a WordPress magáról nem tudja megírni.
+3. **Átirányítások:** élesítés után egy héttel nézz rá (Eszközök → Átirányítások): a gyakran keresett, de meg
+   nem talált régi címeknek adj célt. A Google Search Console „Nem található (404)” listája is ide tölthető be.
+4. **Csalásvédelem:** nincs teendő. Ha tömeges kártyatesztelés indul, a pénztár magától szigorít egy órára, és
+   levél jön – ilyenkor érdemes a Teya felületén a tranzakciókat megnézni.
 

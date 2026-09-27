@@ -42,3 +42,14 @@ if (form && sticky && 'IntersectionObserver' in window) {
     $('[data-add-sticky]').tabIndex = show ? 0 : -1;
   }).observe(form);
 }
+
+// Megnézett termék (elhagyott böngészés levél, browse.php): csak feliratkozónak (mandala_k süti) és
+// marketing sütikhez adott hozzájárulással jelez; az azonosító httpOnly sütiben van, JS-ből nem olvasható.
+(() => {
+  const M = window.MANDALA || {};
+  let consent = null;
+  try { consent = JSON.parse(localStorage.getItem('mandala.cookie.v1') || 'null'); } catch { /* privát mód */ }
+  if (!M.productId || !M.rest || !consent?.marketing || !/(?:^|; )mandala_k=1(?:;|$)/.test(document.cookie)) return;
+  const body = new Blob([JSON.stringify({ id: M.productId })], { type: 'application/json' });
+  if (!navigator.sendBeacon?.(`${M.rest}seen`, body)) fetch(`${M.rest}seen`, { method: 'POST', body, credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+})();

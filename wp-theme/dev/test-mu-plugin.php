@@ -224,5 +224,33 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
 }, 5, 3);
 
+/** AI termékszöveg helyettesítő (record_copy): a kép is megérkezik-e, és determinisztikus szöveg. */
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    if ($url !== 'https://api.anthropic.com/v1/messages') {
+        return $pre;
+    }
+    $req = json_decode($args['body'], true);
+    if (($req['tools'][0]['name'] ?? '') !== 'record_copy') {
+        return $pre;
+    }
+    $results = [];
+    $images = 0;
+    foreach ($req['messages'][0]['content'] as $block) {
+        if (($block['type'] ?? '') === 'image') {
+            $images++;
+        }
+        if (($block['type'] ?? '') === 'text' && str_starts_with($block['text'], 'TERMÉK: ')) {
+            $i = json_decode(substr($block['text'], strlen('TERMÉK: ')), true);
+            $results[] = ['id' => $i['id'], 'description' => ['A(z) ' . $i['name'] . ' kézzel készült darab, a fotón jól látszik a felülete és a díszítése.', 'Használd mindennapi elcsendesedéshez, vagy ajándékozd annak, aki szereti a keleti tárgyakat.'],
+                'short_description' => 'AI rövid leírás: ' . $i['name'] . '.', 'image_alt' => 'Fotó: ' . $i['name'], 'uncertain' => ['a pontos méret']];
+        }
+    }
+    update_option('mandala_copy_mock', ['images' => $images, 'products' => count($results)], false);
+    $body = ['id' => 'msg_copy', 'type' => 'message', 'role' => 'assistant', 'model' => $req['model'], 'stop_reason' => 'tool_use',
+        'content' => [['type' => 'tool_use', 'id' => 'toolu_copy', 'name' => 'record_copy', 'input' => ['results' => $results]]],
+        'usage' => ['input_tokens' => 1500, 'output_tokens' => 300]];
+    return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+}, 5, 3);
+
 // Kis bemutató katalógusnál a gyűjtőoldalak alsó határa a tesztben állítható.
 add_filter('mandala_collection_min', fn($min) => (int) get_option('mandala_test_collection_min', $min));

@@ -101,12 +101,15 @@ async function buyer() {
     const nonce = co.text.match(/name="woocommerce-process-checkout-nonce" value="([^"]+)"/)?.[1];
     const ship = co.text.match(/name="shipping_method\[0\]"[^>]*value="([^"]+)"/)?.[1] || '';
     if (!nonce) { rec('rendelés leadása', 0, false, 'nincs nonce'); continue; }
+    // A csalásvédelem aláírt időbélyege; a valódi vásárló is legalább pár másodpercig tölti az űrlapot.
+    const ct = co.text.match(/name="mandala_ct" value="([^"]+)"/)?.[1] || '';
+    await new Promise((r) => setTimeout(r, 2200));
     n++;
     const form = new URLSearchParams({
       billing_last_name: 'Terhelés', billing_first_name: `Vevő${n}`, billing_country: 'HU', billing_postcode: '1111', billing_city: 'Budapest',
       billing_address_1: 'Teszt utca 1.', billing_phone: '+36301234567', billing_email: `load${Date.now()}${n}@example.com`,
       'shipping_method[0]': ship, payment_method: 'cod', terms: 'on', 'terms-field': '1',
-      'woocommerce-process-checkout-nonce': nonce, _wp_http_referer: '/?wc-ajax=update_order_review',
+      'woocommerce-process-checkout-nonce': nonce, _wp_http_referer: '/?wc-ajax=update_order_review', mandala_ct: ct, mandala_hp: '',
     });
     const r = await c.req('rendelés leadása', '/?wc-ajax=checkout', { method: 'POST', body: form, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, json: true });
     if (r.data && r.data.result !== 'success') { const s = stats.get('rendelés leadása'); s.err++; s.codes['wc hiba'] = (s.codes['wc hiba'] || 0) + 1; if (!globalThis.shown) { globalThis.shown = 1; console.error('Pénztár hiba:', String(r.data.messages || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300)); } }

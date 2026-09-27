@@ -456,6 +456,13 @@ add_action('admin_post_mandala_wizard', function () {
                 $n = mandala_webp_start();
                 $msg = ['success', $n . ' kép átalakítása elindult a háttérben (15 képenként).'];
                 break;
+            case 'selfcheck':
+                $results = mandala_selfcheck();
+                $state['selfcheck'] = ['at' => time(), 'results' => $results];
+                $fail = count(array_filter($results, fn($r) => $r['status'] === 'fail'));
+                $warn = count(array_filter($results, fn($r) => $r['status'] === 'warn'));
+                $msg = [$fail ? 'error' : ($warn ? 'warning' : 'success'), $fail || $warn ? sprintf('Önellenőrzés: %d hiba, %d figyelmeztetés – részletek lent.', $fail, $warn) : 'Önellenőrzés: minden rendben.'];
+                break;
             case 'live':
                 $state['checks']['live'] = time();
                 $msg = ['success', 'Gratulálunk – a bolt élesítve!'];
@@ -599,7 +606,7 @@ function mandala_wiz_page(): void
 .wiz-dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;background:#f0f0f1;color:#50575e}
 .is-ok>a .wiz-dot,.wiz-rows .is-ok .wiz-dot{background:#00a32a;color:#fff}
 .is-todo>a .wiz-dot,.wiz-rows .is-todo .wiz-dot{background:#dba617;color:#fff}
-.is-warn>a .wiz-dot{background:#dba617;color:#fff}.is-info>a .wiz-dot{background:#2271b1;color:#fff}
+.is-warn>a .wiz-dot,.wiz-rows .is-warn .wiz-dot{background:#dba617;color:#fff}.wiz-rows .is-fail .wiz-dot{background:#d63638;color:#fff}.wiz-selfcheck p{margin:2px 0 0;color:#50575e}.is-info>a .wiz-dot{background:#2271b1;color:#fff}
 .wiz-main{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:20px 24px}
 .wiz-main h2{margin-top:0;font-size:20px}.wiz-main h3{margin:22px 0 8px}
 .wiz-status{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:600}
@@ -832,9 +839,30 @@ function mandala_wiz_step_speed(): void
         . '</ul><p class="description">Mérés élesítés után: pagespeed.web.dev – a termékoldal és a kínálat mobilon.</p>';
 }
 
+/** Az önellenőrzés eredménye (a téma mandala_selfcheck() függvényéből). */
+function mandala_wiz_selfcheck_html(): string
+{
+    if (!function_exists('mandala_selfcheck')) {
+        return '';
+    }
+    $sc = mandala_wiz_state()['selfcheck'] ?? null;
+    $out = '<h3>Automatikus önellenőrzés</h3><p>Oldalak, pénztár, gyorsítótár, tömörítés, HTTPS, oldaltérkép, feed, levélküldés, háttérfeladatok, tárhely – egy kattintással (fél perc).</p>'
+        . mandala_wiz_button('selfcheck', $sc ? 'Önellenőrzés újra' : 'Önellenőrzés futtatása', [], 'button button-primary');
+    if (is_array($sc) && !empty($sc['results'])) {
+        $icons = ['ok' => '✓', 'warn' => '!', 'fail' => '✗'];
+        $out .= '<ul class="wiz-rows wiz-selfcheck">';
+        foreach ($sc['results'] as $r) {
+            $out .= '<li class="' . ($r['status'] === 'ok' ? 'is-ok' : ($r['status'] === 'warn' ? 'is-warn' : 'is-fail')) . '"><span class="wiz-dot" aria-hidden="true">' . $icons[$r['status']] . '</span><div><strong>' . esc_html($r['label']) . '</strong><p>' . esc_html($r['msg']) . '</p></div></li>';
+        }
+        $out .= '</ul><p class="description">Utolsó futás: ' . esc_html(wp_date('Y.m.d. H:i', (int) $sc['at'])) . '</p>';
+    }
+    return $out;
+}
+
 function mandala_wiz_step_tests(): void
 {
-    echo '<p>Élesítés előtt ezeket egyszer végig kell próbálni (kártyánál teszt módban vagy kis összeggel, utána visszatérítve):</p>';
+    echo mandala_wiz_selfcheck_html(); // phpcs:ignore
+    echo '<h3>Próbarendelések</h3><p>Élesítés előtt ezeket egyszer végig kell próbálni (kártyánál teszt módban vagy kis összeggel, utána visszatérítve):</p>';
     foreach (mandala_wiz_tests() as $key => $label) {
         echo mandala_wiz_checkbox($key, $label); // phpcs:ignore
     }
@@ -852,7 +880,9 @@ function mandala_wiz_step_live(): void
     if ($open) {
         echo '<div class="notice notice-warning inline"><p>Még nyitott kötelező lépés: <strong>' . esc_html(implode(', ', $open)) . '</strong>.</p></div>';
     }
-    echo '<ol><li>Teya és GLS éles módba.</li><li>Bemutató tartalom törölve (ha volt).</li><li>Beállítások → Olvasás: „A keresőmotorok indexelése” engedélyezve.</li><li>Google Search Console: oldaltérkép beküldése; Merchant Center: feed.</li><li>Az első napokban figyeld a Mandala levelek naplóját és a heti összefoglalót.</li></ol>';
+    echo '<ol><li>Teya és GLS éles módba.</li><li>Bemutató tartalom törölve (ha volt).</li><li>Beállítások → Olvasás: „A keresőmotorok indexelése” engedélyezve.</li><li>Google Search Console: oldaltérkép beküldése; Merchant Center: feed.</li><li>Az első napokban figyeld a Mandala levelek naplóját és a heti összefoglalót.</li>'
+        . '<li>Külső figyelő (ingyenes, 5 percenként – akkor is jelez, ha az egész oldal leáll): <a href="https://uptimerobot.com" target="_blank" rel="noopener">UptimeRobot</a> → HTTP(s) figyelő ezzel a címmel: ' . (function_exists('mandala_health_url') ? '<code>' . esc_html(mandala_health_url()) . '</code>' : 'Mandala levelek → Beállítások → Őrszem') . '</li>'
+        . '<li>Egy hét múlva: Eszközök → Átirányítások – a gyakori, meg nem talált régi címeknek adj célt.</li></ol>';
     echo mandala_wiz_button('live', $open ? 'Élesítés így is' : 'A bolt élesítve', [], 'button button-primary button-hero');
     if (get_option('blog_public') === '0') {
         echo '<div class="notice notice-error inline"><p>A keresőmotorok indexelése ki van kapcsolva (Beállítások → Olvasás).</p></div>';

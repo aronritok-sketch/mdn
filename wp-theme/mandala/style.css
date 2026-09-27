@@ -1117,3 +1117,6 @@ body:has(.sticky-atc.is-visible) .chat-launcher { bottom: calc(var(--space-4) + 
 .return-items td + td { text-align: right; width: 90px; }
 .return-form .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); }
 @media (max-width: 599.8px) { .return-form .form-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Csalásvédelem: a robotcsapda mező (ember nem látja, képernyőolvasó sem) */
+.mandala-hp { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }

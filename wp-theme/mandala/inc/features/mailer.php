@@ -25,6 +25,7 @@ function mandala_automation_settings(): array
         'reorder' => 'yes', 'reorder_days' => 40, 'reorder_cats' => 'fustolok,illoolajok,teak',
         'crosssell' => 'yes', 'crosssell_days' => 14,
         'wishlist' => 'yes',
+        'browse' => 'yes', 'browse_hours' => 24,
         'review' => 'yes', 'review_days' => 10,
         'moderator' => '',
         'signature' => "Szeretettel:\na Mandala csapata",

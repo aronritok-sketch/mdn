@@ -24,6 +24,8 @@ Részletek, követelmények és élesítési teendők: [`wp-theme/mandala/README
 ```bash
 python3 tools/build-theme.py             # téma frissítése a prototípusból + zip
 python3 tools/build-theme.py --content   # a blokk-markup újragenerálása is (utána: wp-theme/dev/canon.mjs)
+# A teszt WordPress PHP beépített szerverrel: PHP_CLI_SERVER_WORKERS=4 php -S localhost:8080 … (az önellenőrzés és
+# az őrszem a saját címét is lekéri – egy folyamattal ez beragadna)
 BASE=http://localhost:8080 node tests/wp-e2e.mjs   # végponttól végpontig teszt egy telepített WordPressen
 BASE=http://localhost:8080 WP="wp --path=…" node tests/wp-features.mjs   # a funkciómodulok tesztje
 node tests/search.mjs                               # a keresőmotor egységtesztje (böngésző nélkül)

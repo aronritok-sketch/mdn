@@ -25,6 +25,7 @@ function mandala_onboarding_settings(): array
         'daily' => 'yes',        // napi emlékeztető, ha van 2 napnál régebbi tétel
         'since' => 0,            // a sor bekapcsolásának ideje (a biztonsági háló ennél újabbakat néz)
         'juta_sale' => 'wholesale', // a JUTA „Akciós ár” = nagyker ár (b2b.php); 'shop': bolti akciós ár
+        'ai_copy' => 'yes',      // a Claude a fotóból megírja a hiányzó leírást (ai-copy.php)
     ]);
 }
 function mandala_onboarding_on(): bool
@@ -421,6 +422,7 @@ function mandala_onboarding_page(): void
         $s['recipients'] = implode(', ', array_filter(array_map('trim', explode(',', $in['recipients'] ?? '')), 'is_email'));
         $s['min_desc'] = max(0, (int) ($in['min_desc'] ?? 150));
         $s['juta_sale'] = ($in['juta_sale'] ?? 'wholesale') === 'shop' ? 'shop' : 'wholesale';
+        $s['ai_copy'] = empty($in['ai_copy']) ? 'no' : 'yes';
         update_option('mandala_onboarding', $s, false);
         echo '<div class="notice notice-success"><p>Mentve.</p></div>';
     }
@@ -442,6 +444,7 @@ function mandala_onboarding_page(): void
             . '<tr><th scope="row"><label for="ob-rec">Értesítendők</label></th><td><input type="text" class="regular-text" id="ob-rec" name="mandala_onboarding[recipients]" value="' . esc_attr($s['recipients']) . '" placeholder="' . esc_attr(get_option('admin_email')) . '"><p class="description">E-mail-címek vesszővel (a webért felelős munkatárs).</p></td></tr>'
             . '<tr><th scope="row">Napi emlékeztető</th><td><label><input type="checkbox" name="mandala_onboarding[daily]" value="1"' . checked($s['daily'], 'yes', false) . '> ha van 2 napnál régebben váró termék</label></td></tr>'
             . '<tr><th scope="row"><label for="ob-min">Leírás legalább</label></th><td><input type="number" min="0" id="ob-min" name="mandala_onboarding[min_desc]" value="' . esc_attr((string) $s['min_desc']) . '" style="width:90px"> karakter</td></tr>'
+            . '<tr><th scope="row">Leírás a fotóból</th><td><label><input type="checkbox" name="mandala_onboarding[ai_copy]" value="1"' . checked($s['ai_copy'], 'yes', false) . '> a fő kép feltöltése után a Claude megírja a hiányzó leírást, rövid leírást és a kép alt-szövegét</label><p class="description">Csak az üres mezőket tölti ki; méretet, anyagot nem talál ki, gyógyhatást nem ígér. Élesítés előtt átolvasandó.</p></td></tr>'
             . '<tr><th scope="row">JUTA „Akciós ár”</th><td><label><input type="radio" name="mandala_onboarding[juta_sale]" value="wholesale"' . checked($s['juta_sale'], 'wholesale', false) . '> <strong>nagyker ár</strong> (Wholesale Prices mező) – a bolti akciós árat a termékszerkesztőben állítjátok, a JUTA nem írja felül</label><br>'
             . '<label><input type="radio" name="mandala_onboarding[juta_sale]" value="shop"' . checked($s['juta_sale'], 'shop', false) . '> bolti akciós ár (ahogy a JUTA küldi)</label></td></tr>'
             . '</table>';
