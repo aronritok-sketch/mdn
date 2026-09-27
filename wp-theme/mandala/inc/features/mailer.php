@@ -22,7 +22,9 @@ function mandala_automation_settings(): array
     return wp_parse_args((array) get_option('mandala_automations', []), [
         'abandoned' => 'yes', 'abandoned_hours' => 3,
         'care' => 'yes', 'care_days' => 2,
-        'reorder' => 'yes', 'reorder_days' => 40, 'reorder_cats' => 'fustolok',
+        'reorder' => 'yes', 'reorder_days' => 40, 'reorder_cats' => 'fustolok,illoolajok,teak',
+        'crosssell' => 'yes', 'crosssell_days' => 14,
+        'wishlist' => 'yes',
         'review' => 'yes', 'review_days' => 10,
         'moderator' => '',
         'signature' => "Szeretettel:\na Mandala csapata",
@@ -223,7 +225,7 @@ function mandala_mail_types(bool $fresh = false): array
         ],
         'reorder' => [
             'label' => 'Újrarendelés emlékeztető', 'group' => 'Emlékeztetők', 'setting' => 'reorder', 'delay' => ['reorder_days', 'nap'], 'marketing' => true,
-            'when' => fn($s) => sprintf('A teljesítés után %d nappal, ha a rendelésben fogyóeszköz volt (%s).', $s['reorder_days'], $s['reorder_cats']),
+            'when' => fn($s) => sprintf('Fogyóeszköz (%s) vásárlása után: a vevő saját rendelési ritmusa szerint, ha már többször rendelt; különben %d nap × a vett mennyiség (legfeljebb 3×). Nem megy, ha közben újrarendelt.', $s['reorder_cats'], $s['reorder_days']),
             'vars' => $name + $order, 'blocks' => ['termekek' => 'A fogyóeszközök, egy kattintásos kosárba tétellel', 'gomb' => '„Új illatok” gomb (a kategóriára)'],
             'subject' => __('Fogytán a füstölő?', 'mandala'), 'heading' => __('Újrarendelés egy kattintással', 'mandala'),
             'body' => $hello . '<p>' . __('Talán már fogytán a füstölőd. Ha jólesett, egy kattintással újrarendelheted – vagy nézd meg az új illatokat.', 'mandala') . '</p>{termekek}{gomb}',

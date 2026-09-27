@@ -113,7 +113,7 @@ function mandala_chat_system_prompt(): string
         '- Ajánlásnál 1–3 terméket javasolj, mindegyikhez egy rövid indoklással, és linkeld pontosan az eszköz által adott URL-lel: [Terméknév](url). Mindig írd mellé az árat.',
         '- Ha a vásárló egy termékoldalról kérdez, először kérd le a termék adatait (get_product).',
         '- Egészségügyi hatást ne ígérj (nem gyógyít, nem kezel betegséget). A hagyományt és a használók tapasztalatát leírhatod („sokan használják ellazuláshoz, meditációhoz”). Egészségügyi panasznál javasold, hogy forduljon orvoshoz.',
-        '- Rendelésekhez, csomagkövetéshez nem férsz hozzá: ilyenkor irányíts a Fiókom → Rendeléseim oldalra, vagy ajánld fel az ügyfélszolgálatot (contact_human).',
+        '- Rendelés állapotáról, csomagszámról csak az order_status eszközzel adhatsz tájékoztatást: kérd el a rendelésszámot és a rendeléshez megadott e-mail-címet (mindkettő a visszaigazoló levélben van). Enélkül rendelésadatot ne mondj, és ne találgass. Visszaküldéshez a követőoldal linkjét add meg (ott indítható), vagy a Fiókom → Rendeléseim oldalt.',
         '- Ha nem tudsz biztosan válaszolni, a vásárló emberrel beszélne, panasza vagy egyedi kérése van (pl. nagyobb tétel, egyedi darab keresése), használd a contact_human eszközt.',
         '- Csak a bolttal kapcsolatos témákban segíts; más kérést (pl. házi feladat, programozás, általános beszélgetés) udvariasan hárítsd el, és kínáld fel, miben segíthetsz a boltban.',
         '- Ne kérj személyes adatot (név, cím, telefonszám, e-mail). Ha a vásárló megad ilyet, ne ismételd vissza.',
@@ -145,6 +145,14 @@ function mandala_chat_tools(): array
             'name' => 'get_product',
             'description' => 'Egy termék részletes adatai: ár, készlet (vagy várható érkezés), leírás, jellemzők (pl. hang, frekvencia, súly, anyag), használat és gondozás, eredet, értékelések.',
             'input_schema' => ['type' => 'object', 'properties' => ['product_id' => ['type' => 'integer']], 'required' => ['product_id']],
+        ],
+        [
+            'name' => 'order_status',
+            'description' => 'Egy rendelés állapota: lépések (megrendelve, fizetve, csomagolás, feladva / átvehető), GLS csomagszám és követő link, a rendelés tételei, és a vásárló saját követőoldalának címe (ott visszaküldés is indítható). Csak akkor ad adatot, ha a rendelésszám és az e-mail-cím együtt stimmel.',
+            'input_schema' => ['type' => 'object', 'properties' => [
+                'order_number' => ['type' => 'string', 'description' => 'A rendelésszám, ahogy a vásárló megadta'],
+                'email' => ['type' => 'string', 'description' => 'A rendeléshez megadott e-mail-cím'],
+            ], 'required' => ['order_number', 'email']],
         ],
         [
             'name' => 'contact_human',
@@ -222,6 +230,9 @@ function mandala_chat_run_tool(string $name, array $input): array
             $out['reviews'] = array_map(fn($r) => (int) get_post_meta($r->ID, '_rating', true) . '/5: ' . mb_substr(wp_strip_all_tags($r->post_content), 0, 200), $reviews);
         }
         return [array_filter($out), [$id], false];
+    }
+    if ($name === 'order_status') {
+        return [mandala_chat_order_status((string) ($input['order_number'] ?? ''), (string) ($input['email'] ?? '')), [], false];
     }
     if ($name === 'contact_human') {
         $c = (array) mandala_config('contact', []);
@@ -524,4 +535,47 @@ function mandala_chat_admin_page(): void
         . '</table>';
     submit_button('Mentés');
     echo '</form></div>';
+}
+
+/** Rendelés állapota a chatnek – csak egyező rendelésszám + e-mail esetén; próbálkozás-korláttal. */
+function mandala_chat_order_status(string $number, string $email): array
+{
+    $ip = md5((string) ($_SERVER['REMOTE_ADDR'] ?? '') . wp_salt('nonce'));
+    $tries = (int) get_transient('mandala_chat_order_' . $ip);
+    if ($tries >= 8) {
+        return ['error' => 'Túl sok próbálkozás. Kérd meg a vásárlót, hogy nézze meg a visszaigazoló levelet, vagy írjon az ügyfélszolgálatnak.'];
+    }
+    set_transient('mandala_chat_order_' . $ip, $tries + 1, HOUR_IN_SECONDS);
+    $number = preg_replace('/[^0-9A-Za-z-]/', '', $number);
+    $email = strtolower(sanitize_email($email));
+    $order = null;
+    if ($number !== '' && $email) {
+        $cands = ctype_digit($number) ? [wc_get_order((int) $number)] : [];
+        foreach (wc_get_orders(['billing_email' => $email, 'limit' => 30, 'type' => 'shop_order']) as $o) {
+            $cands[] = $o;
+        }
+        foreach ($cands as $o) {
+            if ($o instanceof WC_Order && !($o instanceof WC_Order_Refund) && strtolower($o->get_billing_email()) === $email && (string) $o->get_order_number() === $number) {
+                $order = $o;
+                break;
+            }
+        }
+    }
+    if (!$order) {
+        return ['error' => 'Ezzel a rendelésszámmal és e-mail-címmel nincs rendelés. Kérd meg, hogy ellenőrizze a visszaigazoló levelet.'];
+    }
+    $out = [
+        'order_number' => $order->get_order_number(),
+        'status' => wc_get_order_status_name($order->get_status()),
+        'date' => $order->get_date_created() ? wp_date('Y. m. d.', $order->get_date_created()->getTimestamp()) : '',
+        'items' => array_map(fn($i) => $i->get_name() . ' × ' . $i->get_quantity(), array_values($order->get_items())),
+        'shipping' => $order->get_shipping_method(),
+        'total' => wp_strip_all_tags(wc_price($order->get_total())),
+    ];
+    if (function_exists('mandala_order_timeline')) {
+        $out['steps'] = array_map(fn($s) => $s['label'] . ' – ' . ['done' => 'kész', 'current' => 'folyamatban', 'todo' => 'hátravan'][$s['state']] . ($s['date'] ? ' (' . $s['date'] . ')' : ''), mandala_order_timeline($order));
+        $out['tracking'] = mandala_order_tracking($order);
+        $out['tracking_page'] = mandala_tracking_url($order);
+    }
+    return $out;
 }

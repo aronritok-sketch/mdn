@@ -13,6 +13,7 @@ mandala_add_block('mandala/page-lead', [
         if ($post && is_user_logged_in() && (int) $post->ID === (int) get_option('woocommerce_myaccount_page_id')) {
             return '';
         }
-        return $post && has_excerpt($post) ? '<p class="lead page-lead">' . esc_html(get_the_excerpt($post)) . '</p>' : '';
+        $text = (string) apply_filters('mandala_page_lead', $post && has_excerpt($post) ? get_the_excerpt($post) : '', $post);
+        return $text !== '' ? '<p class="lead page-lead">' . esc_html($text) . '</p>' : '';
     },
 ]);

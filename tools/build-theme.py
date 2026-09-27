@@ -706,6 +706,9 @@ def build_content():
         'kedvencek': section(one(dyn('mandala/wishlist')), className='pt-7'),
         'ertekeles': section(one(dyn('mandala/review-form')), className='pt-6'),
         'csomagkovetes': section(one(dyn('mandala/order-tracking')), className='pt-6'),
+        'gyujtemeny': section(one(dyn('mandala/collection')), className='pt-6'),
+        'fustolo-valaszto': section(one(dyn('mandala/quiz', quiz='fustolo')), className='pt-6'),
+        'ajandek-valaszto': section(one(dyn('mandala/quiz', quiz='ajandek')), className='pt-6'),
         'hangtal-valaszto': section(one(dyn('mandala/bowl-finder')), className='pt-6') + '\n\n' + consultation_section(),
         'ajandekcsomag': section(one(dyn('mandala/gift-builder')), className='pt-6') + '\n\n' + section(row('1-2|1-2',
             col('1-2', eyebrow('Ha nem tudod, mit választana'), h('Ajándékutalvány', anchor='utalvany'),
@@ -740,11 +743,24 @@ def build_zip():
 
 
 PACKAGE = ROOT / 'dist' / 'mandala-telepito-csomag.zip'
+WIZARD = ROOT / 'dist' / 'mandala-telepito-varazslo.zip'
+
+
+def build_wizard():
+    """A telepítő varázsló bővítmény – a téma zip-jével együtt (a varázsló telepíti és bekapcsolja)."""
+    src = ROOT / 'wp-plugin/mandala-telepito'
+    with zipfile.ZipFile(WIZARD, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(src.rglob('*')):
+            if f.is_file() and f.name != '.DS_Store' and 'theme' not in f.relative_to(src).parts:
+                z.write(f, Path('mandala-telepito') / f.relative_to(src))
+        z.write(DIST, Path('mandala-telepito/theme/mandala-tema.zip'))
+    print(f'{WIZARD.relative_to(ROOT)}  {WIZARD.stat().st_size / 1024:.0f} KB')
 
 
 def build_package():
     """Telepítő csomag: a téma zip, a telepítési útmutató, a munkafolyamat és a wp-config kiegészítés."""
     files = {
+        'mandala-telepito-varazslo.zip': WIZARD,
         'mandala-tema.zip': DIST,
         'TELEPITES.md': ROOT / 'docs/TELEPITES.md',
         'UJ-TERMEKEK.md': ROOT / 'docs/UJ-TERMEKEK.md',
@@ -767,4 +783,5 @@ if __name__ == '__main__':
     else:
         print('blokk-markup: változatlan (újragenerálás: --content, utána dev/canon.mjs)')
     build_zip()
+    build_wizard()
     build_package()

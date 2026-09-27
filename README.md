@@ -7,7 +7,8 @@ A prototípus az **Infinite Unity (iu_theme)** WordPress-keretrendszer szerkezet
 - **Üzleti elemzés:** [`docs/ELEMZES.md`](docs/ELEMZES.md)
 - **Blokktérkép és átadási terv:** [`docs/IU-BLOKKTERKEP.md`](docs/IU-BLOKKTERKEP.md)
 - **WordPress child téma (telepíthető):** [`wp-theme/mandala`](wp-theme/mandala/README.md) → `dist/mandala-tema.zip`
-- **Telepítő csomag (téma + útmutató + wp-config kiegészítés):** `dist/mandala-telepito-csomag.zip` – útmutató: [`docs/TELEPITES.md`](docs/TELEPITES.md)
+- **Telepítő csomag (varázsló bővítmény + téma + útmutató + wp-config kiegészítés):** `dist/mandala-telepito-csomag.zip` – útmutató: [`docs/TELEPITES.md`](docs/TELEPITES.md)
+- **Telepítő varázsló bővítmény:** [`wp-plugin/mandala-telepito`](wp-plugin/mandala-telepito/mandala-telepito.php) → `dist/mandala-telepito-varazslo.zip` – lépésről lépésre végigvisz a beüzemelésen
 - **Design system (élő):** `stilus.html`
 
 ## WordPress téma

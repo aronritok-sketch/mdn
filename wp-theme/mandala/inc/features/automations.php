@@ -127,9 +127,41 @@ add_action('woocommerce_order_status_completed', function ($order_id) {
         mandala_schedule((int) $s['review_days'] * DAY_IN_SECONDS, 'mandala_mail_review', [(int) $order_id]);
     }
     if (mandala_automation_on('reorder') && mandala_order_has_category(wc_get_order($order_id), array_map('trim', explode(',', $s['reorder_cats'])))) {
-        mandala_schedule((int) $s['reorder_days'] * DAY_IN_SECONDS, 'mandala_mail_reorder', [(int) $order_id]);
+        mandala_schedule(mandala_reorder_delay(wc_get_order($order_id)), 'mandala_mail_reorder', [(int) $order_id]);
     }
 });
+
+/**
+ * Személyre szabott utánrendelési időpont: ha a vásárló már többször vett fogyóeszközt, a saját
+ * ritmusa (két rendelés közti átlagos napok, 14–150 nap között) egy héttel előbb; különben az
+ * alapidő, a vett mennyiséggel arányosan (3 csomag füstölő → háromszoros idő, legfeljebb 3×).
+ */
+function mandala_reorder_delay(WC_Order $order): int
+{
+    $s = mandala_automation_settings();
+    $cats = array_map('trim', explode(',', $s['reorder_cats']));
+    $dates = [];
+    foreach (wc_get_orders(['billing_email' => $order->get_billing_email(), 'status' => ['processing', 'completed'], 'limit' => 20, 'orderby' => 'date', 'order' => 'ASC', 'type' => 'shop_order']) as $o) {
+        if (mandala_order_has_category($o, $cats) && $o->get_date_created()) {
+            $dates[] = $o->get_date_created()->getTimestamp();
+        }
+    }
+    if (count($dates) >= 2) {
+        $gaps = [];
+        for ($i = 1; $i < count($dates); $i++) {
+            $gaps[] = ($dates[$i] - $dates[$i - 1]) / DAY_IN_SECONDS;
+        }
+        $avg = array_sum($gaps) / count($gaps);
+        return (int) round(max(14, min(150, $avg - 7)) * DAY_IN_SECONDS);
+    }
+    $units = 0;
+    foreach ($order->get_items() as $item) {
+        if (has_term($cats, 'product_cat', $item->get_product_id())) {
+            $units += (int) $item->get_quantity();
+        }
+    }
+    return (int) $s['reorder_days'] * max(1, min(3, $units)) * DAY_IN_SECONDS;
+}
 
 function mandala_order_has_category(?WC_Order $order, array $cats): bool
 {
@@ -168,6 +200,13 @@ add_action('mandala_mail_reorder', function ($order_id) {
     $order = wc_get_order($order_id);
     if (!$order || !mandala_automation_on('reorder')) {
         return;
+    }
+    // Közben már újrarendelt (fogyóeszközt): nem emlékeztetünk.
+    $cats = array_map('trim', explode(',', mandala_automation_settings()['reorder_cats']));
+    foreach (wc_get_orders(['billing_email' => $order->get_billing_email(), 'status' => ['processing', 'completed', 'on-hold'], 'date_created' => '>' . $order->get_date_created()->getTimestamp(), 'limit' => 10, 'type' => 'shop_order']) as $newer) {
+        if ((int) $newer->get_id() !== (int) $order->get_id() && mandala_order_has_category($newer, $cats)) {
+            return;
+        }
     }
     do_action('mandala_before_order_mail', $order);
     $cats = array_map('trim', explode(',', mandala_automation_settings()['reorder_cats']));

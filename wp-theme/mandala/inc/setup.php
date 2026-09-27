@@ -25,7 +25,7 @@ final class Mandala_Setup
         'payments' => 1,
         'attributes' => 1,
         'categories' => 1,
-        'pages' => 6,
+        'pages' => 8,
         'menus' => 1,
     ];
     public const DEMO_STEPS = ['demo_products' => 1, 'demo_posts' => 1, 'coupons' => 1, 'demo_features' => 1];
@@ -409,6 +409,9 @@ final class Mandala_Setup
             'rolunk' => ['Eredetünk', 'Honnan érkeznek a Mandala tárgyai? Nepál és India kis műhelyeitől Budapestig – így válogatunk.', 'mandala_page_rolunk'],
             'viszonteladoknak' => ['Viszonteladóknak', 'Jógastúdióknak, ajándék- és lakberendezési üzleteknek, masszőröknek és hangterapeutáknak: közvetlen import, nagykereskedelmi áron.', 'mandala_page_viszonteladoknak'],
             'ertekeles' => ['Értékelés', 'Köszönjük, hogy megosztod a tapasztalatod.', 'mandala_page_ertekeles'],
+            'fustolo-valaszto' => ['Füstölőválasztó', 'Négy kérdés az illatról, az alkalomról és a formáról – és megmutatjuk, melyik füstölő illik hozzád.', 'mandala_page_fustolo-valaszto'],
+            'ajandek-valaszto' => ['Ajándékválasztó', 'Három kérdés arról, kinek szánod és mekkora ajándékot képzelsz el – mi pedig válogatunk.', 'mandala_page_ajandek-valaszto'],
+            'gyujtemeny' => ['Gyűjtemények', 'Válogatások illat, anyag, szín és alkalom szerint – hogy könnyebb legyen választani.', 'mandala_page_gyujtemeny'],
             'csomagkovetes' => ['Csomagkövetés', 'Add meg a rendelésszámot és az e-mail-címed, és megmutatjuk, hol tart a csomagod.', 'mandala_page_csomagkovetes'],
             'ajandekcsomag' => ['Ajándékcsomag', 'Válassz néhány tárgyat, mi nepáli lokta papírba csomagoljuk, és kézzel megírjuk a kártyát.', 'mandala_page_ajandekcsomag'],
             'hangtal-valaszto' => ['Hangtál-választó', 'Öt kérdés, és megmutatjuk, melyik tálunk illik hozzád – a hangja, a súlya, a csakrája és a kereted alapján.', 'mandala_page_hangtal-valaszto'],
@@ -498,6 +501,8 @@ final class Mandala_Setup
                 ['Műhelyeink', 'custom', post_type_exists('mandala_workshop') ? get_post_type_archive_link('mandala_workshop') : home_url('/muhelyek/')],
                 ['Események, hangfürdők', 'custom', post_type_exists('mandala_event') ? get_post_type_archive_link('mandala_event') : home_url('/esemenyek/')],
                 ['Hangtál-választó', 'page', $page('mandala_page_hangtal-valaszto')],
+                ['Füstölőválasztó', 'page', $page('mandala_page_fustolo-valaszto')],
+                ['Ajándékválasztó', 'page', $page('mandala_page_ajandek-valaszto')],
                 ['Szállítás és átvétel', 'custom', get_permalink($page('mandala_page_informaciok')) . '#szallitas'],
                 ['Fizetési módok', 'custom', get_permalink($page('mandala_page_informaciok')) . '#fizetes'],
                 ['Visszaküldés, elállás', 'custom', get_permalink($page('mandala_page_informaciok')) . '#visszakuldes'],
@@ -764,7 +769,7 @@ function mandala_plugin_status(): array
 
 /** Admin értesítés, ha egy szükséges bővítmény hiányzik. */
 add_action('admin_notices', function () {
-    if (!current_user_can('manage_options') || (get_current_screen()->id ?? '') === 'appearance_page_mandala-setup') {
+    if (!current_user_can('manage_options') || in_array(get_current_screen()->id ?? '', ['appearance_page_mandala-setup', 'toplevel_page_mandala-varazslo'], true)) {
         return;
     }
     if (Mandala_Setup::needs_confirmation()) {

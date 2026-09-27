@@ -318,3 +318,54 @@ body:has(.sticky-atc.is-visible) .chat-launcher { bottom: calc(var(--space-4) + 
 @media (max-width: 599.8px) {
   .track-form .form-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Ajánló: együtt vásárolt, ingyenes szállításhoz ---------- */
+.bought-together, .gap-suggest { margin-top: var(--space-5); }
+.gap-suggest { margin-top: var(--space-3); }
+.bought-together .eyebrow, .gap-suggest .eyebrow { margin: 0 0 var(--space-2); }
+.reco-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.reco-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-2); border: var(--border); border-radius: var(--radius-m); background: var(--c-white); }
+.reco-item { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--space-3); align-items: center; color: var(--c-ink); text-decoration: none; min-width: 0; }
+.reco-item .thumb { width: 48px; height: 48px; border-radius: var(--radius-s); overflow: hidden; background: var(--c-sand); display: block; }
+.reco-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.reco-name { font-size: var(--fs-small); line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+.reco-name small { display: block; color: var(--c-muted); font-size: var(--fs-xs); margin-top: 2px; }
+.reco-list .iu-button-small { min-height: 36px; padding: 0 var(--space-3); font-size: var(--fs-xs); white-space: nowrap; }
+.reco-list .added_to_cart { display: none; }
+
+/* ---------- Feliratkozó ablak, ajánló panel ---------- */
+.welcome-layer { position: fixed; inset: 0; z-index: 99; display: grid; place-items: center; padding: var(--space-4); background: rgba(22, 18, 15, .5); opacity: 0; transition: opacity .25s; }
+.welcome-layer.is-open { opacity: 1; }
+.welcome { position: relative; width: min(440px, 100%); padding: var(--space-6); background: var(--c-paper); border-radius: var(--radius-l); box-shadow: var(--shadow-l); display: grid; gap: var(--space-3); }
+.welcome h2 { font-size: var(--fs-h2); margin: 0; }
+.welcome p { margin: 0; }
+.welcome-close { position: absolute; right: var(--space-2); top: var(--space-2); }
+.welcome-form { display: grid; gap: var(--space-3); }
+.welcome-form input[type="email"] { min-height: 48px; }
+.welcome-accept { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--fs-small); }
+.welcome-accept input { margin-top: 3px; }
+.welcome-form .form-message:empty { display: none; }
+.welcome-form .form-message.is-error { color: var(--c-error); }
+.welcome-code { display: flex; gap: var(--space-3); align-items: center; }
+.welcome-code code { font-size: 1.25rem; letter-spacing: .08em; padding: var(--space-2) var(--space-3); background: var(--c-white); border: 1px dashed var(--c-accent-deep); border-radius: var(--radius-s); }
+.ref-panel { margin: var(--space-5) 0; }
+.copy-row { display: flex; gap: var(--space-2); }
+.copy-row input { flex: 1; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .welcome-layer { transition: none; } }
+
+/* ---------- Választó kvízek ---------- */
+.quiz-promo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-5); padding: var(--space-3) var(--space-4); background: var(--c-accent-soft); border-radius: var(--radius-m); font-size: var(--fs-small); }
+.quiz-promo span { flex: 1; min-width: 200px; }
+.quiz-extra-title { font-size: var(--fs-h5, 1.1rem); margin: var(--space-6) 0 var(--space-3); }
+
+/* ---------- Visszaküldés ---------- */
+.return-panel { max-width: 720px; margin: 0 auto var(--space-5); }
+.return-panel summary { cursor: pointer; display: flex; gap: var(--space-3); align-items: baseline; }
+.return-form { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
+.return-form fieldset { border: 0; padding: 0; margin: 0; }
+.return-form legend { font-weight: 600; margin-bottom: var(--space-2); }
+.return-items { width: 100%; border-collapse: collapse; }
+.return-items td { padding: var(--space-2) 0; border-bottom: var(--border); }
+.return-items td + td { text-align: right; width: 90px; }
+.return-form .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); }
+@media (max-width: 599.8px) { .return-form .form-grid { grid-template-columns: minmax(0, 1fr); } }

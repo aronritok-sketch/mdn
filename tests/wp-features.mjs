@@ -518,7 +518,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   let mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_chat_mock"));'));
   const lastCall = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
   ok(lastCall.model === 'claude-opus-5' && lastCall.effort === 'low' && lastCall.cached && lastCall.fallbacks === 'default', 'chat: Claude kérés (alapmodell, gyors mód, gyorsítótárazott rendszerprompt, visszaesés)');
-  ok(mock.tools.join() === 'search_products,get_product,contact_human' && mock.system.includes('GLS') && mock.system.includes('Hangtálak'), 'chat: eszközök, bolti tudnivalók és kategóriák a rendszerpromptban');
+  ok(mock.tools.join() === 'search_products,get_product,order_status,contact_human' && mock.system.includes('GLS') && mock.system.includes('Hangtálak'), 'chat: eszközök, bolti tudnivalók és kategóriák a rendszerpromptban');
   ok(mock.echo_ok && mock.tool_result.products.length > 0 && mock.tool_result.products.every((p) => /hangtál/i.test(p.name) && /Ft/.test(p.price) && p.url), 'chat: termékkeresés eszköz a téma keresőjével, a gondolkodásblokk változatlanul vissza');
   const bot = (await page.textContent('#mandala-chat .chat-log')).replace(/\s+/g, ' ');
   ok(bot.includes('Ezt ajánlom') && (await page.$$('#mandala-chat .chat-msg-bot a[href*="/termek/"], #mandala-chat .chat-msg-bot a[href*="/product/"]')).length >= 1, 'chat: válasz linkkel a termékre');
@@ -943,6 +943,205 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   wp(`foreach ([${orderId}, ${pickupId}, ${manualId}] as $id) { wc_get_order($id)->delete(true); }`);
   await admin.context().close();
   await page.context().close();
+}
+
+// ======================= Önjáró rendszer =======================
+{
+  const W = (cmd) => execSync(`${WP} ${cmd}`, { encoding: 'utf8' });
+  wp('update_option("mandala_ai", ["api_key" => "test-key"]); update_option("mandala_test_collection_min", 2); delete_option("mandala_growth");');
+  const ids = JSON.parse(wp('$o = []; foreach (wc_get_products(["type" => "simple", "status" => "publish", "stock_status" => "instock", "limit" => 80]) as $p) { if (mandala_is_voucher($p)) continue; foreach (["hangtalak" => "bowl", "fustolok" => "inc", "fustolotartok" => "holder"] as $c => $k) { if (!isset($o[$k]) && has_term($c, "product_cat", $p->get_id())) $o[$k] = $p->get_id(); } } echo wp_json_encode($o);'));
+  const mk = (email, pids, status = 'completed', ago = 0) => wp(`$o = wc_create_order(); foreach ([${pids.join(',')}] as $id) { $o->add_product(wc_get_product($id), 1); } $o->set_billing_first_name("Teszt"); $o->set_billing_email("${email}"); $o->set_billing_country("HU");
+    $s = new WC_Order_Item_Shipping(); $s->set_method_id("gls_test_courier"); $s->set_method_title("GLS futárszolgálat"); $o->add_item($s); $o->set_payment_method("bacs"); $o->calculate_totals(); $o->set_date_paid(time()); ${ago ? `$o->set_date_created(time() - ${ago} * DAY_IN_SECONDS);` : ''} $o->save(); $o->update_status("${status}"); echo $o->get_id();`);
+  const created = [];
+
+  // --- Termékfeedek ---
+  wp('mandala_feeds_build();');
+  const feed = async (n) => (await fetch(`${BASE}/?mandala_feed=${n}`)).text();
+  const g = await feed('google');
+  const ak = await feed('arukereso');
+  const ag = await feed('argep');
+  ok(/<rss version="2.0" xmlns:g="http:\/\/base.google.com\/ns\/1.0">/.test(g) && (g.match(/<item>/g) || []).length > 20 && /<g:price>\d+ HUF<\/g:price>/.test(g) && /<g:availability>(in_stock|out_of_stock|preorder)<\/g:availability>/.test(g), 'feed: Google Merchant (RSS, ár HUF-ban, készlet)');
+  ok(!g.includes('ajándékutalvány') && !/Mandala ajándékutalvány/.test(ak), 'feed: utalvány nem kerül bele');
+  ok(/<products>[\s\S]*<product><identifier>/.test(ak) && /<delivery_cost>\d+<\/delivery_cost>/.test(ak) && /<termeklista>[\s\S]*<termek><cikkszam>/.test(ag), 'feed: Árukereső és Árgép formátum');
+  ok((await (await fetch(`${BASE}/?mandala_feed=meta`)).text()).includes('<g:id>'), 'feed: Meta katalógus');
+
+  // --- Tanuló ajánló ---
+  for (let i = 0; i < 2; i++) created.push(mk(`reco${i}@example.com`, [ids.bowl, ids.inc]));
+  wp('mandala_reco_build();');
+  const page = await newPage();
+  await page.goto(wp(`echo get_permalink(${ids.bowl});`), { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.bought-together') && (await page.textContent('.bought-together')).includes(wp(`echo get_the_title(${ids.inc});`)), 'ajánló: „Gyakran együtt vásárolják” a rendelésekből');
+  await page.goto(`${BASE}/?add-to-cart=${ids.inc}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.gap-suggest .reco-list li'), 'kosár: „Ezzel ingyenes a szállítás” javaslatok');
+  await page.context().close();
+
+  // --- AI SEO ---
+  wp('delete_post_meta_by_key("_mandala_seo_hash"); delete_post_meta_by_key("_mandala_seo"); for ($i = 0; $i < 6; $i++) { if (is_wp_error(mandala_seo_run_batch(10))) break; }');
+  const p2 = await newPage();
+  await p2.goto(wp(`echo get_permalink(${ids.bowl});`), { waitUntil: 'networkidle' });
+  const title = await p2.title();
+  ok(title.includes('kézműves darab – Mandala') && (await p2.getAttribute('meta[name="description"]:not([content=""])', 'content'))?.startsWith('AI leírás:'), 'AI SEO: cím és meta leírás a termékoldalon', title);
+  ok(await p2.isVisible('[role="tab"]:has-text("Gyakori kérdések")') && (await p2.content()).includes('"@type":"FAQPage"'), 'AI SEO: Gyakori kérdések fül és FAQPage adat');
+  ok(wp('echo (int) (mandala_seo_counts()[1] === mandala_seo_counts()[0]);') === '1', 'AI SEO: minden termék feldolgozva, kötegekben');
+  wp(`$p = wc_get_product(${ids.bowl}); $p->set_description("Új leírás a teszthez."); $p->save();`);
+  ok(wp(`echo get_post_meta(${ids.bowl}, "_mandala_seo_hash", true) === "" ? "stale" : "same";`) === 'stale', 'AI SEO: módosult termék újra sorra kerül');
+
+  // --- Gyűjtőoldalak ---
+  wp('delete_option("mandala_collections"); mandala_collections_build(); for ($i = 0; $i < 4; $i++) do_action("mandala_collections_ai");');
+  const colls = JSON.parse(wp('echo wp_json_encode(array_keys(array_filter(mandala_collections(), fn($c) => !empty($c["active"]))));'));
+  ok(colls.length >= 5 && colls.includes('ajandek-10000-ft-alatt'), 'gyűjtőoldalak: válogatások a termékadatokból', String(colls.length));
+  await p2.goto(`${BASE}/gyujtemeny/ajandek-10000-ft-alatt/`, { waitUntil: 'networkidle' });
+  ok((await p2.textContent('h1')).includes('AI: Ajándék 10 000 Ft alatt') && (await p2.textContent('.page-lead')).startsWith('AI bevezető') && (await p2.$$('ul.products li.product')).length >= 2, 'gyűjtőoldal: AI cím, bevezető, termékek');
+  ok((await p2.content()).includes('"@type":"CollectionPage"') && (await p2.getAttribute('link[rel="canonical"]', 'href') || '').endsWith('/gyujtemeny/ajandek-10000-ft-alatt/'), 'gyűjtőoldal: strukturált adat, kanonikus cím');
+  const r404 = await fetch(`${BASE}/gyujtemeny/nincs-ilyen/`, { redirect: 'manual' });
+  ok(r404.status === 301, 'gyűjtőoldal: ismeretlen → átirányítás');
+  ok((await (await fetch(`${BASE}/?mandala_sitemap=gyujtemenyek`)).text()).includes('/gyujtemeny/ajandek-10000-ft-alatt/'), 'gyűjtőoldalak: oldaltérkép');
+  await p2.goto(wp('echo get_term_link("fustolok", "product_cat");'), { waitUntil: 'networkidle' });
+  ok(await p2.isVisible('.collection-links a') && await p2.isVisible('.quiz-promo a'), 'kategóriaoldal: népszerű válogatások és a füstölőválasztó linkje');
+
+  // --- Füstölőválasztó ---
+  await p2.goto(`${BASE}/fustolo-valaszto/`, { waitUntil: 'networkidle' });
+  for (const v of ['viragos', 'csend', 'backflow', '']) { await p2.click(`.finder-step:not([hidden]) input[value="${v}"] + span`); await p2.waitForTimeout(350); }
+  await p2.waitForSelector('[data-finder-result]:not([hidden])', { timeout: 6000 });
+  ok((await p2.$$('.finder-picks > li')).length >= 1 && (await p2.textContent('[data-finder-result]')).includes('Ehhez kell: backflow tartó'), 'füstölőválasztó: ajánlás + a backflow kúphoz tartó');
+  await p2.goto(`${BASE}/ajandek-valaszto/`, { waitUntil: 'networkidle' });
+  for (const v of ['tea', '0-5000', 'utalvany']) { await p2.click(`.finder-step:not([hidden]) input[value="${v}"] + span`); await p2.waitForTimeout(350); }
+  await p2.waitForSelector('[data-finder-result]:not([hidden])', { timeout: 6000 });
+  const prices = await p2.$$eval('.finder-picks .price', (els) => els.map((e) => Number(e.textContent.replace(/[^\d]/g, '').slice(0, 6))));
+  ok(prices.length > 0 && (await p2.isVisible('[data-finder-result] a:has-text("Ajándékutalvány")')), 'ajándékválasztó: ajánlás és utalvány gomb', prices.join(','));
+  await p2.context().close();
+
+  // --- Feliratkozó ablak első vásárlási kuponnal ---
+  wp('$n = (array) get_option("mandala_newsletter", []); unset($n["popup@example.com"]); update_option("mandala_newsletter", $n);');
+  const p3 = await newPage();
+  await p3.goto(`${BASE}/termekek/`, { waitUntil: 'networkidle' });
+  await p3.evaluate(() => { try { localStorage.removeItem('mandala.welcome'); } catch {} window.mandalaWelcome?.(); });
+  await p3.waitForSelector('.welcome-layer.is-open', { timeout: 4000 }).catch(() => {});
+  ok(await p3.isVisible('#welcome-title') && (await p3.textContent('#welcome-title')).includes('10% kedvezmény'), 'feliratkozó ablak megjelenik (10%)');
+  await p3.click('.welcome-form button[type="submit"]');
+  ok((await p3.textContent('.welcome-form .form-message')).includes('érvényes e-mail'), 'feliratkozó ablak: ellenőrzés');
+  let before = mails().length;
+  await p3.fill('#welcome-email', 'popup@example.com');
+  await p3.check('#welcome-accept');
+  await p3.click('.welcome-form button[type="submit"]');
+  await p3.waitForSelector('.welcome-code code', { timeout: 6000 }).catch(() => {});
+  const wcode = (await p3.textContent('.welcome-code code').catch(() => '')).trim();
+  ok(/^UDV-[A-Z0-9]{6}$/.test(wcode) && mails().slice(before).includes('SUBJECT: Itt a 10% kedvezményed') && mails().slice(before).includes(wcode), 'feliratkozás: egyedi kupon az ablakban és levélben', wcode);
+  ok(wp(`$c = new WC_Coupon("${wcode}"); echo wp_json_encode([$c->get_email_restrictions(), $c->get_meta("_mandala_first_order"), (int) $c->get_amount(), $c->get_usage_limit()]);`) === '[["popup@example.com"],"yes",10,1]' && wp('echo (int) isset(get_option("mandala_newsletter")["popup@example.com"]);') === '1', 'kupon: címhez kötött, első rendelésre, egyszer; a cím a hírlevél-listán');
+  const again = await p3.evaluate(async () => (await (await fetch(`${window.MANDALA.rest}welcome`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.MANDALA.nonce }, body: JSON.stringify({ email: 'popup@example.com', accept: 1 }) })).json()));
+  ok(!again.code && /már feliratkoztál/.test(again.message), 'feliratkozás: ugyanarra a címre nincs második kupon');
+  await p3.context().close();
+
+  // --- Ajánlási program ---
+  wp('if (!get_user_by("login", "vevo")) { wp_insert_user(["user_login" => "vevo", "user_pass" => "vevo", "user_email" => "vevo@example.com", "role" => "customer"]); }');
+  const refLink = wp('echo mandala_ref_link(get_user_by("login", "vevo")->ID);');
+  const friend = await newPage();
+  await friend.goto(refLink, { waitUntil: 'networkidle' });
+  await friend.goto(`${BASE}/?add-to-cart=${ids.bowl}`, { waitUntil: 'networkidle' });
+  await friend.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+  const refCode = wp('echo mandala_ref_coupon(get_user_by("login", "vevo")->ID);');
+  ok((await friend.textContent('body')).toLowerCase().includes(refCode.toLowerCase()), 'ajánló link: a barát kuponja magától érvényesül a kosárban', refCode);
+  const friendOrder = await checkout(friend, { email: 'barat.uj@example.com' });
+  created.push(friendOrder);
+  before = mails().length;
+  wp(`wc_get_order(${friendOrder})->update_status("completed");`);
+  let m = mails().slice(before);
+  ok(/TO: vevo@example\.com\nSUBJECT: Köszönjük az ajánlást/.test(m) && /KOSZI-[A-Z0-9]{6}/.test(m), 'ajánló: a barát teljesített rendelése után kupont kap');
+  await friend.context().close();
+  const self = await newPage();
+  await self.goto(`${BASE}/?add-to-cart=${ids.inc}`, { waitUntil: 'networkidle' });
+  await self.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+  await self.fill('#coupon_code', refCode);
+  await self.click('button[name="apply_coupon"]');
+  await self.waitForTimeout(1500);
+  await self.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  await self.fill('#billing_email', 'vevo@example.com');
+  for (const [sel, v] of [['#billing_phone', '+36 30 123 4567'], ['#billing_last_name', 'Kovács'], ['#billing_first_name', 'Vevő'], ['#billing_postcode', '1052'], ['#billing_city', 'Budapest'], ['#billing_address_1', 'Váci utca 1.']]) await self.fill(sel, v);
+  if (await self.$('#shipping_method li[data-kind="pickup"] label')) { await self.click('#shipping_method li[data-kind="pickup"] label'); await waitUpdate(self); }
+  if (await self.$('#payment_method_bacs')) { await self.check('#payment_method_bacs'); await waitUpdate(self); }
+  await self.check('#terms');
+  await self.click('#place_order');
+  await self.waitForSelector('.woocommerce-error, .woocommerce-NoticeGroup', { timeout: 10000 }).catch(() => {});
+  ok(/saját ajánló kódodat|csak az első rendelésre/.test(await self.textContent('body')), 'ajánló: saját kóddal / nem első rendelésre nem használható');
+  await self.context().close();
+
+  // --- Kedvencek, vásárlás utáni ajánló, utánrendelés ---
+  wp(`$u = get_user_by("login", "vevo"); update_user_meta($u->ID, "mandala_wishlist", [${ids.holder}]); delete_user_meta($u->ID, "_mandala_wish_seen"); $p = wc_get_product(${ids.holder}); $p->set_sale_price((string) floor((float) $p->get_regular_price() * 0.8)); $p->save(); mandala_flush_index();`);
+  before = mails().length;
+  wp('do_action("mandala_wishlist_check"); do_action("mandala_wishlist_check");');
+  m = mails().slice(before);
+  ok((m.match(/SUBJECT: Akciós lett a kedvenced/g) || []).length === 1 && m.includes('<s>'), 'kedvencek: akciós lett – egyszer, régi és új árral');
+  wp(`$p = wc_get_product(${ids.holder}); $p->set_sale_price(""); $p->save(); mandala_flush_index();`);
+  before = mails().length;
+  wp(`do_action("mandala_mail_crosssell", ${created[0]});`);
+  ok(mails().slice(before).includes('SUBJECT: Ehhez illik: válogattunk neked'), 'vásárlás utáni ajánló levél');
+  const r1 = mk('ritmus@example.com', [ids.inc], 'completed', 60);
+  const r2 = mk('ritmus@example.com', [ids.inc], 'completed', 30);
+  created.push(r1, r2);
+  const delay = Number(wp(`echo mandala_reorder_delay(wc_get_order(${r2}));`)) / 86400;
+  ok(delay >= 22 && delay <= 24, 'utánrendelés: a vevő saját ritmusa szerint (30 nap − 7)', String(delay));
+  before = mails().length;
+  wp(`do_action("mandala_mail_reorder", ${r1});`);
+  ok(!mails().slice(before).includes('Fogytán'), 'utánrendelés: nem emlékeztet, ha közben újrarendelt');
+
+  // --- Rendelés állapota a chatben ---
+  const st = JSON.parse(wp(`echo wp_json_encode([mandala_chat_order_status("${created[0]}", "rossz@example.com"), mandala_chat_order_status("${created[0]}", "RECO0@example.com")]);`));
+  ok(st[0].error && !st[0].status && st[1].status && st[1].steps.length >= 3 && st[1].tracking_page.includes('rendeles='), 'AI tanácsadó: rendelésállapot csak egyező rendelésszám + e-mail esetén');
+
+  // --- Online visszaküldés ---
+  const retId = created[0];
+  const rp = await newPage();
+  await rp.goto(wp(`echo mandala_tracking_url(wc_get_order(${retId}));`), { waitUntil: 'networkidle' });
+  ok(await rp.isVisible('.return-panel summary'), 'visszaküldés: indítható a követőoldalon');
+  await rp.click('.return-panel summary');
+  await rp.click('.return-form button[type="submit"]');
+  await rp.waitForLoadState('networkidle');
+  ok((await rp.textContent('body')).includes('Jelölj be legalább egy tételt'), 'visszaküldés: ellenőrzés');
+  await rp.check('.return-items input[type="checkbox"] >> nth=0');
+  await rp.selectOption('#return-reason', 'nem-olyan');
+  await rp.selectOption('#return-want', 'exchange');
+  before = mails().length;
+  await Promise.all([rp.waitForNavigation(), rp.click('.return-form button[type="submit"]')]);
+  m = mails().slice(before);
+  ok((await rp.textContent('body')).includes('megkaptuk') && m.includes('SUBJECT: Megkaptuk a visszaküldési kérésed') && m.includes('Visszaküldési kérés: #'), 'visszaküldés: visszaigazolás a vásárlónak, értesítés a boltnak');
+  await rp.context().close();
+
+  // --- Heti összefoglaló, gyorsítás ---
+  before = mails().length;
+  wp('mandala_report_send("tulaj@example.com");');
+  m = mails().slice(before);
+  ok(m.includes('TO: tulaj@example.com') && m.includes('Heti összefoglaló') && m.includes('AI összefoglaló') && m.includes('Legtöbbet eladott') && m.includes('visszaküldési kérés vár'), 'heti összefoglaló: számok, top termékek, AI összefoglaló, teendők');
+  ok(!(await (await fetch(`${BASE}/`)).text()).includes('wp-emoji-release'), 'gyorsítás: emoji szkript kikapcsolva');
+
+  // --- Telepítő varázsló ---
+  W('plugin activate mandala-telepito');
+  wp('delete_option("mandala_wizard");');
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo`, { waitUntil: 'networkidle' });
+  ok((await admin.textContent('#wiz-title')).includes('Kezdés és mentés') && (await admin.$$('.wiz-step')).length === 16, 'varázsló: 16 lépés, az első nem kész lépésnél indul');
+  const prog = async () => Number((await admin.textContent('.wiz-progress-text')).match(/^(\d+)/)[1]);
+  const p0 = await prog();
+  await Promise.all([admin.waitForNavigation(), admin.check('.wiz-check input[name="value"] >> nth=0')]);
+  ok(await prog() === p0 + 1, 'varázsló: a mentés visszaigazolása előrelépteti');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=keys`);
+  await admin.fill('#wiz-ai', 'test-key');
+  await Promise.all([admin.waitForNavigation(), admin.click('button:has-text("Mentés és ellenőrzés")')]);
+  ok((await admin.textContent('.notice-success, .notice-error')).includes('Claude: rendben'), 'varázsló: API-kulcs ellenőrzése');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=growth`);
+  await Promise.all([admin.waitForNavigation(), admin.click('button:has-text("Indítás / frissítés most")')]);
+  ok((await admin.textContent('.notice-success')).includes('gyűjtőoldal') && (await admin.$$('.wiz-code')).length === 4, 'varázsló: önjáró részek indítása, feed címek');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=legal`);
+  ok((await admin.textContent('.wiz-main')).includes('kitöltendő részek maradtak'), 'varázsló: a jogi oldalak kitöltendő részeit jelzi');
+  await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=plugins`);
+  ok(await admin.isVisible('.wiz-rows li.is-todo:has-text("WP Mail SMTP") button:has-text("Telepítés és bekapcsolás")'), 'varázsló: hiányzó bővítmény telepítő gombbal');
+  await admin.context().close();
+  W('plugin deactivate mandala-telepito');
+  wp(`foreach ([${created.join(',')}] as $id) { if ($o = wc_get_order($id)) $o->delete(true); } delete_option("mandala_test_collection_min"); delete_option("mandala_ai");`);
 }
 
 {

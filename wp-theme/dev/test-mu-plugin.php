@@ -63,13 +63,20 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
 // Anthropic Messages API helyettesítő (a Claude-os kategorizálás tesztjéhez): determinisztikus
 // kulcsszavas besorolás, a valódi válasz szerkezetében (tool_use + usage). A kérést elmenti.
 add_filter('pre_http_request', function ($pre, $args, $url) {
-    if ($url !== 'https://api.anthropic.com/v1/messages') {
+    if ($url !== 'https://api.anthropic.com/v1/messages' || $pre !== false) {
         return $pre;
     }
     $req = json_decode($args['body'], true);
     update_option('mandala_ai_mock_last', ['model' => $req['model'], 'tool_choice' => $req['tool_choice'] ?? null, 'cached' => !empty($req['system'][0]['cache_control']), 'key' => $args['headers']['x-api-key'] ?? '', 'tool' => $req['tools'][0]['name'] ?? '', 'fallbacks' => $req['fallbacks'] ?? null, 'beta' => $args['headers']['anthropic-beta'] ?? '', 'effort' => $req['output_config']['effort'] ?? null], false);
     if (($req['tools'][0]['name'] ?? '') === 'search_products') {
         return mandala_test_chat_mock($req);
+    }
+    if (empty($req['tools'])) {
+        // Sima szöveges kérés (pl. heti összefoglaló).
+        update_option('mandala_text_mock_prompt', $req['messages'][0]['content'], false);
+        $body = ['id' => 'msg_text', 'type' => 'message', 'role' => 'assistant', 'model' => $req['model'], 'stop_reason' => 'end_turn',
+            'content' => [['type' => 'text', 'text' => 'AI összefoglaló: a forgalom stabil, a kifogyó termékeket érdemes utánrendelni.']], 'usage' => ['input_tokens' => 50, 'output_tokens' => 20]];
+        return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
     }
     if (($args['headers']['x-api-key'] ?? '') === 'rate-limit') {
         return ['headers' => ['retry-after' => '1'], 'body' => '{"type":"error","error":{"type":"rate_limit_error","message":"rate"}}', 'response' => ['code' => 429, 'message' => 'Too Many'], 'cookies' => [], 'filename' => null];
@@ -191,3 +198,31 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     }
     return $out(201, ['data' => ['id' => 's1']]);
 }, 10, 3);
+
+/** AI SEO helyettesítő (record_seo): termékekhez és gyűjtőoldalakhoz determinisztikus szöveg. */
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    if ($url !== 'https://api.anthropic.com/v1/messages') {
+        return $pre;
+    }
+    $req = json_decode($args['body'], true);
+    if (($req['tools'][0]['name'] ?? '') !== 'record_seo') {
+        return $pre;
+    }
+    $text = $req['messages'][0]['content'];
+    $items = json_decode(substr($text, strpos($text, "ADATOK:\n") + 8), true) ?: [];
+    $results = [];
+    foreach ($items as $i) {
+        $results[] = isset($i['name'])
+            ? ['id' => $i['id'], 'seo_title' => $i['name'] . ' – kézműves darab', 'meta_description' => 'AI leírás: ' . $i['name'] . '. Nepáli és indiai kézműves darabok a Mandalánál.', 'image_alt' => 'Kép: ' . $i['name'],
+               'faq' => [['q' => 'Miből készült a(z) ' . $i['name'] . '?', 'a' => 'A termékleírásban szereplő anyagból.'], ['q' => 'Ajándéknak jó?', 'a' => 'Igen, díszcsomagolással is kérheted.']]]
+            : ['id' => $i['id'], 'title' => 'AI: ' . $i['working_title'], 'seo_title' => $i['working_title'] . ' – válogatás', 'meta_description' => 'Válogatás: ' . $i['working_title'], 'intro' => 'AI bevezető: ' . implode(', ', array_slice($i['examples'], 0, 2)) . '.'];
+    }
+    update_option('mandala_seo_mock_count', (int) get_option('mandala_seo_mock_count', 0) + 1, false);
+    $body = ['id' => 'msg_seo', 'type' => 'message', 'role' => 'assistant', 'model' => $req['model'], 'stop_reason' => 'tool_use',
+        'content' => [['type' => 'tool_use', 'id' => 'toolu_seo', 'name' => 'record_seo', 'input' => ['results' => $results]]],
+        'usage' => ['input_tokens' => 100, 'output_tokens' => 80, 'cache_read_input_tokens' => 900]];
+    return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+}, 5, 3);
+
+// Kis bemutató katalógusnál a gyűjtőoldalak alsó határa a tesztben állítható.
+add_filter('mandala_collection_min', fn($min) => (int) get_option('mandala_test_collection_min', $min));

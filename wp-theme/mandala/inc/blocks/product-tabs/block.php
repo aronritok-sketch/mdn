@@ -33,6 +33,8 @@ mandala_add_block('mandala/product-tabs', [
             [__('Szállítás és visszaküldés', 'mandala'), $shipping],
             [__('Kérdésed van?', 'mandala'), '<p>' . esc_html__('Hangfelvételt, pontos méretet vagy további fotót is kérhetsz – egy munkanapon belül válaszolunk e-mailben.', 'mandala') . '</p><p><a class="iu-button" href="#kerdes">' . esc_html__('Kérdést írok', 'mandala') . '</a></p>'],
         ];
+        // Funkciómodulok fülei (pl. az AI-generált GYIK a „Kérdésed van?” elé).
+        $tabs = (array) apply_filters('mandala_product_tabs', $tabs, $product);
         $nav = '';
         $panels = '';
         foreach ($tabs as $i => [$title, $body]) {

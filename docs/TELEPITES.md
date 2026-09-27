@@ -4,13 +4,45 @@ A csomag tartalma:
 
 | Fájl | Mi ez |
 |---|---|
-| `mandala-tema.zip` | A WordPress child téma – ezt kell feltölteni (Megjelenés → Témák → Új hozzáadása → Téma feltöltése). |
+| `mandala-telepito-varazslo.zip` | **Telepítő varázsló bővítmény – ezzel kezdd.** Bővítmények → Új hozzáadása → Bővítmény feltöltése → Bekapcsolás. Végigvisz mindenen (benne van a téma is). |
+| `mandala-tema.zip` | A WordPress child téma (a varázsló magától telepíti; kézzel: Megjelenés → Témák → Új hozzáadása → Téma feltöltése). |
 | `TELEPITES.md` | Ez az útmutató. |
 | `UJ-TERMEKEK.md` | Munkafolyamat a webért felelős munkatársnak: új JUTA-termékek élesítése, Claude-os kategória-migráció. |
 | `wp-config-kiegeszites.php` | Sorok a szerver `wp-config.php` fájljába (Claude API-kulcs, memória, ütemezés). |
 
 > **Mindig először tesztszerveren** (az éles bolt másolatán, „staging”) telepítsd és próbáld ki. Az éles bolton
 > csak akkor, ha ott minden rendben volt – előtte teljes mentéssel (fájlok + adatbázis).
+
+---
+
+## 0. Gyorsút: a telepítő varázsló
+
+1. Mentés az éles boltról (fájlok + adatbázis) – vagy dolgozz a másolatán.
+2. **Bővítmények → Új hozzáadása → Bővítmény feltöltése → `mandala-telepito-varazslo.zip` → Bekapcsolás.**
+   A varázsló magától megnyílik (később: bal oldali menü → **Mandala varázsló**).
+3. Menj végig a 16 lépésen. Minden lépés magától ellenőrzi, kész-e (zöld pipa), és ahol lehet, egy gombbal
+   elvégzi a teendőt; bármikor abbahagyhatod, ott folytatod:
+
+   | Lépés | Mit csinál |
+   |---|---|
+   | Kezdés és mentés | mentés visszaigazolása |
+   | Környezet | PHP, WordPress, memória, HTTPS, **magyar nyelv + fordítások** (gomb), **Budapest időzóna** (gomb), olvasható címek, háttérfeladatok (cron), WebP |
+   | Bővítmények | WooCommerce, Wholesale Prices, Számlázz.hu, WP Mail SMTP, Yoast, LiteSpeed Cache – **telepítés és bekapcsolás gombbal**; GLS és Teya: feltöltés / keresés |
+   | Téma | iu_theme szülőtéma, iu_custom_blocks, **a Mandala téma telepítése és bekapcsolása** (a varázslóba csomagolva) |
+   | Kulcsok és levélküldés | Anthropic (Claude) és MailerLite kulcs **ellenőrzéssel**, próbalevél |
+   | Bolt adatai | elérhetőség, nyitvatartás, szállítási határ, utánvét díja, bankszámlaszám |
+   | Mandala telepítő | a téma beállításai (élő boltban megerősítés után; visszaállítható) |
+   | Termékek importja | CSV import a régi boltból, JUTA, bemutató tartalom törlése |
+   | Kategóriák és szűrők (Claude) | **próbafuttatás 20 termékkel**, majd **teljes besorolás** a háttérben (visszavonható) |
+   | Szállítás, fizetés, számla | GLS zónák, Teya, utánvét, Számlázz.hu, csomagkövetés |
+   | Levelek és MailerLite | SMTP, a levelek szövegének átnézése, MailerLite csoport |
+   | AI SEO, gyűjtőoldalak, ajánló, feedek | **egy gombbal indul**, utána magától fut; itt vannak a feed címek |
+   | Jogi oldalak | jelzi, ha az ÁSZF / adatkezelés / impresszum kitöltendő részei maradtak |
+   | Gyorsítás | gyorsítótár-bővítmény, **meglévő képek WebP-re** (gomb) |
+   | Próbarendelések | 8 próba pipálható listája (kártya, utánvét, utalás, számla, csomagszám, mobil, hírlevél, AI) |
+   | Élesítés | ami még nyitott, és az élesítés teendői |
+
+A lenti fejezetek ugyanezt írják le részletesen (ha valamit kézzel csinálnál, vagy elakadnál).
 
 ---
 
@@ -96,6 +128,10 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → Beállítások → Fizetés → **Előre utalás** | bankszámlaszám (a köszönőoldal és a levél innen veszi) |
 | WooCommerce → Beállítások → **Szállítás** | a GLS bővítmény módjai a „Magyarország” zónában (a személyes átvétel a lista végén) |
 | **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
+| WooCommerce → **Mandala feedek** | Árukereső, Árgép, Google Merchant, Meta katalógus feed címei (egyszer bemásolni a szolgáltatónál); óránként frissülnek |
+| WooCommerce → **Mandala SEO** | AI keresőoptimalizálás állapota (cím, meta leírás, kép alt, GYIK termékenként; napi korlát), gyűjtőoldalak |
+| WooCommerce → **Mandala kuponok** | feliratkozó ablak első vásárlási kuponnal (%, érvényesség, késleltetés), ajánlási program (a barát kedvezménye, az ajánló jutalma) |
+| WooCommerce → **Visszaküldések** | a vásárlók által online indított visszaküldések; „Megérkezett” / „Lezárva” |
 | WooCommerce → **Mandala levelek** | minden levél egy helyen: a téma automata levelei és a WooCommerce levelei (szöveg, be/ki, időzítés, előnézet, tesztlevél), **saját levelek** triggerrel, feltétellel, egyedi kuponnal (+ Új saját levél); napló. Beállítások fül: aláírás, fogyóeszköz kategóriák, értékelés-moderátor, **a GLS bővítmény csomagszám mezője** (lásd 6. pont, Csomagkövetés) |
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |

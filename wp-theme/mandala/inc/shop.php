@@ -392,6 +392,9 @@ function mandala_minicart_content(): void
     echo '<div class="drawer-body">' . ($meter ? '' : '<!--') . '<div class="ship-meter' . ($done ? ' is-done' : '') . '"><p>'
         . ($done ? $icon('check', 'ico ico-s') . ' ' . esc_html__('A szállítás ingyenes.', 'mandala') : sprintf(esc_html__('Még %s, és ingyen szállítunk.', 'mandala'), '<strong>' . esc_html(mandala_fmt($threshold - $goods)) . '</strong>')) // phpcs:ignore
         . '</p><div class="meter" role="progressbar" aria-label="' . esc_attr__('Ingyenes szállításig', 'mandala') . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . (int) $pct . '"><span style="width:' . esc_attr((string) $pct) . '%"></span></div></div>' . ($meter ? '' : '-->');
+    if ($meter && !$done) {
+        do_action('mandala_after_ship_meter', 'drawer', $threshold - $goods);
+    }
     echo '<ul class="review-items woocommerce-mini-cart" style="border:0">';
     foreach ($cart->get_cart() as $key => $item) {
         $p = $item['data'];
@@ -535,6 +538,9 @@ add_action('woocommerce_before_cart_table', function () {
     echo '<div class="ship-meter' . ($goods >= $threshold ? ' is-done' : '') . '"><p>'
         . ($goods >= $threshold ? mandala_icon('check', 'ico ico-s') . ' ' . esc_html__('A szállítás ingyenes.', 'mandala') : sprintf(esc_html__('Még %s, és ingyen szállítunk.', 'mandala'), '<strong>' . esc_html(mandala_fmt($threshold - $goods)) . '</strong>')) // phpcs:ignore
         . '</p><div class="meter" role="progressbar" aria-label="' . esc_attr__('Ingyenes szállításig', 'mandala') . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . (int) $pct . '"><span style="width:' . esc_attr((string) $pct) . '%"></span></div></div>';
+    if ($goods < $threshold) {
+        do_action('mandala_after_ship_meter', 'cart', $threshold - $goods);
+    }
 });
 
 /* ---------- Alapértelmezett WooCommerce kimenetek, amelyeket a sablonjaink kiváltanak ---------- */
