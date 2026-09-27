@@ -9,6 +9,7 @@ A csomag tartalma:
 | `TELEPITES.md` | Ez az útmutató. |
 | `UJ-TERMEKEK.md` | Munkafolyamat a webért felelős munkatársnak: új JUTA-termékek élesítése, Claude-os kategória-migráció. |
 | `TERHELESI-TESZT.md` | Terheléses teszt (3000 termék, egyszerre vásárlók): eredmények, javítások, szerverbeállítások nagy forgalomhoz. |
+| `regi-bolt-export.js` | Ha a régi bolt WooCommerce termékexportja elakad: a régi bolt adminjában, a böngésző konzoljában futtatva adagokban letölti ugyanazt az importálható CSV-t (változatokkal, nagyker árral). |
 | `wp-config-kiegeszites.php` | Sorok a szerver `wp-config.php` fájljába (Claude API-kulcs, memória, ütemezés). |
 
 > **Mindig először tesztszerveren** (az éles bolt másolatán, „staging”) telepítsd és próbáld ki. Az éles bolton

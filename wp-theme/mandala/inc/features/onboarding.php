@@ -49,6 +49,11 @@ function mandala_is_editor_save(): bool
 {
     $action = sanitize_key($_REQUEST['action'] ?? ''); // phpcs:ignore WordPress.Security.NonceVerification
     $editor = is_admin() && current_user_can('edit_products') && (in_array($action, ['editpost', 'inline-save', 'edit', 'duplicate_product'], true) || isset($_REQUEST['bulk_edit'])); // phpcs:ignore
+    // A WooCommerce CSV-importja adminból (Termékek → Importálás): tudatos átköltöztetés, nem JUTA-s új termék –
+    // a termékek úgy maradnak, ahogy a CSV-ben vannak (nem mennek a jóváhagyási sorba, nincs értesítő / AI költség).
+    if (!$editor && wp_doing_ajax() && $action === 'woocommerce_do_ajax_product_import' && current_user_can('import') && current_user_can('edit_products')) {
+        $editor = true;
+    }
     if (!$editor && defined('REST_REQUEST') && REST_REQUEST && !empty($_SERVER['HTTP_X_WP_NONCE'])) {
         $editor = (bool) wp_verify_nonce(sanitize_text_field(wp_unslash($_SERVER['HTTP_X_WP_NONCE'])), 'wp_rest') && current_user_can('edit_products');
     }

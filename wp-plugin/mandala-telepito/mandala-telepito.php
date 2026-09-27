@@ -725,7 +725,7 @@ function mandala_wiz_step_products(): void
     $n = (int) (wp_count_posts('product')->publish ?? 0);
     $draft = (int) (wp_count_posts('product')->draft ?? 0);
     echo '<p>Közzétett termék: <strong>' . $n . '</strong>' . ($draft ? ' · piszkozat: ' . $draft : '') . '</p>';
-    echo '<h3>Ha a termékek egy másik (régi) boltból jönnek</h3><ol><li>A régi boltban: Termékek → Exportálás (CSV, minden oszlop).</li><li>Itt: Termékek → Importálás, a CSV-t feltöltve („Meglévő termékek frissítése” cikkszám alapján).</li><li>A képeket a CSV címeiről tölti le – ehhez a régi boltnak elérhetőnek kell maradnia az import idejére.</li></ol>'
+    echo '<h3>Ha a termékek egy másik (régi) boltból jönnek</h3><ol><li>A régi boltban: Termékek → Exportálás (CSV, minden oszlop). Ha elakad (sok terméknél időtúllépés): a telepítő csomag <code>regi-bolt-export.js</code> szkriptje a régi bolt adminjában, a böngésző konzoljában futtatva adagokban tölti le ugyanezt a CSV-t.</li><li>Itt: Termékek → Importálás, a CSV-t feltöltve („Meglévő termékek frissítése” cikkszám alapján).</li><li>A képeket a CSV címeiről tölti le – ehhez a régi boltnak elérhetőnek kell maradnia az import idejére.</li></ol>'
         . '<p>' . mandala_wiz_link(admin_url('edit.php?post_type=product&page=product_importer'), 'Termékimport') . ' ' . mandala_wiz_link(admin_url('edit.php?post_type=product'), 'Termékek') . '</p>'
         . '<h3>JUTA</h3><p>A JUTA-ból érkező új termékek piszkozatként, ellenőrzőlistával a Termékek → Új termékek sorba kerülnek; az ár- és készletfrissítés nem élesít semmit.</p>'
         . '<p>A JUTA „Akciós ár”-a a <strong>nagyker ár</strong> (Wholesale Prices mező) lesz, nem bolti akció – a bolti akciós árat a termékszerkesztőben állítjátok, a JUTA nem írja felül.</p>';

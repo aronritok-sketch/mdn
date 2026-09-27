@@ -5,7 +5,7 @@
 // a teszt mu-plugin szerint a wp-content/mail.log fájlba kerülnek (MAILLOG).
 import { createRequire } from 'module';
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { createHash, createHmac } from 'crypto';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PWPATH || 'playwright');
@@ -1251,6 +1251,19 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(sent === '10' && mails().slice(bb).includes(`TO: ${email}\nSUBJECT: Még gondolkodsz rajta?`), 'böngészés: 1 nap múlva levél a megnézett termékkel, másodszor nem', sent);
   const pageData = await (await fetch(`${BASE}/termek/${slug}/`)).text();
   ok(/"productId":\s*\d+/.test(pageData), 'böngészés: a termékoldal átadja az azonosítót a jelzéshez (a böngésző csak hozzájárulással küldi)');
+}
+
+// ---------- Átköltöztetés: a WooCommerce CSV-importja adminból nem megy a jóváhagyási sorba ----------
+{
+  const csv = `${wp('echo sys_get_temp_dir();')}/mandala-import-teszt.csv`;
+  writeFileSync(csv, '﻿Type,SKU,Name,Published,Regular price,Categories,Description\nsimple,IMPORT-TESZT-1,"Importált termék, régi boltból",1,5900,Szakrális tárgyak > Hangtálak,"<p>Régi leírás</p>"\n');
+  const res = wp(`define("DOING_AJAX", true); $_REQUEST["action"] = "woocommerce_do_ajax_product_import"; wp_set_current_user(1);
+    include_once WC_ABSPATH . "includes/admin/importers/class-wc-product-csv-importer-controller.php"; include_once WC_ABSPATH . "includes/import/class-wc-product-csv-importer.php";
+    $ctrl = new WC_Product_CSV_Importer_Controller(); $h = (new WC_Product_CSV_Importer("${csv}", ["lines" => 1]))->get_raw_keys();
+    $map = (new ReflectionMethod($ctrl, "auto_map_columns"))->invoke($ctrl, $h, false);
+    (new WC_Product_CSV_Importer("${csv}", ["mapping" => $map, "update_existing" => false, "lines" => -1, "parse" => true]))->import();
+    $id = wc_get_product_id_by_sku("IMPORT-TESZT-1"); echo get_post_status($id), "|", get_post_meta($id, "_mandala_onboarding", true), "|", implode(",", wp_get_post_terms($id, "product_cat", ["fields" => "slugs"])); wp_delete_post($id, true);`);
+  ok(res === 'publish|done|hangtalak', 'átköltöztetés: az admin CSV-import közzétéve marad, nem megy a jóváhagyási sorba (a JUTA igen)', res);
 }
 
 // ---------- JUTA „Akciós ár” = nagyker ár (a JUTA a WooCommerce REST API-n küldi) ----------
