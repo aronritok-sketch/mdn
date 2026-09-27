@@ -79,6 +79,11 @@ function mandala_wiz_plugin_active(string $slug, array $p): bool
     }
     return $p[1] !== '' && is_plugin_active($p[1]);
 }
+/** Dátumos címformátum friss oldalon (legfeljebb 1 bejegyzés – a régi cikkcímek nem törnek el): javítható. */
+function mandala_wiz_perma_fixable(): bool
+{
+    return (bool) preg_match('/%(year|monthnum|day)%/', (string) get_option('permalink_structure')) && (int) wp_count_posts('post')->publish <= 1;
+}
 function mandala_wiz_smtp(): string
 {
     foreach (['wp-mail-smtp/wp_mail_smtp.php' => 'WP Mail SMTP', 'fluent-smtp/fluent-smtp.php' => 'FluentSMTP', 'post-smtp/postman-smtp.php' => 'Post SMTP', 'easy-wp-smtp/easy-wp-smtp.php' => 'Easy WP SMTP', 'mailpoet/mailpoet.php' => 'MailPoet'] as $f => $n) {
@@ -141,7 +146,7 @@ function mandala_wiz_env(): array
         'https' => [str_starts_with(home_url(), 'https://'), 'HTTPS: ' . (str_starts_with(home_url(), 'https://') ? 'igen' : 'nem'), 'A tárhelyen kapcsold be az SSL-t, és a Beállítások → Általános alatt a címeket írd https-re.'],
         'lang' => [get_locale() === 'hu_HU', 'Nyelv: ' . get_locale(), 'Magyar nyelv és fordítások – egy kattintás lent.'],
         'tz' => [wp_timezone_string() === 'Europe/Budapest', 'Időzóna: ' . wp_timezone_string(), 'Europe/Budapest – egy kattintás lent.'],
-        'perma' => [(string) get_option('permalink_structure') !== '', 'Permalinkek: ' . ((string) get_option('permalink_structure') ?: 'alapértelmezett (?p=)'), 'Beállítások → Közvetlen hivatkozások → „Bejegyzés neve”.'],
+        'perma' => [(string) get_option('permalink_structure') !== '' && !mandala_wiz_perma_fixable(), 'Permalinkek: ' . ((string) get_option('permalink_structure') ?: 'alapértelmezett (?p=)'), mandala_wiz_perma_fixable() ? 'Dátumos címek (/2026/09/27/…) – új oldalon a rövid „Bejegyzés neve” forma ajánlott.' : 'Beállítások → Közvetlen hivatkozások → „Bejegyzés neve”.'],
         'cron' => [$late < 20, 'Háttérfeladatok: ' . ($late < 20 ? 'rendben futnak' : $late . ' késésben'), 'Valódi cron ajánlott (oldal-gyorsítótárral különösen): DISABLE_WP_CRON a wp-config-ba, és a tárhelyen percenként: wget -q -O - ' . site_url('wp-cron.php?doing_wp_cron') . ' >/dev/null'],
         'webp' => [function_exists('wp_image_editor_supports') && wp_image_editor_supports(['mime_type' => 'image/webp']), 'WebP képek: ' . (wp_image_editor_supports(['mime_type' => 'image/webp']) ? 'támogatott' : 'nem támogatott'), 'Nem kötelező; a tárhelytől kérhető Imagick / GD WebP támogatás.'],
     ];
@@ -357,7 +362,7 @@ add_action('admin_post_mandala_wizard', function () {
                 $msg = ['success', 'Időzóna: Europe/Budapest, magyar dátumformátum.'];
                 break;
             case 'perma':
-                if ((string) get_option('permalink_structure') === '') {
+                if ((string) get_option('permalink_structure') === '' || mandala_wiz_perma_fixable()) {
                     update_option('permalink_structure', '/%postname%/');
                     flush_rewrite_rules();
                 }
