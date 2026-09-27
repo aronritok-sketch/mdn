@@ -318,13 +318,13 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     echo wp_json_encode([$mk("Tibeti hangtál kézzel kovácsolt – G#, 405 Hz, 520 g", "OLD-1", $cat("regi-tibeti-hangtalak", "Régi: Tibeti hangtálak")), $mk("Tibeti hangtál – ismeretlen", "OLD-2", $cat("regi-tibeti-hangtalak", "")), $mk("Nag Champa füstölő 15 g", "OLD-3", $cat("regi-fustolok", "Régi: Füstölők"))]);`));
   W(`mandala ai-migrate --ids=${ids.join(',')} --dry-run`);
   const sug = (id) => JSON.parse(wp(`echo wp_json_encode(wc_get_product(${id})->get_meta("_mandala_ai"));`));
-  ok(sug(ids[0]).decision === 'auto' && sug(ids[1]).decision === 'review' && sug(ids[2]).decision === 'review', 'Claude próbafuttatás: biztos → automatikus, bizonytalan → ellenőrizendő');
+  ok(sug(ids[0]).decision === 'auto' && sug(ids[1]).decision === 'review' && sug(ids[2]).decision === 'auto', 'Claude próbafuttatás: biztos kategória → automatikus (hiányzó szűrőadattal is), bizonytalan kategória → ellenőrizendő');
   ok(wp(`echo implode(",", wp_get_post_terms(${ids[0]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'Claude próbafuttatás: nem ír a termékbe');
   const mock = JSON.parse(wp('echo wp_json_encode(get_option("mandala_ai_mock_last"));'));
   ok(mock.model === 'claude-sonnet-5' && mock.tool_choice.type === 'auto' && mock.tool === 'record_classifications' && mock.cached, 'Claude kérés: alapmodell (Sonnet 5), eszköz (auto – minden modellen működik), gyorsítótárazott rendszerprompt');
   ok(!mock.fallbacks && !mock.beta, 'Claude kérés: Sonnet 5-ön nincs szerveroldali visszaesés (csak Opus / Fable modelleken kérjük)');
   ok(wp('echo mandala_claude_supports_fallbacks("claude-opus-5") && !mandala_claude_supports_fallbacks("claude-sonnet-5") ? 1 : 0;').trim() === '1', 'Claude kérés: Opus 5-re állítva a szerveroldali visszaesés bekapcsol');
-  ok(sug(ids[2]).problems.length === 0 && sug(ids[2]).missing.includes('Illat'), 'Claude: a bizonytalan kötelező szűrő (illat) miatt ellenőrizendő');
+  ok(sug(ids[2]).problems.length === 0 && sug(ids[2]).missing.includes('Illat'), 'Claude: a bizonytalan kötelező szűrő (illat) hiányzóként jelölve');
 
   const out = W(`mandala ai-migrate --ids=${ids.join(',')}`);
   const run = out.match(/Futtatás: (\w+)/)[1];
@@ -334,6 +334,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(vals.hang[0] === 'g-sharp' && vals.hz === 405 && vals.suly === 520 && vals.csakra[0] === 'torok' && vals.keszites[0] === 'kovacsolt', 'migráció: szűrőadatok (hang, Hz, súly, csakra, készítés)');
   ok(wp(`echo get_post_meta(${ids[1]}, "_mandala_onboarding", true) . get_post_status(${ids[1]});`) === 'reviewpublish', 'migráció: bizonytalan élő termék az ellenőrizendő sorba, élő marad');
   ok(wp(`echo implode(",", wp_get_post_terms(${ids[1]}, "product_cat", ["fields" => "slugs"]));`) === 'regi-tibeti-hangtalak', 'migráció: bizonytalan terméknél nem ír a kategóriába');
+  const cats2 = wp(`echo implode(",", wp_get_post_terms(${ids[2]}, "product_cat", ["fields" => "slugs"])) . "|" . get_post_meta(${ids[2]}, "_mandala_onboarding", true) . "|" . get_post_status(${ids[2]});`);
+  ok(cats2.includes('fustolok') && cats2.endsWith('|review|publish'), 'migráció: biztos kategória hiányzó szűrőadattal – a kategória érvényes, élő marad, az adatpótlás ellenőrizendő', cats2);
   wp(`mandala_ai_apply(wc_get_product(${ids[2]}), wc_get_product(${ids[2]})->get_meta("_mandala_ai"), "kézi");`);
   ok(JSON.parse(wp(`echo wp_json_encode(mandala_attr(wc_get_product(${ids[2]}), "pa_forma", "slug"));`))[0] === 'palcika', 'javaslat kézi alkalmazása: új szűrőérték (nyitott lista) létrejön');
   W(`mandala ai-undo ${run}`);

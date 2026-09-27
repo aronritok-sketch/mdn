@@ -106,7 +106,7 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
             }
         } elseif (str_contains($text, 'füstölő')) {
             $r = ['product_id' => $p['product_id'], 'category' => 'szakralis-targyak', 'subcategory' => 'fustolok', 'fields' => ['szandek' => ['csend'], 'eredet' => ['india'], 'forma' => ['Pálcika'], 'illat' => []],
-                'confidence' => 0.58, 'uncertain_fields' => ['illat'], 'note' => 'Az illat nem derül ki az adatokból.'];
+                'confidence' => 0.92, 'uncertain_fields' => ['illat'], 'note' => 'Füstölő, egyértelmű; az illat nem derül ki az adatokból.'];
         }
         $results[] = $r;
     }

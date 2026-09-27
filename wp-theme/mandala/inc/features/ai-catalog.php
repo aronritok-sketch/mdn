@@ -84,7 +84,7 @@ function mandala_ai_system_prompt(array $tax): string
         '- Csak a lent felsorolt kategóriák és értékek közül választhatsz (slug). Ha egy mező a termék adataiból nem állapítható meg biztosan, hagyd üresen, és írd a mező kulcsát az uncertain_fields listába. Ne találgass.',
         '- Számot (hz, suly) csak akkor adj, ha az adatokban szerepel (pl. „405 Hz”, „490 g”, „0,49 kg” → 490). Ne becsülj.',
         '- A régi kategória és tulajdonság erős jelzés, de a régi rendszer hibás is lehetett: a név és a leírás dönt.',
-        '- confidence (0–1): 0.9 felett csak akkor, ha a fő- és alkategória egyértelmű ÉS minden, a kategóriájához kötelező szűrő adatokkal alátámasztott. Ha bármi bizonytalan, legyen 0.7 alatt.',
+        '- confidence (0–1): KIZÁRÓLAG a fő- és alkategória választásának biztonsága. 0.9 felett, ha a név, a leírás vagy a régi kategória alapján a kategória egyértelmű; 0.7 alatt, ha két kategória között is lehetne. A hiányzó vagy bizonytalan szűrőadat (pl. az eredet nem szerepel az adatokban) NEM csökkenti – azt az uncertain_fields jelzi.',
         '- note: egy rövid magyar mondat a döntés indokáról vagy arról, mit kell embernek ellenőriznie.',
         '- short_description_draft: csak ha a terméknek nincs rövid leírása – 1–2 tényszerű magyar mondat a megadott adatokból, túlzás és egészségügyi ígéret nélkül; különben üres.',
         '- Az eredményt mindig és kizárólag a ' . MANDALA_AI_TOOL . ' eszköz hívásával add vissza (szöveges válasz nélkül), minden kapott termékre egy elemmel.',
@@ -299,7 +299,9 @@ function mandala_ai_normalize(array $r, array $tax, WC_Product $product): array
         }
     }
     $threshold = (float) mandala_ai_settings()['threshold'];
-    $auto = $cat && !$problems && !$missing && $confidence >= $threshold;
+    // Automatikus, ha a kategória biztos. A hiányzó / bizonytalan szűrőadat nem akasztja meg: az üresen marad,
+    // a termék pedig az „Élő, ellenőrizendő” listára kerül a hiányzó tételekkel (mandala_ai_handle_result).
+    $auto = $cat && $confidence >= $threshold;
     return [
         'cat' => $cat, 'sub' => $sub, 'fields' => $fields, 'confidence' => round($confidence, 2),
         'uncertain' => $uncertain, 'missing' => $missing, 'problems' => $problems,
@@ -421,6 +423,14 @@ function mandala_ai_handle_result(WC_Product $product, array $sug, string $run, 
     }
     if ($sug['decision'] === 'auto') {
         mandala_ai_apply($product, $sug, $run);
+        // Élő termék, de hiányzik kötelező szűrőadat: a kategória érvényes, az adat pótlása az „Élő, ellenőrizendő” fülön.
+        if ((!empty($sug['missing']) || !empty($sug['problems'])) && mandala_onboarding_state($product->get_id()) !== 'new') {
+            update_post_meta($product->get_id(), '_mandala_onboarding', 'review');
+            if (!get_post_meta($product->get_id(), '_mandala_onboarding_since', true)) {
+                update_post_meta($product->get_id(), '_mandala_onboarding_since', time());
+            }
+            wp_cache_delete('counts', 'mandala_onboarding');
+        }
         return 'auto';
     }
     // Bizonytalan: élő terméknél „ellenőrizendő”, új terméknél marad „új” – a javaslattal.
@@ -592,7 +602,7 @@ function mandala_ai_suggestion_html(WC_Product $product, bool $actions = true, ?
         }
         $vals[] = ($schema[$key]['label'] ?? $key) . ': ' . (is_array($v) ? implode(', ', array_map(fn($x) => str_starts_with($x, 'new:') ? substr($x, 4) . ' (új)' : mandala_term_name($x, $schema[$key]['key']), $v)) : $v);
     }
-    $out = '<div class="mandala-ai"><p><strong>Claude javaslat</strong> · ' . esc_html((int) round($sug['confidence'] * 100) . '%') . ($sug['decision'] === 'auto' ? ' · biztos' : ' · ellenőrizendő') . '</p>'
+    $out = '<div class="mandala-ai"><p><strong>Claude javaslat</strong> · ' . esc_html((int) round($sug['confidence'] * 100) . '%') . ($sug['decision'] === 'auto' ? ' · biztos kategória' . (!empty($sug['missing']) ? ' · hiányzó adat: ' . implode(', ', (array) $sug['missing']) : '') : ' · ellenőrizendő') . '</p>'
         . '<p>' . esc_html(($sug['cat'] ? mandala_term_name($sug['cat']) : '–') . ($sug['sub'] ? ' › ' . mandala_term_name($sug['sub']) : '')) . '</p>'
         . ($vals ? '<p class="description">' . esc_html(implode(' · ', $vals)) . '</p>' : '')
         . ($sug['missing'] ? '<p class="description">Bizonytalan: ' . esc_html(implode(', ', $sug['missing'])) . '</p>' : '')
@@ -754,7 +764,7 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
                 continue;
             }
             $old = implode(', ', wp_get_post_terms($pid, 'product_cat', ['fields' => 'names']));
-            echo '<tr><td><a href="' . esc_url(get_edit_post_link($pid)) . '">' . esc_html($product->get_name()) . '</a></td><td>' . esc_html($old) . '</td><td>' . mandala_ai_suggestion_html($product, false, $sug) . '</td><td>' . (int) round($sug['confidence'] * 100) . '%</td><td>' . ($sug['decision'] === 'auto' ? 'automatikus' : 'ellenőrizendő') . '</td></tr>'; // phpcs:ignore
+            echo '<tr><td><a href="' . esc_url(get_edit_post_link($pid)) . '">' . esc_html($product->get_name()) . '</a></td><td>' . esc_html($old) . '</td><td>' . mandala_ai_suggestion_html($product, false, $sug) . '</td><td>' . (int) round($sug['confidence'] * 100) . '%</td><td>' . ($sug['decision'] === 'auto' ? 'automatikus' . (!empty($sug['missing']) ? ' (az adatpótlás ellenőrizendő)' : '') : 'ellenőrizendő') . '</td></tr>'; // phpcs:ignore
         }
         echo '</tbody></table>';
     }
