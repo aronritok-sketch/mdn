@@ -216,7 +216,16 @@ function mandala_is_new(WC_Product $product): bool
         return true;
     }
     $created = $product->get_date_created();
-    return $created && $created->getTimestamp() > time() - 60 * DAY_IN_SECONDS;
+    if (!$created || $created->getTimestamp() <= time() - 60 * DAY_IN_SECONDS) {
+        return false;
+    }
+    // A régi boltból átköltöztetett termékek nem újdonságok, csak most kerültek ebbe a rendszerbe
+    // (az átköltöztetés előtt létrehozott, a régi boltban is élő termékek; a sorban maradtakat _mandala_ai_skip jelöli).
+    static $moved = null;
+    if ($moved === null) {
+        $moved = defined('MANDALA_OLDSHOP_OPTION') ? (int) (((array) get_option(MANDALA_OLDSHOP_OPTION, []))['finished'] ?? 0) : 0;
+    }
+    return !($moved && $created->getTimestamp() <= $moved && !get_post_meta($product->get_id(), '_mandala_ai_skip', true));
 }
 
 /** Illusztráció URL, ha a terméknek nincs képe (a prototípus SVG-i). */

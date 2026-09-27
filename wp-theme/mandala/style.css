@@ -966,6 +966,36 @@ select.country_to_state--single { appearance: none; -webkit-appearance: none; bo
   .table-wrap td:last-child { margin-top: var(--space-2); font-weight: 500; }
 }
 
+/* Kereső réteg: a valódi iu űrlapstílus ne rajzoljon keretet, és ne legyen dupla „törlés” gomb (a böngészőé + a bezáró) */
+.search-form input[type="search"] { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; -webkit-appearance: none; appearance: none; }
+.search-form input[type="search"]::-webkit-search-cancel-button,
+.search-form input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.search-form input[type="search"]:focus, .search-form input[type="search"]:focus-visible { outline: none; box-shadow: none; }
+.search-form:focus-within { border-bottom-color: var(--c-accent); }
+
+/* Oldalfej: a morzsamenü és a felirat ne tapadjon össze */
+.page-head .iu-breadcrumbs { margin-bottom: var(--space-5); }
+
+/* Üres lista üzenete (pl. még nincs magazincikk) */
+.empty-note { max-width: 56ch; padding: var(--space-6) 0; color: var(--c-muted); font-size: 1.125rem; }
+
+/* Beágyazott kereső (keresési találatok, 404) */
+.search-inline { display: flex; gap: var(--space-3); max-width: 720px; margin: var(--space-5) 0; }
+.search-inline input[type="search"] { flex: 1; min-width: 0; }
+.search-inline input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.search-inline .iu-button { flex: none; display: inline-flex; align-items: center; gap: var(--space-2); }
+@media (max-width: 575px) { .search-inline .iu-button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+/* Fiókom: ha a fiókoldal tartalma szekció nélkül érkezik (a keretrendszer saját fiókblokkja), ne tapadjon a képernyő szélére */
+main > .iu-woocommerce-account, main > .woocommerce { width: var(--iu-row-width); margin: 0 auto; padding: var(--space-7) 0 var(--space-9); }
+
+/* Termékoldal mobilon: a hosszú morzsamenü helyett csak a közvetlen kategória, visszalépő nyíllal */
+@media (max-width: 575px) {
+  .iu-breadcrumbs ol li { display: none; }
+  .iu-breadcrumbs ol li:nth-last-child(2) { display: inline-flex; }
+  .iu-breadcrumbs ol li:nth-last-child(2)::before { content: '‹'; opacity: 1; font-size: 1.25em; line-height: 1; }
+}
+
 
 /* ==========================================================================
    Funkciómodulok: hangminta, egyedi darab, előrendelés, műhelyek, események,

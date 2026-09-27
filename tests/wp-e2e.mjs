@@ -37,6 +37,14 @@ ok(page.url().includes('/kategoria/lakberendezes/') && !/hang=/.test(page.url())
 await page.goBack();
 await page.waitForTimeout(300);
 ok(/hang=G/.test(page.url()), 'vissza gomb visszaállítja a szűrést');
+await page.goto(`${BASE}/kategoria/szakralis-targyak/hangtalak/`, { waitUntil: 'networkidle' });
+ok(!(await page.isHidden('[data-crumb-parent]')) && (await page.textContent('[data-crumb-parent]')).includes('Szakrális'), 'alkategória: a főkategória is a morzsamenüben');
+ok(!(await page.textContent('[data-lead]')).startsWith('Hangtálak, füstölők'), 'alkategória: nem a főkategória leírása', await page.textContent('[data-lead]'));
+
+// ---------- Keresési találatok oldal ----------
+await page.goto(`${BASE}/?s=hangt%C3%A1l`, { waitUntil: 'networkidle' });
+ok(await page.isVisible('form.search-inline button .ico, form.search-inline button svg'), 'találati oldal: kereső gomb ikonnal (nem üres sáv)');
+ok(!(await page.textContent('.iu-breadcrumbs')).includes('Magazin'), 'találati oldal: a morzsamenüben nincs Magazin');
 
 // ---------- Kosárba (kártya, AJAX) ----------
 await page.goto(`${BASE}/termekek/`, { waitUntil: 'networkidle' });

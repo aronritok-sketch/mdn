@@ -109,7 +109,9 @@ add_action('init', function () {
             }
             $posts = get_posts($args);
             if (!$posts) {
-                return '';
+                // A műhelyek oldalán üzenet (máshol, pl. a főoldalon, a szekció eltűnik).
+                return is_post_type_archive('mandala_workshop')
+                    ? '<p class="empty-note">' . esc_html__('A műhelyek bemutatása hamarosan érkezik – addig a kínálatban megtalálod a tárgyaikat.', 'mandala') . '</p>' : '';
             }
             $out = '<div class="workshop-grid">';
             foreach ($posts as $w) {

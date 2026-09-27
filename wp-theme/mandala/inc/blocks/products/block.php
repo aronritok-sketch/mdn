@@ -18,7 +18,14 @@ function mandala_product_selection(string $mode, int $limit, string $category = 
     $base = ['status' => 'publish', 'limit' => $limit, 'return' => 'ids', 'visibility' => 'catalog'];
     switch ($mode) {
         case 'featured':
-            return wc_get_products($base + ['featured' => true, 'stock_status' => 'instock', 'orderby' => 'menu_order', 'order' => 'ASC']);
+            $ids = wc_get_products($base + ['featured' => true, 'stock_status' => 'instock', 'orderby' => 'menu_order', 'order' => 'ASC']);
+            if (count($ids) < $limit) {
+                // Nincs (elég) kiemelt termék: a legtöbbet eladottak, kategóriánként vegyesen, fotóval.
+                $more = wc_get_products(['limit' => $limit * 6, 'exclude' => $ids, 'stock_status' => 'instock', 'meta_key' => 'total_sales',
+                    'orderby' => ['meta_value_num' => 'DESC', 'date' => 'DESC']] + $base);
+                $ids = array_merge($ids, mandala_mix_by_category($more, $limit - count($ids)));
+            }
+            return $ids;
         case 'sale':
             $ids = wc_get_product_ids_on_sale();
             return $ids ? wc_get_products($base + ['include' => $ids, 'stock_status' => 'instock']) : [];
@@ -52,8 +59,47 @@ function mandala_product_selection(string $mode, int $limit, string $category = 
             return array_slice(array_values(array_filter($ids, fn($id) => wc_get_product($id)?->is_in_stock())), 0, $limit);
         case 'new':
         default:
-            return wc_get_products($base + ['orderby' => 'date', 'order' => 'DESC']);
+            // A legfrissebbek, de kategóriánként vegyesen (egy tömeges import ne 12 egyforma gyűrűt mutasson).
+            return mandala_mix_by_category(wc_get_products(['limit' => $limit * 5, 'orderby' => 'date', 'order' => 'DESC'] + $base), $limit);
     }
+}
+
+/**
+ * Sorrendtartó keverés a főkategóriák között (körbe-körbe egyet-egyet), a fotó nélküli termékek a végére.
+ * Így egy válogatásban nem ugyanabból a kategóriából jön minden darab.
+ */
+function mandala_mix_by_category(array $ids, int $limit): array
+{
+    $groups = [];
+    $noimg = [];
+    _prime_post_caches($ids, true, true);
+    foreach ($ids as $id) {
+        if (!get_post_thumbnail_id($id)) {
+            $noimg[] = $id;
+            continue;
+        }
+        $terms = get_the_terms($id, 'product_cat');
+        $root = 0;
+        if ($terms && !is_wp_error($terms)) {
+            $anc = get_ancestors($terms[0]->term_id, 'product_cat');
+            $root = $anc ? (int) end($anc) : (int) $terms[0]->term_id;
+        }
+        $groups[$root][] = $id;
+    }
+    $out = [];
+    while (count($out) < $limit && $groups) {
+        foreach ($groups as $root => &$list) {
+            $out[] = array_shift($list);
+            if (!$list) {
+                unset($groups[$root]);
+            }
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+        unset($list);
+    }
+    return array_slice(array_merge($out, $noimg), 0, $limit);
 }
 
 mandala_add_block('mandala/products', [

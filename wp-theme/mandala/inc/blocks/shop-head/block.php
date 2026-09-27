@@ -47,8 +47,10 @@ mandala_add_block('mandala/shop-head', [
                 }
             }
             $term = get_term_by('slug', $ctx['sub'] ?: $ctx['cat'], 'product_cat');
-            if ($term && $term->description && $ctx['sub']) {
-                $lead = wp_strip_all_tags($term->description);
+            if ($term && $ctx['sub']) {
+                // Alkategória: a saját leírása, ha nincs, rövid saját mondat (ne a főkategória szövege ismétlődjön).
+                $lead = $term->description ? wp_strip_all_tags($term->description)
+                    : sprintf(_n('%1$s a Mandala kínálatából – %2$d darab, közvetlenül Nepálból és Indiából.', '%1$s a Mandala kínálatából – %2$d darab, közvetlenül Nepálból és Indiából.', (int) $term->count, 'mandala'), $title, (int) $term->count);
             }
         } elseif (($_GET['orderby'] ?? '') === 'date') {
             $title = __('Újdonságok', 'mandala');
@@ -58,7 +60,8 @@ mandala_add_block('mandala/shop-head', [
         $crumbs = '<nav class="iu-breadcrumbs" aria-label="' . esc_attr__('Morzsamenü', 'mandala') . '"><ol itemscope itemtype="https://schema.org/BreadcrumbList">'
             . '<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="' . esc_url(home_url('/')) . '"><span itemprop="name">' . esc_html__('Kezdőlap', 'mandala') . '</span></a><meta itemprop="position" content="1"></li>'
             . '<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="' . esc_url($shop) . '"><span itemprop="name">' . esc_html__('Kínálat', 'mandala') . '</span></a><meta itemprop="position" content="2"></li>'
-            . '<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name" aria-current="page" data-crumb>' . esc_html($title) . '</span><meta itemprop="position" content="3"></li></ol></nav>';
+            . '<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" data-crumb-parent' . ($current && $ctx['sub'] ? '' : ' hidden') . '><a itemprop="item" href="' . esc_url($current['url'] ?? $shop) . '"><span itemprop="name">' . esc_html($current['label'] ?? '') . '</span></a><meta itemprop="position" content="3"></li>'
+            . '<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name" aria-current="page" data-crumb>' . esc_html($title) . '</span><meta itemprop="position" content="' . ($current && $ctx['sub'] ? 4 : 3) . '"></li></ol></nav>';
         $chips = '';
         if ($current) {
             $chips .= '<a class="chip" href="' . esc_url($current['url']) . '" data-cat="' . esc_attr($current['slug']) . '" aria-pressed="' . ($ctx['sub'] ? 'false' : 'true') . '">' . esc_html(sprintf(__('Minden %s', 'mandala'), mb_strtolower($current['label']))) . '</a>';
@@ -69,7 +72,7 @@ mandala_add_block('mandala/shop-head', [
         $finder = get_option('mandala_page_hangtal-valaszto');
         $hint = $finder && in_array('hangtalak', [$ctx['sub'], $ctx['cat']], true)
             ? '<p class="finder-hint">' . mandala_icon('compass', 'ico ico-s') . ' ' . esc_html__('Nem tudod, melyiket válaszd?', 'mandala') . ' <a href="' . esc_url(get_permalink((int) $finder)) . '">' . esc_html__('Hangtál-választó – 5 kérdés', 'mandala') . ' →</a></p>' : '';
-        return $crumbs . '<h1 class="iu-title" data-title>' . esc_html($title) . '</h1><p data-lead' . ($lead ? '' : ' hidden') . '>' . esc_html($lead) . '</p>'
+        return $crumbs . '<h1 class="iu-title" data-title>' . esc_html($title) . '</h1><p data-lead' . ($ctx['sub'] ? ' data-sub="' . esc_attr($ctx['sub']) . '"' : '') . ($lead ? '' : ' hidden') . '>' . esc_html($lead) . '</p>'
             . '<div class="chip-row" data-subnav style="margin-top:var(--space-5)">' . $chips . '</div>' . $hint;
     },
 ]);

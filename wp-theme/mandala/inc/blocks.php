@@ -90,7 +90,47 @@ add_filter('render_block', function ($content, $block) {
         && trim(wp_strip_all_tags($content)) === '' && !preg_match('/<(img|svg|iframe|input|button)\b/i', $content)) {
         return '';
     }
+    // Cikkek nélkül (új bolt, még nincs magazin) a „mandala-needs-posts” szekció nem jelenik meg.
+    if (($block['blockName'] ?? '') === 'iu/section' && str_contains((string) ($block['attrs']['className'] ?? ''), 'mandala-needs-posts')
+        && !(int) (wp_count_posts('post')->publish ?? 0)) {
+        return '';
+    }
+    // Üres magazin: a kategóriaszűrő elmarad, a lista helyén rövid üzenet.
+    $name = $block['blockName'] ?? '';
+    $blog_list = ($name === 'iu/query' && !empty($block['attrs']['main_query'])) || ($name === 'iu/terms' && ($block['attrs']['taxonomy'] ?? '') === 'category');
+    if ($blog_list && (is_home() || is_category()) && !have_posts()) {
+        return $name === 'iu/query'
+            ? '<p class="empty-note">' . esc_html__('Az első cikkeken dolgozunk – hamarosan itt olvashatod őket. Addig nézz körül a kínálatban!', 'mandala') . '</p>'
+            : '';
+    }
     return $content;
+}, 10, 2);
+
+/**
+ * iu/search: a keretrendszer gombja dashicons ikont használ, ami a látogatói oldalon nem töltődik be
+ * (üres fekete sáv lett belőle). Saját, címkézett űrlap ikonnal és felirattal.
+ */
+add_filter('render_block', function ($content, $block) {
+    if (($block['blockName'] ?? '') !== 'iu/search' || is_admin()) {
+        return $content;
+    }
+    static $n = 0;
+    $id = 'inline-search-' . (++$n);
+    $placeholder = (string) ($block['attrs']['placeholder'] ?? __('Mit keresel?', 'mandala'));
+    return '<form class="search-inline" role="search" action="' . esc_url(home_url('/')) . '">'
+        . '<label class="sr-only" for="' . $id . '">' . esc_html__('Keresés', 'mandala') . '</label>'
+        . '<input id="' . $id . '" name="s" type="search" value="' . esc_attr(get_search_query()) . '" placeholder="' . esc_attr($placeholder) . '">'
+        . '<button class="iu-button iu-button-default" type="submit">' . mandala_icon('search') . '<span>' . esc_html__('Keresés', 'mandala') . '</span></button></form>';
+}, 10, 2);
+
+/** Keresési találatoknál a morzsamenü ne a Magazint mutassa szülőként (a keretrendszer a blogoldalt teszi be). */
+add_filter('render_block', function ($content, $block) {
+    if (($block['blockName'] ?? '') !== 'iu/breadcrumbs' || !is_search()) {
+        return $content;
+    }
+    return '<nav class="iu-breadcrumbs" aria-label="' . esc_attr__('Morzsamenü', 'mandala') . '"><div class="iu-breadcrumbs-wrap">'
+        . '<span><a href="' . esc_url(home_url('/')) . '">' . esc_html__('Kezdőlap', 'mandala') . '</a></span><span class="iu-breadcrumbs-separator">/</span>'
+        . '<span class="iu-breadcrumbs-current">' . esc_html__('Keresés', 'mandala') . '</span></div></nav>';
 }, 10, 2);
 
 /** Szerkesztői jelölés a JS nélküli blokkokhoz. */

@@ -27,19 +27,30 @@ const SORT = {
 const unitFmt = (f, v) => (f.unit === 'Ft' ? fmt(v) : `${fmtNum(v)} ${f.unit}`);
 
 // ---------- Fej, gyors szűrések, chipek ----------
+const serverLead = { sub: $('[data-lead]')?.dataset.sub || '', text: $('[data-lead]')?.textContent || '' };
 function heading() {
   const cat = categoryBySlug(state.cat);
   const intent = state.sel.szandek?.length === 1 && !cat ? INTENTS.find((i) => i.id === state.sel.szandek[0]) : null;
   let title = 'Teljes kínálat';
   let lead = 'Hangtálak, füstölők, szobrok, textilek és ajándékok – Nepál és India műhelyeiből.';
   if (state.q && !cat) { title = `Keresés: „${state.q}”`; lead = ''; }
-  else if (state.sub && cat) { title = subLabel(cat.slug, state.sub); lead = cat.text; }
+  else if (state.sub && cat) {
+    title = subLabel(cat.slug, state.sub);
+    // Az alkategória saját leírása a szerverről jön (első betöltés); egyébként rövid saját mondat, nem a főkategória szövege.
+    lead = serverLead.sub === state.sub ? serverLead.text : `${title} a Mandala kínálatából – ${categoryCounts(products, { ...state, sel: {} }).sub(cat.slug, state.sub)} darab, közvetlenül Nepálból és Indiából.`;
+  }
   else if (cat) { title = cat.label; lead = cat.text; }
   else if (intent) { title = intent.label; lead = intent.text; }
   else if (state.orderby === 'date') { title = 'Újdonságok'; lead = 'Frissen érkezett darabok Nepálból és Indiából.'; }
   else if (state.sel.allapot?.includes('akcios')) { title = 'Akciók'; lead = 'Kedvezményes darabok, amíg a készlet tart.'; }
   $('[data-title]').textContent = title;
   $('[data-crumb]').textContent = title;
+  const parent = $('[data-crumb-parent]');
+  if (parent) {
+    parent.hidden = !(state.sub && cat);
+    if (cat) { if (cat.url) parent.querySelector('a').href = cat.url; parent.querySelector('[itemprop="name"]').textContent = cat.label; }
+    $('[data-crumb]').nextElementSibling?.setAttribute('content', parent.hidden ? '3' : '4');
+  }
   $('[data-lead]').textContent = lead;
   $('[data-lead]').hidden = !lead;
   const counts = categoryCounts(products, state);

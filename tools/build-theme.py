@@ -483,7 +483,7 @@ def page_home():
         section(one(dyn('mandala/events', limit='3', eyebrow='Programok', heading='Hangfürdők és workshopok')), className='mandala-optional'),
         section(one(section_head('Vásárlóink mondták', 'Több, mint egy vásárlás'), dyn('mandala/testimonials')), bg='sand'),
         section(one(section_head('Magazin', 'Tudni, mit tartasz a kezedben', button=('Összes cikk', '[mandala_url page=magazin]', 'outline')),
-                    dyn('iu/query', main_query=False, params='"post_type": "post", "posts_per_page": 3', template='[mandala_post_card]', columns='3'))),
+                    dyn('iu/query', main_query=False, params='"post_type": "post", "posts_per_page": 3', template='[mandala_post_card]', columns='3')), className='mandala-needs-posts'),
     ])
 
 
