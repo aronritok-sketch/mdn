@@ -15,17 +15,53 @@ function mandala_report_settings(): array
     return wp_parse_args((array) get_option('mandala_report', []), ['enabled' => 'yes', 'to' => '', 'ai' => 'yes']);
 }
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_weekly_report', [], MANDALA_AS_GROUP)) {
-        $next = strtotime('next monday 07:30', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS);
-        as_schedule_recurring_action($next, WEEK_IN_SECONDS, 'mandala_weekly_report', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_weekly_report', WEEK_IN_SECONDS, fn() => strtotime('next monday 07:30', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS));
 add_action('mandala_weekly_report', function () {
     if (mandala_report_settings()['enabled'] === 'yes') {
         mandala_report_send();
     }
 });
+
+/** Rendelések tételei közvetlenül a tétel-táblákból (HPOS-szal és a régi tárolással is ugyanazok). */
+function mandala_order_lines(array $order_ids): array
+{
+    global $wpdb;
+    $lines = [];
+    foreach (array_chunk(array_map('intval', $order_ids), 1000) as $chunk) {
+        $in = implode(',', $chunk);
+        $rows = $wpdb->get_results("SELECT oi.order_id, oi.order_item_name AS name,
+                MAX(CASE WHEN m.meta_key = '_product_id' THEN m.meta_value END) AS product_id,
+                MAX(CASE WHEN m.meta_key = '_variation_id' THEN m.meta_value END) AS variation_id,
+                MAX(CASE WHEN m.meta_key = '_qty' THEN m.meta_value END) AS qty
+            FROM {$wpdb->prefix}woocommerce_order_items oi
+            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta m ON m.order_item_id = oi.order_item_id AND m.meta_key IN ('_product_id', '_variation_id', '_qty')
+            WHERE oi.order_item_type = 'line_item' AND oi.order_id IN ($in)
+            GROUP BY oi.order_item_id", ARRAY_A); // phpcs:ignore
+        foreach ($rows as $r) {
+            $lines[] = ['order_id' => (int) $r['order_id'], 'name' => (string) $r['name'], 'product_id' => (int) $r['product_id'], 'variation_id' => (int) $r['variation_id'], 'qty' => (int) $r['qty']];
+        }
+    }
+    return $lines;
+}
+
+/** E-mail címenként az első rendelés időpontja (egy lekérdezés; HPOS és régi tárolás). */
+function mandala_first_order_dates(array $emails): array
+{
+    global $wpdb;
+    if (!$emails) {
+        return [];
+    }
+    $in = implode(',', array_map(fn($e) => $wpdb->prepare('%s', $e), $emails));
+    $hpos = class_exists(\Automattic\WooCommerce\Utilities\OrderUtil::class) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+    $sql = $hpos
+        ? "SELECT LOWER(billing_email) AS email, MIN(date_created_gmt) AS first FROM {$wpdb->prefix}wc_orders WHERE type = 'shop_order' AND billing_email IN ($in) GROUP BY LOWER(billing_email)"
+        : "SELECT LOWER(pm.meta_value) AS email, MIN(p.post_date_gmt) AS first FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_billing_email' WHERE p.post_type = 'shop_order' AND pm.meta_value IN ($in) GROUP BY LOWER(pm.meta_value)";
+    $out = [];
+    foreach ($wpdb->get_results($sql) as $r) { // phpcs:ignore
+        $out[$r->email] = strtotime($r->first . ' UTC');
+    }
+    return $out;
+}
 
 /** A riport adatai (időszak: az utolsó 7 nap, összevetve az előzővel). */
 function mandala_report_data(): array
@@ -39,23 +75,23 @@ function mandala_report_data(): array
     };
     $cur = $sum($now - 7 * DAY_IN_SECONDS, $now);
     $prev = $sum($now - 14 * DAY_IN_SECONDS, $now - 7 * DAY_IN_SECONDS);
+    // Tételek és új vásárlók közvetlen SQL-lel (rendelésenkénti lekérdezés helyett – élesben több
+    // tízezer rendelésnél a régi megoldás percekig terhelte volna az adatbázist).
+    $cur_ids = array_map(fn($o) => $o->get_id(), $cur['orders']);
     $top = [];
-    $new_customers = 0;
-    foreach ($cur['orders'] as $o) {
-        foreach ($o->get_items() as $item) {
-            $top[$item->get_name()] = ($top[$item->get_name()] ?? 0) + (int) $item->get_quantity();
-        }
-        $first = wc_get_orders(['billing_email' => $o->get_billing_email(), 'date_created' => '<' . $o->get_date_created()->getTimestamp(), 'limit' => 1, 'return' => 'ids', 'type' => 'shop_order']);
-        $new_customers += $first ? 0 : 1;
+    foreach (mandala_order_lines($cur_ids) as $line) {
+        $top[$line['name']] = ($top[$line['name']] ?? 0) + $line['qty'];
     }
     arsort($top);
+    $emails = array_unique(array_filter(array_map(fn($o) => strtolower($o->get_billing_email()), $cur['orders'])));
+    $first = mandala_first_order_dates($emails);
+    $new_customers = count(array_filter($emails, fn($e) => ($first[$e] ?? 0) >= $now - 7 * DAY_IN_SECONDS));
     // Eladási ütem (30 nap) → hány napra elég a készlet.
     $sold = [];
-    foreach (wc_get_orders(['status' => ['processing', 'completed'], 'date_created' => '>' . ($now - 30 * DAY_IN_SECONDS), 'limit' => -1, 'type' => 'shop_order']) as $o) {
-        foreach ($o->get_items() as $item) {
-            $pid = (int) ($item->get_variation_id() ?: $item->get_product_id());
-            $sold[$pid] = ($sold[$pid] ?? 0) + (int) $item->get_quantity();
-        }
+    $ids30 = wc_get_orders(['status' => ['processing', 'completed'], 'date_created' => '>' . ($now - 30 * DAY_IN_SECONDS), 'limit' => -1, 'return' => 'ids', 'type' => 'shop_order']);
+    foreach (mandala_order_lines($ids30) as $line) {
+        $pid = $line['variation_id'] ?: $line['product_id'];
+        $sold[$pid] = ($sold[$pid] ?? 0) + $line['qty'];
     }
     $runout = [];
     foreach ($sold as $pid => $qty) {

@@ -21,7 +21,7 @@ mandala_add_block('mandala/search-results', [
         }
         // Szerveroldali keresés (ragozás, szinonimák, cikkszám); a böngészőben a teljes motor
         // (elírás-tűrés, „500 g alatt” értelmezés) finomítja – assets/js/search-page.js.
-        $product_ids = function_exists('mandala_search_products') ? array_column(mandala_search_products($q), 'id') : [];
+        $product_ids = function_exists('mandala_search_product_ids') ? mandala_search_product_ids($q) : [];
         wp_enqueue_script_module('mandala-search-page', MANDALA_URL . '/assets/js/search-page.js', [], MANDALA_VERSION);
         $posts = new WP_Query(['post_type' => 'post', 'post_status' => 'publish', 's' => $q, 'posts_per_page' => 9, 'no_found_rows' => true]);
         $shown = array_slice($product_ids, 0, 24);
@@ -40,7 +40,7 @@ mandala_add_block('mandala/search-results', [
         $out = '<div class="search-page" data-search-page data-q="' . esc_attr($q) . '"><div data-search-products>';
         if ($product_ids) {
             $out .= '<h2 style="font-size:var(--fs-h3)">' . esc_html__('Termékek', 'mandala') . ' <span class="text-muted">(' . count($product_ids) . ')</span></h2><ul class="products columns-4">'
-                . implode('', array_map(fn($id) => mandala_card(wc_get_product($id)), $shown)) . '</ul>'
+                . mandala_cards($shown) . '</ul>'
                 . (count($product_ids) > 24 ? '<p class="load-more"><a class="iu-button iu-button-outline" href="' . esc_url(add_query_arg('q', rawurlencode($q), mandala_shop_url())) . '">' . esc_html(sprintf(__('Mind a %d termék a kínálatban', 'mandala'), count($product_ids))) . '</a></p>' : '');
         }
         $out .= '</div>';

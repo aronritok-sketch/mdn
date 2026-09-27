@@ -99,7 +99,10 @@ function mandala_voucher_balance(WP_Post $voucher): int
 function mandala_voucher_create(int $amount, array $meta = []): WP_Post
 {
     $months = max(1, (int) mandala_gift_settings()['voucher_months']);
-    $id = wp_insert_post(['post_type' => 'mandala_voucher', 'post_status' => 'publish', 'post_title' => mandala_voucher_code()]);
+    $id = wp_insert_post(['post_type' => 'mandala_voucher', 'post_status' => 'publish', 'post_title' => mandala_voucher_code()], true);
+    if (is_wp_error($id) || !$id) {
+        throw new RuntimeException(is_wp_error($id) ? $id->get_error_message() : 'wp_insert_post');
+    }
     update_post_meta($id, '_value', $amount);
     update_post_meta($id, '_balance', $amount);
     update_post_meta($id, '_expires', wp_date('Y-m-d', strtotime('+' . $months . ' months')));
@@ -305,11 +308,17 @@ function mandala_issue_vouchers($order_id): void
             continue;
         }
         $codes = [];
-        for ($i = 0; $i < $line->get_quantity(); $i++) {
-            $voucher = mandala_voucher_create((int) $v['amount'], ['_order' => $order->get_id()]);
-            mandala_voucher_adjust($voucher, 0, sprintf('Kiállítva, rendelés #%d', $order->get_id()));
-            $codes[] = $voucher->post_title;
-            mandala_mail_voucher($voucher, $order, $v);
+        try {
+            for ($i = 0; $i < $line->get_quantity(); $i++) {
+                $voucher = mandala_voucher_create((int) $v['amount'], ['_order' => $order->get_id()]);
+                mandala_voucher_adjust($voucher, 0, sprintf('Kiállítva, rendelés #%d', $order->get_id()));
+                $codes[] = $voucher->post_title;
+                mandala_mail_voucher($voucher, $order, $v);
+            }
+        } catch (RuntimeException $e) {
+            // Nem mentjük a tételhez: a rendelés újbóli „Teljesítve” állapotra állítása újrapróbálja.
+            $order->add_order_note(sprintf('HIBA: az ajándékutalvány nem készült el (%s).%s Állítsd újra „Teljesítve” állapotra az újrapróbáláshoz.', $e->getMessage(), $codes ? ' Már kiállítva: ' . implode(', ', $codes) . '.' : ''));
+            continue;
         }
         $line->update_meta_data('_mandala_voucher_codes', $codes);
         $line->update_meta_data(__('Utalványkód', 'mandala'), implode(', ', $codes));
@@ -586,7 +595,7 @@ function mandala_gift_candidates(): array
 }
 
 add_action('wc_ajax_mandala_gift_add', function () {
-    check_ajax_referer('mandala-cart', 'security');
+    mandala_verify_cart_request();
     $max = (int) mandala_gift_settings()['gift_max'];
     $items = array_slice(array_unique(array_map('absint', (array) ($_POST['items'] ?? []))), 0, $max);
     $box = absint($_POST['box'] ?? 0);

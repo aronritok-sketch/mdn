@@ -102,7 +102,7 @@ add_action('template_redirect', function () {
 /* ---------- Tömeges kosárba (wc-ajax=mandala_bulk_add) ---------- */
 
 add_action('wc_ajax_mandala_bulk_add', function () {
-    check_ajax_referer('mandala-cart', 'security');
+    mandala_verify_cart_request();
     if (!mandala_is_wholesale_user()) {
         wp_send_json(['ok' => false, 'error' => __('Ez a funkció viszonteladóknak szól.', 'mandala')], 403);
     }
@@ -194,12 +194,7 @@ add_action('admin_post_mandala_b2b_images', function () {
 
 /* ---------- Heti levél az új érkezésekről ---------- */
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_b2b_weekly', [], MANDALA_AS_GROUP)) {
-        $next = (new DateTimeImmutable('next monday 08:00', wp_timezone()))->getTimestamp();
-        as_schedule_recurring_action($next, WEEK_IN_SECONDS, 'mandala_b2b_weekly', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_b2b_weekly', WEEK_IN_SECONDS, fn() => (new DateTimeImmutable('next monday 08:00', wp_timezone()))->getTimestamp());
 
 add_action('mandala_b2b_weekly', function () {
     $since = gmdate('Y-m-d H:i:s', time() - WEEK_IN_SECONDS);

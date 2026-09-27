@@ -63,7 +63,7 @@ functions.php                     csak betöltő
 inc/theme.php                     stílusok, ES modulok, menühelyek, globális rétegek (kereső, minikosár)
 inc/blocks.php                    blokk-betöltő (iucb_add_block; tartalék: register_block_type)
 inc/blocks/*/block.php            saját blokkok (lásd lent)
-inc/catalog.php                   szűrő termékindex (transient), „Mandala adatok” termékmezők, színkódok
+inc/catalog.php                   termékindex (opció + statikus JSON, termékenként frissül a háttérben), „Mandala adatok” termékmezők, színkódok
 inc/shop.php                      WooCommerce: pénztár mezők, adószám, szállítás/utánvét, fragmentek, sablonok
 inc/forms.php                     iu/form feldolgozás (iu_form_submit_{formId}), napló, hírlevél CSV
 inc/wishlist.php                  kedvencek (süti + felhasználói meta)

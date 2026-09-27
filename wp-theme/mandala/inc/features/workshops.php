@@ -247,7 +247,7 @@ add_action('mandala_demo_features', function () {
             'post_type' => 'mandala_workshop', 'post_status' => 'publish', 'post_title' => $title, 'post_excerpt' => $excerpt, 'menu_order' => $i,
             'post_content' => "<!-- wp:paragraph -->\n<p>{$excerpt}</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>[Bemutató szöveg – a műhely valódi története, a mester neve és fotói élesítés előtt kerülnek ide.]</p>\n<!-- /wp:paragraph -->",
         ]);
-        if (is_wp_error($id)) {
+        if (!$id || is_wp_error($id)) {
             continue;
         }
         foreach (['_mandala_place' => $place, '_mandala_craft' => $craft, '_mandala_country' => $country, '_mandala_art' => $art, '_mandala_demo' => '1'] as $k => $v) {

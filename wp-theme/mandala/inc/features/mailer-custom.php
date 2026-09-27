@@ -194,11 +194,7 @@ add_action('mandala_newsletter_subscribed', fn($email) => mandala_custom_fire('n
 add_action('mandala_review_submitted', fn($review_id) => mandala_custom_fire('review_submitted', 'review', (int) $review_id));
 
 /** Visszacsábító: naponta, akiknek pontosan N napja volt az utolsó (teljesített) rendelése. */
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_custom_mail_daily', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(strtotime('tomorrow 09:00', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS), DAY_IN_SECONDS, 'mandala_custom_mail_daily', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_custom_mail_daily', DAY_IN_SECONDS, fn() => strtotime('tomorrow 09:00', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS));
 add_action('mandala_custom_mail_daily', function () {
     foreach (mandala_custom_mails() as $id => $raw) {
         $mail = mandala_custom_mail((string) $id);

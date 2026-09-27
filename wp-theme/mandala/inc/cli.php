@@ -62,6 +62,7 @@ WP_CLI::add_command('mandala', new class {
     public function reindex()
     {
         mandala_flush_index();
+        mandala_index_refresh(); // azonnal, nem a folyamat végén
         WP_CLI::success(count(mandala_product_index()) . ' termék indexelve.');
     }
 });

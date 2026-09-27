@@ -206,11 +206,7 @@ function mandala_seo_kick(int $delay = 60): void
         as_schedule_single_action(time() + $delay, 'mandala_seo_run', [], MANDALA_AS_GROUP);
     }
 }
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_seo_daily', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + 30 * MINUTE_IN_SECONDS, DAY_IN_SECONDS, 'mandala_seo_daily', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_seo_daily', DAY_IN_SECONDS, fn() => time() + 30 * MINUTE_IN_SECONDS);
 add_action('mandala_seo_daily', fn() => mandala_seo_pending(1) ? mandala_seo_kick(10) : null);
 
 /** Módosult termék: újra sorra kerül (a régi szöveg addig érvényben marad). */

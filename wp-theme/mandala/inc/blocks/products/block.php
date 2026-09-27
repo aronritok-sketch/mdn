@@ -103,7 +103,7 @@ mandala_add_block('mandala/products', [
         if (!$ids) {
             return '';
         }
-        $cards = implode('', array_map(fn($id) => mandala_card(wc_get_product($id)), $ids));
+        $cards = mandala_cards($ids);
         $cols = (int) ($attributes['columns'] ?? 4) === 3 ? 3 : 4;
         if (($attributes['layout'] ?? 'grid') !== 'carousel') {
             return '<ul class="' . mandala_classes($attributes, 'products', 'columns-' . $cols) . '">' . $cards . '</ul>';

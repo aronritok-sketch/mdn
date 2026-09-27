@@ -764,6 +764,7 @@ def build_package():
         'mandala-tema.zip': DIST,
         'TELEPITES.md': ROOT / 'docs/TELEPITES.md',
         'UJ-TERMEKEK.md': ROOT / 'docs/UJ-TERMEKEK.md',
+        'TERHELESI-TESZT.md': ROOT / 'docs/TERHELESI-TESZT.md',
         'wp-config-kiegeszites.php': ROOT / 'tools/package/wp-config-kiegeszites.php',
     }
     with zipfile.ZipFile(PACKAGE, 'w', zipfile.ZIP_DEFLATED) as z:

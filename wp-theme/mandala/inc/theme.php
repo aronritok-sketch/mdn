@@ -6,6 +6,23 @@
 
 defined('ABSPATH') || exit;
 
+/*
+ * A minden oldalbetöltéskor olvasott, de nem automatikusan betöltött beállítások egyetlen
+ * lekérdezéssel (terheléses mérés: oldalanként ~30 külön lekérdezés helyett 1). A hiányzókat
+ * is megjegyzi, így a még nem mentett beállítások sem kérdeződnek le újra.
+ */
+if (function_exists('wp_prime_option_caches')) {
+    wp_prime_option_caches(apply_filters('mandala_prime_options', [
+        'mandala_ai', 'mandala_analytics', 'mandala_chat', 'mandala_collections', 'mandala_collections_rw', 'mandala_contact',
+        'mandala_flush_rewrite', 'mandala_freeShippingFrom', 'mandala_growth', 'mandala_onboarding', 'mandala_search',
+        'mandala_artBySub', 'mandala_gifts', 'mandala_shipping', 'mandala_vatRate',
+        'can_compress_scripts', 'site_logo',
+        'woocommerce_checkout_page_id', 'woocommerce_myaccount_page_id', 'woocommerce_default_catalog_orderby', 'woocommerce_demo_store',
+        'woocommerce_thumbnail_cropping', 'woocommerce_notify_low_stock_amount', 'woocommerce_enable_delayed_account_creation',
+        'woocommerce_hooked_blocks_version', 'woocommerce_brand_permalink',
+    ]));
+}
+
 add_action('after_setup_theme', function () {
     load_child_theme_textdomain('mandala', MANDALA_DIR . '/languages');
     register_nav_menus([
@@ -77,6 +94,8 @@ function mandala_js_data(): array
         'search' => home_url('/'),
         // Az iu_theme egyedi REST prefixet használ: az URL-t mindig rest_url() adja.
         'rest' => esc_url_raw(rest_url('mandala/v1/')),
+        // A kereső / szűrő termékindexe: statikus fájl (PHP nélkül), viszonteladónak a REST végpont.
+        'products' => esc_url_raw(mandala_products_url()),
         'wcAjax' => class_exists('WC_AJAX') ? WC_AJAX::get_endpoint('%%endpoint%%') : '',
         'nonce' => wp_create_nonce('wp_rest'),
         'art' => MANDALA_URL . '/assets/art/',

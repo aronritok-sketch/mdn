@@ -10,8 +10,6 @@
 
 defined('ABSPATH') || exit;
 
-const MANDALA_AS_GROUP = 'mandala';
-
 /** A rendeléses levelek közös helyőrzői. */
 function mandala_mail_order_vars(WC_Order $order): array
 {
@@ -29,7 +27,7 @@ function mandala_schedule(int $delay_seconds, string $hook, array $args): void
 
 /** A pénztár az e-mail megadásakor jelez (wc-ajax=mandala_capture). */
 add_action('wc_ajax_mandala_capture', function () {
-    check_ajax_referer('mandala-cart', 'security');
+    mandala_verify_cart_request();
     $email = strtolower(sanitize_email(wp_unslash($_POST['email'] ?? '')));
     if (!mandala_automation_on('abandoned') || !is_email($email) || !WC()->cart || WC()->cart->is_empty() || mandala_is_unsubscribed($email)) {
         wp_send_json(['ok' => false]);

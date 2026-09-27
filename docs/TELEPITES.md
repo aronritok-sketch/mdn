@@ -8,6 +8,7 @@ A csomag tartalma:
 | `mandala-tema.zip` | A WordPress child téma (a varázsló magától telepíti; kézzel: Megjelenés → Témák → Új hozzáadása → Téma feltöltése). |
 | `TELEPITES.md` | Ez az útmutató. |
 | `UJ-TERMEKEK.md` | Munkafolyamat a webért felelős munkatársnak: új JUTA-termékek élesítése, Claude-os kategória-migráció. |
+| `TERHELESI-TESZT.md` | Terheléses teszt (3000 termék, egyszerre vásárlók): eredmények, javítások, szerverbeállítások nagy forgalomhoz. |
 | `wp-config-kiegeszites.php` | Sorok a szerver `wp-config.php` fájljába (Claude API-kulcs, memória, ütemezés). |
 
 > **Mindig először tesztszerveren** (az éles bolt másolatán, „staging”) telepítsd és próbáld ki. Az éles bolton
@@ -100,7 +101,8 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
    szerkesztő különben „érvénytelen blokk” jelzést mutathat.
 5. **wp-config.php:** a `wp-config-kiegeszites.php` sorai (lásd 3.).
 6. **Gyorsítótár:** az oldal-gyorsítótárból zárd ki a `/kosar/`, `/penztar/`, `/fiokom/` oldalakat és a belépett
-   felhasználókat (a viszonteladók személyre szabott árat látnak). Utána ürítsd a gyorsítótárat.
+   felhasználókat (a viszonteladók személyre szabott árat látnak). A `/kedvencek/`, `/csomagkovetes/` és
+   `/ertekeles/` oldalakat a téma magától kizárja. Utána ürítsd a gyorsítótárat. Részletek: 9. fejezet.
 
 ---
 
@@ -109,7 +111,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - **Ütemezett feladatok** (e-mail emlékeztetők, értékelés kérése, új termékek értesítője, Claude migráció,
   heti viszonteladói levél): a WooCommerce Action Scheduler futtatja. Kis forgalomnál a WordPress beépített
   időzítője késhet, ezért **valódi cron** ajánlott: `DISABLE_WP_CRON` a wp-config-ba, és a tárhelyen
-  5 percenként: `wget -q -O - https://mandala.hu/wp-cron.php?doing_wp_cron >/dev/null 2>&1`
+  **percenként**: `wget -q -O - https://mandala.hu/wp-cron.php?doing_wp_cron >/dev/null 2>&1`
+  (a kereső / szűrő termékindexe eladás után a háttérben frissül – percenkénti cronnal 1–2 percen belül;
+  oldal-gyorsítótár mellett a WordPress saját időzítője alig fut, ott a valódi cron kötelező)
   (vagy WP-CLI-vel: `wp cron event run --due-now`).
 - **Claude (kategória-migráció, új termékek javaslata, AI tanácsadó chat):** `MANDALA_ANTHROPIC_API_KEY` a
   wp-config-ba (az Anthropic Console-ban létrehozott kulcs). Kulcs nélkül ezek a funkciók egyszerűen nem aktívak
@@ -215,3 +219,30 @@ visszaállítása”; a Claude futtatás a Claude migráció fülön visszavonha
 Új `mandala-tema.zip` → Megjelenés → Témák → Új hozzáadása → Téma feltöltése → „Jelenlegi lecserélése a
 feltöltöttre”. A telepítő csak az új lépéseket futtatja, és amit kézzel módosítottatok (beállítás, oldal), azt nem
 írja felül – kiírja, hogy kihagyta. A „Mandala bolt adatai” oldalon mentett adatokat a frissítés nem érinti.
+
+---
+
+## 9. Nagy forgalom (kampány, akció, hírlevél-kiküldés)
+
+Terheléses teszt 3000 termékkel és 5000 rendeléssel: eredmények és tanulságok a
+[`TERHELESI-TESZT.md`](TERHELESI-TESZT.md) fájlban. Röviden, amit a szerveren be kell állítani:
+
+1. **Oldal-gyorsítótár (a legfontosabb):** LiteSpeed Cache (LiteSpeed tárhelyen) vagy WP Super Cache.
+   Gyorsítótár nélkül egy 4 magos szerver ~30 oldalt szolgál ki másodpercenként; gyorsítótárral ennek
+   sokszorosát, mert a vendégek oldalai PHP nélkül mennek ki. A téma gyorsítótár-barát: a vendégeknek
+   nincs személyes tartalom az oldalban, a kosár / kedvencek száma a böngészőben frissül, a biztonsági
+   kódok lejárta (12–24 óra) nem rontja el a minikosarat és a csomagkövetést.
+2. **Valódi cron percenként** (3. fejezet) – eladás után a kereső / szűrő készletadata így 1–2 percen
+   belül frissül, és a háttérfeladatok (levelek, feedek, AI) nem a látogatók kérésében futnak.
+3. **JSON tömörítés:** a kereső termékindexe statikus fájl (`/wp-content/uploads/mandala-index/`, 3000
+   terméknél ~3 MB, tömörítve ~250 KB). Ellenőrzés: `curl -sI -H 'Accept-Encoding: gzip' <a fájl címe>` →
+   `Content-Encoding: gzip`. Ha nincs, a tárhelyen kapcsold be a gzip / brotli tömörítést az
+   `application/json` típusra is.
+4. **Objektum-gyorsítótár (ajánlott, ha a tárhely adja):** Redis (LiteSpeed Cache → Object) – kevesebb
+   adatbázis-lekérdezés a kosárban és a pénztárban.
+5. **Levélküldés:** a WooCommerce a rendelés visszaigazolását a pénztár kérésében küldi; lassú SMTP-nél
+   ez másodperceket adhat a „Megrendelem” gombhoz. A WP Mail SMTP-ben, ha elérhető, kapcsold be a
+   háttérben küldést („Optimize Email Sending”).
+6. **Terheléses próba a tesztszerveren** (élesen soha – valódi utánvétes rendeléseket ad le!):
+   `BASE=https://teszt.mandala.hu VUS=20 BUYERS=2 DURATION=60 node tests/load.mjs`
+

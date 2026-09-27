@@ -129,11 +129,7 @@ function mandala_collections_build(): array
     return ['active' => count($active), 'total' => count($all)];
 }
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_collections_build', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + 20 * MINUTE_IN_SECONDS, DAY_IN_SECONDS, 'mandala_collections_build', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_collections_build', DAY_IN_SECONDS, fn() => time() + 20 * MINUTE_IN_SECONDS);
 add_action('mandala_collections_build', 'mandala_collections_build');
 
 /** AI szövegek, 10 válogatás / kérés, láncolva. */
@@ -275,13 +271,7 @@ add_action('init', function () {
                 return $out . ($groups ? '' : '<p class="text-muted">' . esc_html__('A válogatások hamarosan elkészülnek.', 'mandala') . '</p>') . '</div>';
             }
             $rows = mandala_collection_products($c);
-            $cards = '';
-            foreach ($rows as $r) {
-                $p = wc_get_product((int) $r['id']);
-                if ($p) {
-                    $cards .= mandala_card($p);
-                }
-            }
+            $cards = mandala_cards(array_column($rows, 'id'));
             $related = array_filter($all, fn($x, $slug) => $slug !== $c['slug'] && $x['sub'] === $c['sub'], ARRAY_FILTER_USE_BOTH);
             uasort($related, fn($a, $b) => $b['count'] <=> $a['count']);
             $shop = $c['type'] === 'price' ? mandala_shop_url() : get_term_link((string) $c['sub'], 'product_cat');

@@ -20,7 +20,8 @@ add_filter('mandala_product_meta_fields', function ($fields) {
 /** A várható érkezés (Y-m-d), ha még jövőbeli és a termék nincs raktáron. */
 function mandala_incoming_date(WC_Product $product): string
 {
-    $date = (string) $product->get_meta('_mandala_incoming', true, 'edit');
+    // get_post_meta: a listák előtöltött meta-gyorsítótárából (a get_meta() termékenként külön lekérdezés).
+    $date = (string) ($product->get_id() ? get_post_meta($product->get_id(), '_mandala_incoming', true) : $product->get_meta('_mandala_incoming', true, 'edit'));
     if (!$date || $date < wp_date('Y-m-d')) {
         return '';
     }
@@ -34,7 +35,8 @@ function mandala_incoming_label(string $date, bool $long = true): string
 
 /** Mentéskor: érkezési dátummal az utánrendelés engedélyezett (értesítéssel), nélküle tiltott. */
 add_action('woocommerce_admin_process_product_object', function (WC_Product $product) {
-    $date = (string) $product->get_meta('_mandala_incoming', true, 'edit');
+    // get_post_meta: a listák előtöltött meta-gyorsítótárából (a get_meta() termékenként külön lekérdezés).
+    $date = (string) ($product->get_id() ? get_post_meta($product->get_id(), '_mandala_incoming', true) : $product->get_meta('_mandala_incoming', true, 'edit'));
     if ($date && $date >= wp_date('Y-m-d')) {
         $product->set_backorders('notify');
     } elseif ($product->get_backorders('edit') === 'notify' && $product->get_meta('_mandala_incoming_auto', true, 'edit')) {

@@ -69,11 +69,7 @@ add_action('init', function () {
 });
 
 /** Lejárt beszélgetések törlése (naponta). */
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_chat_cleanup', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'mandala_chat_cleanup', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_chat_cleanup', DAY_IN_SECONDS, fn() => time() + HOUR_IN_SECONDS);
 add_action('mandala_chat_cleanup', function () {
     global $wpdb;
     $keep = mandala_chat_settings()['store'] === 'yes' ? 30 * DAY_IN_SECONDS : 6 * HOUR_IN_SECONDS;
@@ -384,13 +380,7 @@ function mandala_chat_card(int $id): ?array
 add_action('rest_api_init', function () {
     // A bolt saját oldaláról jövő kérés (gyorsítótárazott oldalon a nonce elévülhet, ezért az
     // Origin/Referer is elég). A visszaélés elleni valódi védelem a korlát (mandala_chat_limits).
-    $nonce_ok = function (WP_REST_Request $r) {
-        if (wp_verify_nonce((string) $r->get_header('x_wp_nonce'), 'wp_rest')) {
-            return true;
-        }
-        $from = (string) ($r->get_header('origin') ?: $r->get_header('referer'));
-        return $from !== '' && wp_parse_url($from, PHP_URL_HOST) === wp_parse_url(home_url(), PHP_URL_HOST);
-    };
+    $nonce_ok = 'mandala_rest_verify';
     register_rest_route('mandala/v1', '/chat', [
         'methods' => 'POST',
         'permission_callback' => $nonce_ok,

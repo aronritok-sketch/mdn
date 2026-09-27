@@ -1,6 +1,6 @@
 // Hangtál-választó (mandala/bowl-finder): lépésenkénti kérdések, pontozás a termékindexből,
 // indoklással és a kínálat szűrőjére mutató linkkel.
-import { $, $$, esc, icon, fmt, loadProducts, productCard, refreshReveal } from './env.js';
+import { $, $$, esc, icon, loadProducts, productCard, refreshReveal } from './env.js';
 import { serialize, emptyState } from './facets.js';
 
 const M = window.MANDALA || {};

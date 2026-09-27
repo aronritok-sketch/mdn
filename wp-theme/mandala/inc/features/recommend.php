@@ -16,30 +16,33 @@ defined('ABSPATH') || exit;
 /** A párosítások újraszámolása. Visszaad: a feldolgozott rendelések száma. */
 function mandala_reco_build(): int
 {
+    global $wpdb;
+    // Csak azonosítók és közvetlen SQL a tételekre: teljes rendelésobjektumok nélkül (terheléses
+    // teszt: 5000 rendelésnél 265 MB → pár MB; HPOS-szal és a régi tárolással is ugyanaz a tábla).
+    $ids = wc_get_orders(['status' => ['processing', 'completed'], 'date_created' => '>' . (time() - 730 * DAY_IN_SECONDS), 'limit' => -1, 'return' => 'ids', 'type' => 'shop_order']);
     $pairs = [];
-    $n = 0;
-    $page = 1;
-    do {
-        $orders = wc_get_orders(['status' => ['processing', 'completed'], 'date_created' => '>' . (time() - 730 * DAY_IN_SECONDS), 'limit' => 200, 'paged' => $page++, 'type' => 'shop_order']);
-        foreach ($orders as $order) {
-            $ids = [];
-            foreach ($order->get_items() as $item) {
-                $ids[(int) $item->get_product_id()] = true;
-            }
-            $ids = array_keys($ids);
-            $n++;
-            if (count($ids) < 2 || count($ids) > 30) {
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        $in = implode(',', array_map('intval', $chunk));
+        $rows = $wpdb->get_results("SELECT oi.order_id, oim.meta_value AS product_id FROM {$wpdb->prefix}woocommerce_order_items oi INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oim.order_item_id = oi.order_item_id AND oim.meta_key = '_product_id' WHERE oi.order_item_type = 'line_item' AND oi.order_id IN ($in)"); // phpcs:ignore
+        $baskets = [];
+        foreach ($rows as $r) {
+            $baskets[(int) $r->order_id][(int) $r->product_id] = true;
+        }
+        foreach ($baskets as $basket) {
+            $items = array_keys($basket);
+            if (count($items) < 2 || count($items) > 30) {
                 continue;
             }
-            foreach ($ids as $a) {
-                foreach ($ids as $b) {
+            foreach ($items as $a) {
+                foreach ($items as $b) {
                     if ($a !== $b) {
                         $pairs[$a][$b] = ($pairs[$a][$b] ?? 0) + 1;
                     }
                 }
             }
         }
-    } while (count($orders) === 200);
+    }
+    $n = count($ids);
     foreach ($pairs as $a => $list) {
         arsort($list);
         $pairs[$a] = array_slice($list, 0, 12, true);
@@ -49,27 +52,40 @@ function mandala_reco_build(): int
     return $n;
 }
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_reco_build', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(strtotime('tomorrow 03:00', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS), DAY_IN_SECONDS, 'mandala_reco_build', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_reco_build', DAY_IN_SECONDS, fn() => strtotime('tomorrow 03:00', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS));
 add_action('mandala_reco_build', 'mandala_reco_build');
 
 /** Megvásárolható, látható, raktáron lévő termékek az indexből (id => sor). */
 function mandala_reco_pool(): array
 {
     static $pool = null;
-    if ($pool === null) {
-        $pool = [];
-        foreach (mandala_product_index() as $row) {
-            if (!empty($row['buyable']) && in_array($row['stock'] ?? '', ['in', 'low'], true) && empty($row['voucher'])) {
-                $pool[(int) $row['id']] = $row;
-            }
+    if ($pool !== null) {
+        return $pool;
+    }
+    // Karcsú, külön tárolt változat (id => url, ár, alkategória): a termékoldal nem tölti be a
+    // teljes indexet (3000 terméknél ~40 MB memória kérésenként).
+    $key = mandala_lang_key(MANDALA_INDEX_OPTION);
+    $hash = mandala_index_hash();
+    $stored = get_option($key . '_pool');
+    if (is_array($stored) && $hash !== '' && ($stored['hash'] ?? null) === $hash) {
+        return $pool = $stored['rows'];
+    }
+    return $pool = mandala_reco_pool_build($key, mandala_product_index(), $hash);
+}
+function mandala_reco_pool_build(string $key, array $rows, string $hash): array
+{
+    $pool = [];
+    foreach ($rows as $row) {
+        if (!empty($row['buyable']) && in_array($row['stock'] ?? '', ['in', 'low'], true) && empty($row['voucher'])) {
+            $pool[(int) $row['id']] = ['url' => $row['url'], 'price' => $row['price'], 'sub' => $row['sub'] ?? ''];
         }
+    }
+    if ($hash !== '') {
+        update_option($key . '_pool', ['hash' => $hash, 'rows' => $pool], false);
     }
     return $pool;
 }
+add_action('mandala_index_updated', fn($key, $data) => mandala_reco_pool_build($key, $data['rows'], $data['hash']), 10, 2);
 
 /** Együtt vásárolt pontszámok egy vagy több termékhez. */
 function mandala_reco_scores(array $ids): array

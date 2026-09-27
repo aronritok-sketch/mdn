@@ -438,7 +438,7 @@ add_filter('woocommerce_add_to_cart_fragments', function ($fragments) {
 
 /** Minikosár mennyiség-módosítás (wc-ajax=mandala_set_qty): frissített fragmentekkel válaszol. */
 add_action('wc_ajax_mandala_set_qty', function () {
-    check_ajax_referer('mandala-cart', 'security');
+    mandala_verify_cart_request();
     $key = sanitize_text_field(wp_unslash($_POST['key'] ?? ''));
     $qty = max(0, (int) ($_POST['qty'] ?? 0));
     $item = WC()->cart->get_cart_item($key);

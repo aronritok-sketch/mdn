@@ -95,11 +95,7 @@ add_action('init', function () {
     ) " . $wpdb->get_charset_collate() . ';');
     update_option('mandala_mail_db', MANDALA_MAIL_DB_VERSION);
 });
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_mail_cleanup', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'mandala_mail_cleanup', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_mail_cleanup', DAY_IN_SECONDS, fn() => time() + HOUR_IN_SECONDS);
 add_action('mandala_mail_cleanup', function () {
     global $wpdb;
     $wpdb->query($wpdb->prepare('DELETE FROM ' . mandala_mail_table() . ' WHERE created < %s', gmdate('Y-m-d H:i:s', time() - 180 * DAY_IN_SECONDS)));

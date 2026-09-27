@@ -112,11 +112,7 @@ add_action('mandala_mail_crosssell', function ($order_id) {
 
 /* ---------- Kedvencek: akciós lett / fogyóban ---------- */
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_wishlist_check', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'mandala_wishlist_check', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_wishlist_check', DAY_IN_SECONDS, fn() => time() + HOUR_IN_SECONDS);
 add_action('mandala_wishlist_check', function () {
     if (!mandala_automation_on('wishlist')) {
         return;
@@ -182,10 +178,7 @@ add_action('wp_enqueue_scripts', function () {
 add_action('rest_api_init', function () {
     register_rest_route('mandala/v1', '/welcome', [
         'methods' => 'POST',
-        'permission_callback' => function (WP_REST_Request $r) {
-            $from = (string) ($r->get_header('origin') ?: $r->get_header('referer'));
-            return wp_verify_nonce((string) $r->get_header('x_wp_nonce'), 'wp_rest') || ($from !== '' && wp_parse_url($from, PHP_URL_HOST) === wp_parse_url(home_url(), PHP_URL_HOST));
-        },
+        'permission_callback' => 'mandala_rest_verify',
         'callback' => function (WP_REST_Request $r) {
             $s = mandala_growth_settings();
             $email = strtolower(sanitize_email((string) $r->get_param('email')));

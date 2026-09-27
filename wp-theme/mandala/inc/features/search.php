@@ -157,8 +157,8 @@ function mandala_search_stem(string $w): string
     return $w;
 }
 
-/** Termékek (index sorok) relevancia szerint: ragozás, összetett szavak, szinonimák, cikkszám. */
-function mandala_search_products(string $q): array
+/** Termékazonosítók relevancia szerint: ragozás, összetett szavak, szinonimák, cikkszám. */
+function mandala_search_product_ids(string $q): array
 {
     $words = array_values(array_filter(explode(' ', mandala_search_norm($q))));
     if (!$words) {
@@ -210,16 +210,10 @@ function mandala_search_products(string $q): array
         }
         return $best;
     };
-    $tok = fn(string $s) => array_map('mandala_search_stem', array_filter(explode(' ', mandala_search_norm($s))));
     $out = [];
-    foreach (mandala_product_index() as $row) {
-        $fields = [
-            10 => $tok($row['name']),
-            6 => $tok(($row['catLabel'] ?? '') . ' ' . mandala_term_name($row['cat'] ?? '')),
-            4 => $tok(implode(' ', array_map(fn($v) => is_array($v) ? implode(' ', $v) : (string) $v, array_merge(array_values((array) ($row['specs'] ?? [])), [$row['originLabel'] ?? '', $row['region'] ?? ''])))),
-            2 => $tok((string) ($row['short'] ?? '')),
-        ];
-        $sku = preg_replace('/[^a-z0-9]/', '', strtolower((string) ($row['sku'] ?? '')));
+    foreach (mandala_search_corpus() as $id => $row) {
+        $fields = [10 => explode(' ', $row[0]), 6 => explode(' ', $row[1]), 4 => explode(' ', $row[2]), 2 => explode(' ', $row[3])];
+        $sku = $row[4];
         $score = 0.0;
         $hit = [];
         foreach ($words as $i => $w) {
@@ -250,18 +244,67 @@ function mandala_search_products(string $q): array
             }
             $score += $best;
         }
-        if (($row['stock'] ?? '') === 'out') {
+        if ($row[5]) {
             $score *= 0.7;
         }
-        $out[] = [$row, $score];
+        $out[$id] = $score;
     }
-    usort($out, fn($a, $b) => $b[1] <=> $a[1]);
-    $top = $out[0][1] ?? 0;
+    // Stabil sorrend azonos pontszámnál (az index sorrendje).
+    $pos = array_flip(array_keys($out));
+    uksort($out, fn($a, $b) => ($out[$b] <=> $out[$a]) ?: ($pos[$a] <=> $pos[$b]));
+    $top = reset($out) ?: 0;
     if ($top >= 10) {
-        $out = array_filter($out, fn($x) => $x[1] >= $top * 0.15);
+        $out = array_filter($out, fn($x) => $x >= $top * 0.15);
     }
-    return array_values(array_map(fn($x) => $x[0], $out));
+    return array_keys($out);
 }
+
+/** Találatok az index soraival (a chatnek); a találati oldal csak az azonosítókat kéri. */
+function mandala_search_products(string $q): array
+{
+    $ids = mandala_search_product_ids($q);
+    if (!$ids) {
+        return [];
+    }
+    $by_id = array_column(mandala_product_index(), null, 'id');
+    return array_values(array_filter(array_map(fn($id) => $by_id[$id] ?? null, $ids)));
+}
+
+/**
+ * Előre kiszámolt keresési szótövek termékenként: [név, kategória, jellemzők, rövid leírás,
+ * cikkszám, elfogyott] – szóközzel elválasztott tövek. Az index frissítésekor újraszámolódik;
+ * így egy keresés a 3000 termék újraszótövezése (~300 ms) helyett ~30 ms.
+ */
+function mandala_search_corpus(): array
+{
+    $key = mandala_lang_key(MANDALA_INDEX_OPTION);
+    $hash = mandala_index_hash();
+    $stored = get_option($key . '_search');
+    if (is_array($stored) && ($stored['hash'] ?? null) === $hash && $hash !== '') {
+        return $stored['rows'];
+    }
+    return mandala_search_corpus_build($key, mandala_product_index(), $hash);
+}
+function mandala_search_corpus_build(string $key, array $rows, string $hash): array
+{
+    $tok = fn(string $s) => implode(' ', array_map('mandala_search_stem', array_filter(explode(' ', mandala_search_norm($s)))));
+    $corpus = [];
+    foreach ($rows as $row) {
+        $corpus[(int) $row['id']] = [
+            $tok($row['name']),
+            $tok(($row['catLabel'] ?? '') . ' ' . mandala_term_name($row['cat'] ?? '')),
+            $tok(implode(' ', array_map(fn($v) => is_array($v) ? implode(' ', $v) : (string) $v, array_merge(array_values((array) ($row['specs'] ?? [])), [$row['originLabel'] ?? '', $row['region'] ?? ''])))),
+            $tok((string) ($row['short'] ?? '')),
+            preg_replace('/[^a-z0-9]/', '', strtolower((string) ($row['sku'] ?? ''))),
+            ($row['stock'] ?? '') === 'out',
+        ];
+    }
+    if ($hash !== '') {
+        update_option($key . '_search', ['hash' => $hash, 'rows' => $corpus], false);
+    }
+    return $corpus;
+}
+add_action('mandala_index_updated', fn($key, $data) => mandala_search_corpus_build($key, $data['rows'], $data['hash']), 10, 2);
 
 /* ---------- Admin: WooCommerce → Mandala kereső ---------- */
 

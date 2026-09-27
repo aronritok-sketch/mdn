@@ -17,8 +17,8 @@ define('WP_MEMORY_LIMIT', '256M');
 define('WP_MAX_MEMORY_LIMIT', '512M');
 
 // Ütemezett feladatok valódi cronnal (ajánlott): a WordPress látogatásfüggő időzítője helyett
-// a tárhely cron futtatja 5 percenként:
-//   */5 * * * *  wget -q -O - https://mandala.hu/wp-cron.php?doing_wp_cron >/dev/null 2>&1
+// a tárhely cron futtatja percenként (a készlet a keresőben / szűrőben így legfeljebb 1–2 perc alatt frissül):
+//   * * * * *  wget -q -O - https://mandala.hu/wp-cron.php?doing_wp_cron >/dev/null 2>&1
 // Csak akkor kapcsold be, ha a cron feladat már be van állítva!
 // define('DISABLE_WP_CRON', true);
 

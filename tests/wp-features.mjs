@@ -617,7 +617,11 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await admin.click('[data-insert="{keresztnev}"]');
   await admin.type('#mail-subject', '?');
   ok((await admin.inputValue('#mail-subject')) === 'Még itt vagy, {keresztnev}?', 'szerkesztő: helyőrző beszúrása kattintással a tárgyba');
-  await admin.click('#mandala_mail_body-html');
+  // A TinyMCE betöltése előtt a „Szöveg” fülre kattintás hatástalan: megvárjuk (a WordPress a legutóbbi
+  // nézetet megjegyzi – ha már szöveg nézetben nyílik, nem kattintunk).
+  await admin.waitForFunction(() => document.querySelector('#mandala_mail_body')?.offsetParent || window.tinymce?.get('mandala_mail_body')?.initialized);
+  if (!(await admin.isVisible('#mandala_mail_body'))) await admin.click('#mandala_mail_body-html');
+  await admin.waitForSelector('#mandala_mail_body', { state: 'visible' });
   await admin.fill('#mandala_mail_body', '<p>Szia {keresztnev}!</p>\n\n<p>A kosarad <strong>félretettük</strong>. {nincsilyen}</p>\n\n{termekek}\n\n{gomb}');
   await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_save"]')]);
   ok((await admin.textContent('#wpbody-content')).includes('Mentve'), 'szerkesztő: mentés');
@@ -700,7 +704,9 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await admin.fill('input[name="cm[coupon][amount]"]', '10');
   await admin.check('input[name="mail_enabled"]');
   await admin.fill('#mail-subject', 'Köszönjük, {keresztnev}! Itt egy ajándék');
-  await admin.click('#mandala_mail_body-html');
+  await admin.waitForFunction(() => document.querySelector('#mandala_mail_body')?.offsetParent || window.tinymce?.get('mandala_mail_body')?.initialized);
+  if (!(await admin.isVisible('#mandala_mail_body'))) await admin.click('#mandala_mail_body-html');
+  await admin.waitForSelector('#mandala_mail_body', { state: 'visible' });
   await admin.fill('#mandala_mail_body', '<p>Kedves {keresztnev}!</p>\n\n<p>Az első rendelésed ({rendeles}) után {kupon_ertek} kedvezmény jár: {kupon}</p>\n\n{kupon_doboz}\n\n{termekek}');
   await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_save"]')]);
   ok((await admin.textContent('#wpbody-content')).includes('Mentve') && await admin.isVisible('[data-insert="{kupon_doboz}"]'), 'saját levél: mentés, a kupon helyőrzői megjelennek');
@@ -1142,6 +1148,36 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await admin.context().close();
   W('plugin deactivate mandala-telepito');
   wp(`foreach ([${created.join(',')}] as $id) { if ($o = wc_get_order($id)) $o->delete(true); } delete_option("mandala_test_collection_min"); delete_option("mandala_ai");`);
+}
+
+// ---------- Terhelhetőség (a terheléses teszt tanulságai, tests/load.mjs) ----------
+{
+  const home = await (await fetch(`${BASE}/`)).text();
+  const productsUrl = JSON.parse(`"${home.match(/"products":"([^"]+)"/)?.[1] || ''}"`);
+  ok(/mandala-index\/mandala_pindex\.json\?v=[0-9a-f]{10}$/.test(productsUrl), 'termékindex: statikus fájl verzióval (PHP nélkül)', productsUrl);
+  const list = await (await fetch(productsUrl)).json();
+  const item = list.find((p) => p.buyable);
+  ok(list.length > 20 && item.addUrl === `${item.url}?add-to-cart=${item.id}`, 'index: a kosár-link a termékhez kötött, nem az épp futó kérés címéhez', item?.addUrl);
+
+  const pid = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  const orig = wp(`echo get_the_title(${pid});`);
+  const rowName = () => wp(`foreach (mandala_product_index() as $r) if ($r["id"] == ${pid}) echo $r["name"];`);
+  wp(`$p = wc_get_product(${pid}); $p->set_name("Terheléses név"); $p->save();`);
+  ok(rowName() === 'Terheléses név', 'index: admin / WP-CLI mentés azonnal frissít');
+  // Vásárlói kérés (pl. eladás miatti készletváltozás): csak jelölés + háttérfeladat, a régi index szolgál ki addig.
+  wp(`add_filter("mandala_index_sync", "__return_false"); $p = wc_get_product(${pid}); $p->set_name(${JSON.stringify(orig)}); $p->save();`);
+  ok(rowName() === 'Terheléses név' && wp(`echo get_post_meta(${pid}, "_mandala_index_dirty", true) ? 1 : 0, as_has_scheduled_action("mandala_index_refresh", [], MANDALA_AS_GROUP) ? 1 : 0;`) === '11', 'index: vásárlói kérésben nem épít újra, csak jelöl és ütemez');
+  wp('do_action("mandala_index_refresh");');
+  ok(rowName() === orig && wp(`echo get_post_meta(${pid}, "_mandala_index_dirty", true) ? 1 : 0;`) === '0', 'index: a háttérfeladat csak a jelölt sort frissíti, a jelölést törli');
+  ok(wp('echo (int) mandala_lock("teszt", 60), (int) mandala_lock("teszt", 60); mandala_unlock("teszt"); echo (int) mandala_lock("teszt", 60); mandala_unlock("teszt");') === '101', 'adatbázis-zár: egyszerre csak egy folyamat építhet');
+  ok(wp('echo count(mandala_search_product_ids("füstölő")) > 0 && get_option(mandala_lang_key(MANDALA_INDEX_OPTION) . "_search")["hash"] === mandala_index_hash() ? "ok" : "nincs";') === 'ok', 'kereső: előre számolt szótövek az index változatához');
+
+  const setQty = (origin) => fetch(`${BASE}/?wc-ajax=mandala_set_qty`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: origin }, body: 'key=x&qty=1&security=lejart' }).then((r) => r.status);
+  ok(await setQty(BASE) === 200 && await setQty('https://mashol.example') === 403, 'kosár-művelet gyorsítótárazott oldalról: lejárt nonce + saját Origin mehet, idegen Origin 403');
+  const cc = async (path) => (await fetch(BASE + path)).headers.get('cache-control') || '';
+  ok(/no-store/.test(await cc('/kedvencek/')) && !/no-store/.test(await cc('/rolunk/')), 'oldal-gyorsítótár: a személyes kedvencek oldal kimarad, a tartalmi oldal nem');
+  ok(wp('$s = get_option("mandala_recurring_ok"); echo is_array($s) && $s["at"] > time() - 3600 ? 1 : 0, as_has_scheduled_action("mandala_index_daily", [], MANDALA_AS_GROUP) ? 1 : 0;') === '11', 'háttérfeladatok: óránként egyszer ellenőrizve, a napi index-újraépítés ütemezve');
+  ok(wp('$d = mandala_report_data(); echo is_int($d["new_customers"]) && is_array($d["runout"]) ? "ok" : "hiba";') === 'ok', 'heti riport: új vásárlók és kifogyás közvetlen lekérdezéssel');
 }
 
 {

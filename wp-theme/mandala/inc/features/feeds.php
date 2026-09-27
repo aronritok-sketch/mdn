@@ -50,7 +50,18 @@ function mandala_feed_items(): array
     $free = (int) mandala_config('freeShippingFrom', 25000);
     $shipping = (array) mandala_config('shipping', []);
     $ship_price = (float) ($shipping[0]['price'] ?? 1990);
-    foreach ($ids as $id) {
+    foreach (array_values($ids) as $i => $id) {
+        if ($i % 200 === 0) {
+            // 200 termékenként egy-egy lekérdezéssel előtöltve: bejegyzés, meta, kifejezések, képek.
+            $chunk = array_slice($ids, $i, 200);
+            _prime_post_caches($chunk, true, true);
+            $images = [];
+            foreach ($chunk as $cid) {
+                $images[] = (int) get_post_thumbnail_id($cid);
+                array_push($images, ...array_map('intval', array_filter(explode(',', (string) get_post_meta($cid, '_product_image_gallery', true)))));
+            }
+            _prime_post_caches(array_filter($images), false, true);
+        }
         $product = wc_get_product($id);
         if (!$product || $product->is_virtual() || $product->get_meta('_mandala_ticket_for') || (function_exists('mandala_is_voucher') && mandala_is_voucher($product))) {
             continue;
@@ -159,19 +170,32 @@ function mandala_feeds_build(): array
     $stats = [];
     foreach (MANDALA_FEEDS as $name => $feed) {
         $list = $feed['type'] !== 'google' && $skip ? array_values(array_filter($items, fn($i) => $i['status'] !== 'out_of_stock')) : $items;
-        file_put_contents($dir . '/' . $name . '.xml', mandala_feed_xml($feed['type'], $list), LOCK_EX);
+        // Atomi csere: a letöltő (Árukereső, Google…) soha nem kap félig írt fájlt.
+        $tmp = $dir . '/' . $name . '.xml.' . wp_generate_password(6, false);
+        if (file_put_contents($tmp, mandala_feed_xml($feed['type'], $list)) !== false) {
+            rename($tmp, $dir . '/' . $name . '.xml');
+        }
         $stats[$name] = count($list);
     }
-    update_option('mandala_feeds_built', ['time' => time(), 'counts' => $stats], false);
+    update_option('mandala_feeds_built', ['time' => time(), 'counts' => $stats, 'sig' => mandala_feeds_sig()], false);
     return $stats;
 }
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_feeds_build', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + 10 * MINUTE_IN_SECONDS, HOUR_IN_SECONDS, 'mandala_feeds_build', [], MANDALA_AS_GROUP);
+/** A feedek forrásának „ujjlenyomata”: a termékindex változata + a feed beállítások. */
+function mandala_feeds_sig(): string
+{
+    return md5(mandala_index_hash() . wp_json_encode(mandala_feed_settings()) . mandala_config('freeShippingFrom', 25000));
+}
+
+mandala_recurring('mandala_feeds_build', HOUR_IN_SECONDS, fn() => time() + 10 * MINUTE_IN_SECONDS);
+// Óránként – de csak ha változott valami (ár, készlet, új termék), különben naponta egyszer.
+add_action('mandala_feeds_build', function () {
+    $built = (array) get_option('mandala_feeds_built', []);
+    if (($built['sig'] ?? '') === mandala_feeds_sig() && ($built['time'] ?? 0) > time() - DAY_IN_SECONDS) {
+        return;
     }
-}, 30);
-add_action('mandala_feeds_build', 'mandala_feeds_build');
+    mandala_feeds_build();
+});
 
 /** Kiszolgálás: ?mandala_feed=google (ha még nincs fájl, most készül). */
 add_action('template_redirect', function () {

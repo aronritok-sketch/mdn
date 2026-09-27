@@ -142,7 +142,7 @@ function mandala_wiz_env(): array
         'lang' => [get_locale() === 'hu_HU', 'Nyelv: ' . get_locale(), 'Magyar nyelv és fordítások – egy kattintás lent.'],
         'tz' => [wp_timezone_string() === 'Europe/Budapest', 'Időzóna: ' . wp_timezone_string(), 'Europe/Budapest – egy kattintás lent.'],
         'perma' => [(string) get_option('permalink_structure') !== '', 'Permalinkek: ' . ((string) get_option('permalink_structure') ?: 'alapértelmezett (?p=)'), 'Beállítások → Közvetlen hivatkozások → „Bejegyzés neve”.'],
-        'cron' => [$late < 20, 'Háttérfeladatok: ' . ($late < 20 ? 'rendben futnak' : $late . ' késésben'), 'Valódi cron ajánlott: DISABLE_WP_CRON a wp-config-ba, és a tárhelyen 5 percenként: wget -q -O - ' . site_url('wp-cron.php?doing_wp_cron') . ' >/dev/null'],
+        'cron' => [$late < 20, 'Háttérfeladatok: ' . ($late < 20 ? 'rendben futnak' : $late . ' késésben'), 'Valódi cron ajánlott (oldal-gyorsítótárral különösen): DISABLE_WP_CRON a wp-config-ba, és a tárhelyen percenként: wget -q -O - ' . site_url('wp-cron.php?doing_wp_cron') . ' >/dev/null'],
         'webp' => [function_exists('wp_image_editor_supports') && wp_image_editor_supports(['mime_type' => 'image/webp']), 'WebP képek: ' . (wp_image_editor_supports(['mime_type' => 'image/webp']) ? 'támogatott' : 'nem támogatott'), 'Nem kötelező; a tárhelytől kérhető Imagick / GD WebP támogatás.'],
     ];
 }
@@ -480,8 +480,8 @@ function mandala_wiz_install_plugin(string $slug, string $file): array
     require_once ABSPATH . 'wp-admin/includes/plugin.php';
     if (!$file || !file_exists(WP_PLUGIN_DIR . '/' . $file)) {
         $api = plugins_api('plugin_information', ['slug' => $slug, 'fields' => ['sections' => false]]);
-        if (is_wp_error($api)) {
-            return ['error', 'Nem érem el a WordPress.org-ot: ' . $api->get_error_message() . '. Telepítsd kézzel: Bővítmények → Új hozzáadása.'];
+        if (is_wp_error($api) || !is_object($api) || empty($api->download_link)) {
+            return ['error', 'Nem érem el a WordPress.org-ot' . (is_wp_error($api) ? ': ' . $api->get_error_message() : '') . '. Telepítsd kézzel: Bővítmények → Új hozzáadása.'];
         }
         $ok = (new Plugin_Upgrader(new Automatic_Upgrader_Skin()))->install($api->download_link);
         if (is_wp_error($ok) || !$ok) {

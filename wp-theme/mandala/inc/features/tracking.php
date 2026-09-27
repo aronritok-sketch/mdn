@@ -217,7 +217,7 @@ function mandala_track_lookup(): void
 {
     $page = (int) get_option('mandala_page_csomagkovetes');
     $back = $page ? (string) get_permalink($page) : home_url('/');
-    if (!wp_verify_nonce((string) ($_POST['_wpnonce'] ?? ''), 'mandala_track')) {
+    if (!mandala_verify_request('mandala_track')) {
         wp_safe_redirect(add_query_arg('hiba', 'nincs', $back));
         exit;
     }
@@ -329,11 +329,7 @@ add_action('added_post_meta', $mandala_tracking_meta_hook, 10, 3);
 add_action('updated_post_meta', $mandala_tracking_meta_hook, 10, 3);
 
 /** Óránkénti ellenőrzés: ha a csomagszám a hookok megkerülésével került be (pl. közvetlen adatbázis-írás). */
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_tracking_sweep', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS, 'mandala_tracking_sweep', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_tracking_sweep', HOUR_IN_SECONDS, fn() => time() + HOUR_IN_SECONDS);
 add_action('mandala_tracking_sweep', function () {
     foreach (wc_get_orders(['status' => ['processing', 'completed'], 'date_modified' => '>' . (time() - 3 * DAY_IN_SECONDS), 'limit' => 300, 'type' => 'shop_order']) as $order) {
         mandala_maybe_mark_shipped($order);

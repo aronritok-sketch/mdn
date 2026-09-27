@@ -68,7 +68,10 @@ export function logSearch(q, results, src, click = 0) {
 
 export function loadProducts() {
   // A nonce azonosítja a belépett vásárlót: viszonteladónak a nagyker árakkal jön az index.
-  productsPromise ??= fetch(`${M.rest}products${M.lang ? `${M.rest.includes('?') ? '&' : '?'}lang=${M.lang}` : ''}`, { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} })
+  // Alapesetben statikus JSON fájl (M.products, verzióval) – a webszerver szolgálja ki, PHP nélkül.
+  const rest = `${M.rest}products${M.lang ? `${M.rest.includes('?') ? '&' : '?'}lang=${M.lang}` : ''}`;
+  const url = M.products && !M.products.startsWith(`${M.rest}products`) ? M.products : rest;
+  productsPromise ??= fetch(url, url === rest ? { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} } : {})
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then((list) => list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] })))
     .then((list) => { setCorpus(list, searchConfig()); return list; })

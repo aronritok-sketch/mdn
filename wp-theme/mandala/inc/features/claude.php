@@ -21,12 +21,6 @@ function mandala_claude_supports_fallbacks(string $model): bool
     return in_array($model, ['claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1'], true);
 }
 
-/** Kényszerített eszközhívást (tool_choice any / tool) elutasító modellek. */
-function mandala_claude_rejects_forced_tools(string $model): bool
-{
-    return in_array($model, ['claude-opus-5-5', 'claude-fable-5-1', 'claude-mythos-5-1'], true);
-}
-
 /**
  * Egy Messages API kérés. $body: a kérés törzse (model, max_tokens, system, tools, messages…).
  * Visszaad: a dekódolt válasz (tömb) vagy WP_Error.

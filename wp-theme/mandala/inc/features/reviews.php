@@ -50,7 +50,7 @@ function mandala_flush_review_stats(int $review_id): void
     $product = (int) get_post_meta($review_id, '_product', true);
     if ($product) {
         delete_post_meta($product, '_mandala_review_stats');
-        mandala_flush_index();
+        mandala_index_touch($product);
     }
 }
 add_action('transition_post_status', function ($new, $old, $post) {
@@ -144,7 +144,7 @@ function mandala_handle_review(): void
     $existing = get_posts(['post_type' => 'mandala_review', 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids', 'meta_query' => [['key' => '_order', 'value' => $order_id], ['key' => '_product', 'value' => $product_id]]]);
     $name = trim($order->get_billing_first_name() . ' ' . mb_substr($order->get_billing_last_name(), 0, 1) . '.');
     $id = wp_insert_post(['ID' => $existing[0] ?? 0, 'post_type' => 'mandala_review', 'post_status' => 'pending', 'post_title' => get_the_title($product_id) . ' – ' . $name, 'post_content' => $text]);
-    if (is_wp_error($id)) {
+    if (!$id || is_wp_error($id)) {
         wp_safe_redirect(add_query_arg('review', 'error', $back));
         exit;
     }

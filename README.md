@@ -27,6 +27,7 @@ python3 tools/build-theme.py --content   # a blokk-markup újragenerálása is (
 BASE=http://localhost:8080 node tests/wp-e2e.mjs   # végponttól végpontig teszt egy telepített WordPressen
 BASE=http://localhost:8080 WP="wp --path=…" node tests/wp-features.mjs   # a funkciómodulok tesztje
 node tests/search.mjs                               # a keresőmotor egységtesztje (böngésző nélkül)
+BASE=http://localhost:8080 VUS=20 BUYERS=2 node tests/load.mjs  # terheléses teszt (csak tesztszerveren! valódi rendeléseket ad le) – docs/TERHELESI-TESZT.md
 ```
 
 ## Megtekintés

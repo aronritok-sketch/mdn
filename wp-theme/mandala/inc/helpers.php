@@ -5,6 +5,97 @@
 
 defined('ABSPATH') || exit;
 
+/** A téma háttérfeladatainak Action Scheduler csoportja. */
+const MANDALA_AS_GROUP = 'mandala';
+
+/**
+ * Ismétlődő háttérfeladat bejegyzése. Az ütemezést óránként egyszer ellenőrzi (nem minden
+ * kérésnél – 13 feladat 13 lekérdezés lenne minden oldalbetöltésen), és ha a feladatlista
+ * változik (új modul), azonnal.
+ */
+function mandala_recurring(string $hook, int $interval, callable $first): void
+{
+    $GLOBALS['mandala_recurring'][$hook] = [$interval, $first];
+}
+add_action('init', function () {
+    $jobs = $GLOBALS['mandala_recurring'] ?? [];
+    if (!$jobs || !function_exists('as_has_scheduled_action')) {
+        return;
+    }
+    $sig = md5(implode(',', array_keys($jobs)));
+    $state = get_option('mandala_recurring_ok');
+    if (is_array($state) && $state['sig'] === $sig && $state['at'] > time() - HOUR_IN_SECONDS) {
+        return;
+    }
+    foreach ($jobs as $hook => [$interval, $first]) {
+        if (!as_has_scheduled_action($hook, [], MANDALA_AS_GROUP)) {
+            as_schedule_recurring_action((int) $first(), $interval, $hook, [], MANDALA_AS_GROUP);
+        }
+    }
+    update_option('mandala_recurring_ok', ['sig' => $sig, 'at' => time()], true);
+}, 30);
+
+/**
+ * Látogatói (akár vendég) kérés ellenőrzése oldal-gyorsítótár mellett: érvényes nonce, VAGY a
+ * saját oldalunkról jövő kérés (Origin, ennek hiányában Referer). A gyorsítótárazott oldalba
+ * égetett nonce 12–24 óra után lejár (a LiteSpeed alapból egy hétig tart meg egy oldalt) – ilyenkor
+ * a böngésző által küldött Origin fejléc véd a más oldalról indított (CSRF) kérés ellen.
+ */
+function mandala_verify_request(string $action, string $field = '_wpnonce'): bool
+{
+    $nonce = sanitize_text_field(wp_unslash($_REQUEST[$field] ?? '')); // phpcs:ignore
+    if ($nonce !== '' && wp_verify_nonce($nonce, $action)) {
+        return true;
+    }
+    $source = sanitize_text_field(wp_unslash($_SERVER['HTTP_ORIGIN'] ?? '')) ?: (string) wp_get_raw_referer();
+    $host = strtolower((string) wp_parse_url($source, PHP_URL_HOST));
+    return $host !== '' && $host === strtolower((string) wp_parse_url(home_url(), PHP_URL_HOST));
+}
+
+/** Ugyanez REST végponthoz (permission_callback): X-WP-Nonce fejléc vagy a saját oldalunkról jövő kérés. */
+function mandala_rest_verify(WP_REST_Request $r): bool
+{
+    if (wp_verify_nonce((string) $r->get_header('x_wp_nonce'), 'wp_rest')) {
+        return true;
+    }
+    $from = (string) ($r->get_header('origin') ?: $r->get_header('referer'));
+    $host = strtolower((string) wp_parse_url($from, PHP_URL_HOST));
+    return $host !== '' && $host === strtolower((string) wp_parse_url(home_url(), PHP_URL_HOST));
+}
+
+/**
+ * Az oldal ne kerüljön teljes oldalas gyorsítótárba (személyes tartalom: kedvencek, rendelés
+ * követése, értékelés). A WP Super Cache / W3TC / WP Rocket a DONOTCACHEPAGE-et, a LiteSpeed
+ * a saját jelzését és a Cache-Control fejlécet is figyeli.
+ */
+function mandala_nocache(string $reason = 'mandala'): void
+{
+    if (!defined('DONOTCACHEPAGE')) {
+        define('DONOTCACHEPAGE', true);
+    }
+    do_action('litespeed_control_set_nocache', $reason);
+    if (!headers_sent()) {
+        nocache_headers();
+    }
+}
+add_action('template_redirect', function () {
+    foreach (['mandala_page_kedvencek', 'mandala_page_csomagkovetes', 'mandala_page_ertekeles'] as $opt) {
+        $page = (int) get_option($opt);
+        if ($page && is_page($page)) {
+            mandala_nocache($opt);
+            return;
+        }
+    }
+}, 1);
+
+/** Kosár-műveletek (wc-ajax) ellenőrzése: hibánál 403 JSON-nal kilép. */
+function mandala_verify_cart_request(): void
+{
+    if (!mandala_verify_request('mandala-cart', 'security')) {
+        wp_send_json(['ok' => false, 'error' => __('A kérés nem ellenőrizhető – frissítsd az oldalt.', 'mandala')], 403);
+    }
+}
+
 /** Generált adatfájl a setup/data mappából (a prototípus data.js-éből készül). */
 function mandala_data(string $name): array
 {
@@ -50,8 +141,16 @@ function mandala_num($n): string
 /** Kategória címke: slug → név. */
 function mandala_term_name(string $slug, string $taxonomy = 'product_cat'): string
 {
-    $term = get_term_by('slug', $slug, $taxonomy);
-    return $term && !is_wp_error($term) ? $term->name : '';
+    // Taxonómiánként egyetlen lekérdezés (a get_term_by() slugonként külön kérdez); kifejezés
+    // létrehozásakor / átnevezésekor a „last_changed” miatt magától frissül.
+    $key = "mandala_term_names:$taxonomy:" . wp_cache_get_last_changed('terms');
+    $names = wp_cache_get($key, 'mandala');
+    if (!is_array($names)) {
+        $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => false]);
+        $names = is_wp_error($terms) ? [] : wp_list_pluck($terms, 'name', 'slug');
+        wp_cache_set($key, $names, 'mandala', HOUR_IN_SECONDS);
+    }
+    return $names[$slug] ?? '';
 }
 
 /** Egy termék fő- és alkategóriája (slugok). */
@@ -79,8 +178,24 @@ function mandala_product_cats(int $product_id): array
 /** Attribútum értékek (slug vagy név) egy termékhez. */
 function mandala_attr(WC_Product $product, string $taxonomy, string $field = 'name'): array
 {
-    $terms = wc_get_product_terms($product->get_id(), $taxonomy, ['fields' => 'all']);
-    return array_values(array_map(fn($t) => $field === 'slug' ? mandala_term_slug($t) : $t->name, $terms ?: []));
+    // get_the_terms: a termék kifejezés-gyorsítótárából (listáknál csomagban előtöltve) – a
+    // wc_get_product_terms() minden hívása külön lekérdezés (3000 terméknél 33 000 lekérdezés).
+    $terms = get_the_terms($product->get_parent_id() ?: $product->get_id(), $taxonomy);
+    if (!$terms || is_wp_error($terms)) {
+        return [];
+    }
+    // A WooCommerce attribútum-sorrendje (egyedi sorrend / név / azonosító).
+    $orderby = count($terms) > 1 && function_exists('wc_attribute_orderby') ? wc_attribute_orderby($taxonomy) : 'none';
+    if ($orderby === 'menu_order') {
+        update_termmeta_cache(wp_list_pluck($terms, 'term_id')); // egy lekérdezés, csak a még nem ismert kifejezésekre
+    }
+    $orderby === 'none' || usort($terms, match ($orderby) {
+        'name' => fn($a, $b) => strcasecmp($a->name, $b->name),
+        'name_num' => fn($a, $b) => strnatcasecmp($a->name, $b->name),
+        'id' => fn($a, $b) => $a->term_id <=> $b->term_id,
+        default => fn($a, $b) => ((int) get_term_meta($a->term_id, 'order', true) <=> (int) get_term_meta($b->term_id, 'order', true)) ?: strcasecmp($a->name, $b->name),
+    });
+    return array_values(array_map(fn($t) => $field === 'slug' ? mandala_term_slug($t) : $t->name, $terms));
 }
 
 /** Készletállapot a szűrőhöz és a kártyához: in | low | out. */
@@ -156,7 +271,8 @@ function mandala_product_index_row(WC_Product $product): array
     $specs = [];
     foreach ($product->get_attributes() as $attribute) {
         if ($attribute->get_visible()) {
-            $specs[wc_attribute_label($attribute->get_name())] = $product->get_attribute($attribute->get_name());
+            // A get_attribute() taxonómiánként külön lekérdezés – a gyorsítótárazott mandala_attr() ugyanazt adja.
+            $specs[wc_attribute_label($attribute->get_name())] = $attribute->is_taxonomy() ? implode(', ', mandala_attr($product, $attribute->get_name())) : implode(', ', $attribute->get_options());
         }
     }
     return [
@@ -180,6 +296,27 @@ function mandala_product_index_row(WC_Product $product): array
         'short' => wp_strip_all_tags($product->get_short_description()),
         'order' => (int) $product->get_menu_order(),
     ];
+}
+
+/**
+ * Kártyák azonosítólistából: előbb egy-egy lekérdezéssel előtölti a bejegyzéseket, metákat és
+ * kifejezéseket (kártyánként ~8 lekérdezés helyett), aztán rendereli.
+ */
+function mandala_cards(array $ids): string
+{
+    $ids = array_values(array_filter(array_map('intval', $ids)));
+    if (!$ids) {
+        return '';
+    }
+    _prime_post_caches($ids, true, true);
+    $out = '';
+    foreach ($ids as $id) {
+        $product = wc_get_product($id);
+        if ($product) {
+            $out .= mandala_card($product);
+        }
+    }
+    return $out;
 }
 
 /**

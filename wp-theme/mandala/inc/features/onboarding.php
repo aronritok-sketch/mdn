@@ -139,7 +139,7 @@ function mandala_onboarding_complete(int $id): void
 {
     update_post_meta($id, '_mandala_onboarding', 'done');
     update_post_meta($id, '_mandala_onboarding_done', time());
-    mandala_flush_index();
+    mandala_index_touch($id);
 }
 
 /** Jóváhagyás (sor / csoportos művelet): teljes termék közzététele. */
@@ -280,14 +280,8 @@ add_action('mandala_onboarding_digest', function () {
     }
 });
 
-add_action('init', function () {
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_onboarding_daily', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action((new DateTimeImmutable('tomorrow 08:30', wp_timezone()))->getTimestamp(), DAY_IN_SECONDS, 'mandala_onboarding_daily', [], MANDALA_AS_GROUP);
-    }
-    if (function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mandala_onboarding_sweep', [], MANDALA_AS_GROUP)) {
-        as_schedule_recurring_action(time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS, 'mandala_onboarding_sweep', [], MANDALA_AS_GROUP);
-    }
-}, 30);
+mandala_recurring('mandala_onboarding_daily', DAY_IN_SECONDS, fn() => (new DateTimeImmutable('tomorrow 08:30', wp_timezone()))->getTimestamp());
+mandala_recurring('mandala_onboarding_sweep', HOUR_IN_SECONDS, fn() => time() + HOUR_IN_SECONDS);
 
 add_action('mandala_onboarding_daily', function () {
     if (mandala_onboarding_settings()['daily'] !== 'yes') {
