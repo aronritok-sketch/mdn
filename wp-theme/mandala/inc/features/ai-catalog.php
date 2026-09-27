@@ -462,19 +462,26 @@ function mandala_ai_update_run(string $run, array $changes): array
 }
 
 /** A migráció köre: közzétett termékek (utalvány, jegy, csomagolás nélkül), amelyeket még nem dolgozott fel éles futtatás. */
-function mandala_ai_scope(bool $include_done = false): array
+function mandala_ai_scope(bool $include_done = false, bool $count = false)
 {
-    $args = ['post_type' => 'product', 'post_status' => ['publish', 'private'], 'posts_per_page' => -1, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC',
-        'meta_query' => ['relation' => 'AND',
-            ['relation' => 'OR', ['key' => '_mandala_voucher', 'compare' => 'NOT EXISTS'], ['key' => '_mandala_voucher', 'value' => 'yes', 'compare' => '!=']],
-            ['key' => '_mandala_ticket_for', 'compare' => 'NOT EXISTS'],
-            ['relation' => 'OR', ['key' => '_mandala_giftbox', 'compare' => 'NOT EXISTS'], ['key' => '_mandala_giftbox', 'value' => 'yes', 'compare' => '!=']],
-        ]];
-    if (!$include_done) {
-        $args['meta_query'][] = ['key' => '_mandala_ai_applied', 'compare' => 'NOT EXISTS'];
+    // Közvetlen SQL (NOT EXISTS, indexelt post_id + meta_key): a WP_Query-s meta_query 5000 terméknél
+    // több másodperces LEFT JOIN-sort csinált, és a fül minden betöltésekor lefutott.
+    global $wpdb;
+    $not = fn(string $key, string $value = '') => "NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} m WHERE m.post_id = p.ID AND m.meta_key = '" . esc_sql($key) . "'" . ($value !== '' ? " AND m.meta_value = '" . esc_sql($value) . "'" : '') . ')';
+    $where = "p.post_type = 'product' AND p.post_status IN ('publish', 'private') AND " . $not('_mandala_voucher', 'yes') . ' AND ' . $not('_mandala_ticket_for') . ' AND ' . $not('_mandala_giftbox', 'yes')
+        . ($include_done ? '' : ' AND ' . $not('_mandala_ai_applied'));
+    if ($count) {
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} p WHERE {$where}"); // phpcs:ignore
     }
-    return array_map('intval', get_posts($args));
+    return array_map('intval', $wpdb->get_col("SELECT p.ID FROM {$wpdb->posts} p WHERE {$where} ORDER BY p.ID ASC")); // phpcs:ignore
 }
+
+add_action('wp_ajax_mandala_ai_status', function () {
+    if (!current_user_can('edit_products') || !check_ajax_referer('mandala_ai_status', false, false)) {
+        wp_send_json_error(null, 403);
+    }
+    wp_send_json_success(array_map(fn($r) => array_intersect_key($r, array_flip(['status', 'done', 'total', 'auto', 'review', 'errors'])), mandala_ai_runs()));
+});
 
 /** Futtatás indítása. $mode: dry (próbafuttatás, nem ír) | apply. */
 function mandala_ai_start(string $mode, array $ids, string $label = '', bool $background = true): string
@@ -711,10 +718,15 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
     $runs = mandala_ai_runs();
     $running = array_filter($runs, fn($r) => $r['status'] === 'running');
     if ($running) {
-        echo '<meta http-equiv="refresh" content="10">';
+        // Az oldal nem töltődik újra: a futás állását egy könnyű kérés frissíti, és csak a végén tölt újra.
+        $poll = wp_json_encode(['url' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('mandala_ai_status')]);
+        echo '<script>(function(c){function t(){fetch(c.url+"?action=mandala_ai_status&_wpnonce="+c.nonce,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){'
+            . 'if(!d||!d.success)return;var run=false;Object.keys(d.data).forEach(function(id){var r=d.data[id],row=document.querySelector("[data-run=\""+id+"\"]");if(r.status==="running")run=true;'
+            . 'if(row){row.querySelector("[data-f=done]").textContent=r.done+" / "+r.total;row.querySelector("[data-f=auto]").textContent=r.auto;row.querySelector("[data-f=review]").textContent=r.review;row.querySelector("[data-f=errors]").textContent=r.errors;}});'
+            . 'if(!run){location.reload();}else{setTimeout(t,8000);}}).catch(function(){setTimeout(t,15000);});}setTimeout(t,8000);})(' . $poll . ');</script>';
     }
-    $scope_count = count(mandala_ai_scope());
-    echo '<p>A meglévő termékek régi kategóriáiból és tulajdonságaiból a Claude javaslatot ad az új kategóriafára és a szűrőkre. Ahol biztos (≥ ' . esc_html((string) round($s['threshold'] * 100)) . '%, és minden kötelező szűrő megvan), a javaslat érvénybe lép; ahol nem, a termék az „Élő, ellenőrizendő” fülre kerül, előtöltött javaslattal. Előbb futtass próbát: az semmit nem ír, és becslést ad a teljes futtatásra.</p>';
+    $scope_count = mandala_ai_scope(false, true);
+    echo '<p>A meglévő termékek régi kategóriáiból és tulajdonságaiból a Claude javaslatot ad az új kategóriafára és a szűrőkre. Ahol a kategória biztos (≥ ' . esc_html((string) round($s['threshold'] * 100)) . '%), a kategória és a biztos szűrőértékek érvénybe lépnek; a hiányzó adat (pl. eredet) üresen marad, és a termék az „Élő, ellenőrizendő” fülre kerül az adatpótláshoz. Ahol a kategória sem biztos, csak javaslat készül. Előbb futtass próbát: az semmit nem ír, és becslést ad a teljes futtatásra.</p>';
     echo '<p><strong>' . esc_html(sprintf('%d termék', $scope_count)) . '</strong> vár feldolgozásra (közzétett, még nem migrált; utalvány, jegy és csomagolás nélkül).</p>';
     if (!mandala_ai_ready()) {
         echo '<div class="notice notice-warning inline"><p>Adj meg Anthropic API-kulcsot lent, vagy a wp-config.php-ban: <code>define(\'MANDALA_ANTHROPIC_API_KEY\', \'…\');</code> (ajánlott).</p></div>';
@@ -731,8 +743,8 @@ add_action('mandala_onboarding_tab_ai', function (string $base) {
         echo '<h2>Futtatások</h2><table class="widefat striped"><thead><tr><th>Futtatás</th><th>Állapot</th><th>Kész</th><th>Automatikus</th><th>Ellenőrizendő</th><th>Hiba</th><th>Tokenek (be / gyors. / ki)</th><th></th></tr></thead><tbody>';
         foreach (array_reverse($runs, true) as $id => $r) {
             $status = ['running' => 'fut…', 'done' => 'kész', 'stopped' => 'leállítva', 'undone' => 'visszavonva', 'error' => 'hiba'][$r['status']] ?? $r['status'];
-            echo '<tr><td>' . esc_html(($r['label'] ?: $r['mode']) . ' · ' . wp_date('m. d. H:i', $r['started']) . ' · ' . $r['model']) . '</td><td>' . esc_html($status) . ($r['last_error'] ? '<br><span class="description">' . esc_html($r['last_error']) . '</span>' : '') . '</td>'
-                . '<td>' . (int) $r['done'] . ' / ' . (int) $r['total'] . '</td><td>' . (int) $r['auto'] . ($r['mode'] === 'dry' ? ' <span class="description">(nem írt)</span>' : '') . '</td><td>' . (int) $r['review'] . '</td><td>' . (int) $r['errors'] . '</td>'
+            echo '<tr data-run="' . esc_attr($id) . '"><td>' . esc_html(($r['label'] ?: $r['mode']) . ' · ' . wp_date('m. d. H:i', $r['started']) . ' · ' . $r['model']) . '</td><td>' . esc_html($status) . ($r['last_error'] ? '<br><span class="description">' . esc_html($r['last_error']) . '</span>' : '') . '</td>'
+                . '<td data-f="done">' . (int) $r['done'] . ' / ' . (int) $r['total'] . '</td><td><span data-f="auto">' . (int) $r['auto'] . '</span>' . ($r['mode'] === 'dry' ? ' <span class="description">(nem írt)</span>' : '') . '</td><td data-f="review">' . (int) $r['review'] . '</td><td data-f="errors">' . (int) $r['errors'] . '</td>'
                 . '<td>' . esc_html(number_format_i18n($r['in'] + $r['cache_write']) . ' / ' . number_format_i18n($r['cache_read']) . ' / ' . number_format_i18n($r['out'])) . '</td><td><form method="post">';
             wp_nonce_field('mandala_ai');
             echo '<input type="hidden" name="run" value="' . esc_attr($id) . '">'
