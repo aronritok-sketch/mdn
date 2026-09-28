@@ -291,7 +291,27 @@ function mandala_showcase_flush(): void
 
 /* ---------- Biztonság: levelek átirányítása ---------- */
 
+// A fiókkal kapcsolatos WordPress-levelek (meghívó / új felhasználó, jelszó-visszaállítás, jelszó- és
+// e-mail-változás) bemutató módban is a valódi címzetthez mennek: ezeket az admin vagy maga az érintett
+// indítja, és nélkülük nem lehet munkatársat meghívni. Jelölés egy belső fejléccel, amit a küldés előtt levágunk.
+const MANDALA_SHOWCASE_PASS = 'X-Mandala-Pass: 1';
+foreach (['wp_new_user_notification_email', 'retrieve_password_notification_email', 'password_change_email', 'email_change_email'] as $hook) {
+    add_filter($hook, function ($email) {
+        if (is_array($email)) {
+            $h = $email['headers'] ?? '';
+            $email['headers'] = is_array($h) ? array_merge($h, [MANDALA_SHOWCASE_PASS]) : trim($h . "\n" . MANDALA_SHOWCASE_PASS);
+        }
+        return $email;
+    }, 99);
+}
+
 add_filter('wp_mail', function (array $args) {
+    $headers = $args['headers'] ?? '';
+    $list = is_array($headers) ? $headers : preg_split('/\r?\n/', (string) $headers);
+    if (in_array(MANDALA_SHOWCASE_PASS, array_map('trim', $list), true)) {
+        $args['headers'] = array_values(array_filter($list, fn($h) => trim((string) $h) !== MANDALA_SHOWCASE_PASS && trim((string) $h) !== ''));
+        return $args; // fiókkal kapcsolatos levél: a valódi címzettnek
+    }
     $s = mandala_showcase();
     if (empty($s['on'])) {
         return $args;
@@ -389,7 +409,7 @@ function mandala_showcase_page(): void
         echo '<div class="notice notice-success"><ul style="list-style:disc;padding-left:20px">' . implode('', array_map(fn($l) => '<li>' . esc_html($l) . '</li>', $log)) . '</ul></div>';
     }
     echo '<p style="max-width:760px">Egy kattintással bekapcsol minden marketingeszközt a valós termékekkel: futó kampány visszaszámlálóval és kuponnal, akciós termékek, ajándék értékhatár felett, csomagkedvezmények, füstölő-előfizetés, kilépési ablak, értékelések fotóval, események, érkező szállítmány, bemutató partner. A Kivonat és a heti levél demóadatokat mutat. Kikapcsoláskor minden visszaáll az eredetire.</p>';
-    echo '<p style="max-width:760px"><strong>Csak teszt / dev oldalon használd.</strong> Amíg be van kapcsolva, minden kimenő levél (a rendelési levelek is) az alábbi címre megy, így valós vásárló nem kap levelet.</p>';
+    echo '<p style="max-width:760px"><strong>Csak teszt / dev oldalon használd.</strong> Amíg be van kapcsolva, minden kimenő levél (a rendelési levelek is) az alábbi címre megy, így valós vásárló nem kap levelet. Kivétel a fiókkal kapcsolatos levelek (felhasználó meghívása, jelszó-visszaállítás): ezek a valódi címzetthez mennek.</p>';
     echo '<form method="post">';
     wp_nonce_field('mandala_showcase');
     if (empty($s['on'])) {
