@@ -121,6 +121,57 @@ function mandala_mail_log(string $type, string $to, string $subject, string $sta
         'subject' => mb_substr($subject, 0, 255), 'status' => $status, 'order_id' => $order_id]);
 }
 
+/* ---------- Levélküldési hibák és állapot ---------- */
+
+// A wp_mail pontos hibaüzenete (pl. „Could not instantiate mail function”, SMTP-hitelesítési hiba) –
+// a napló csak „hiba” állapotot tud, az ok ide kerül, és a Levélközpont tetején látszik.
+add_action('wp_mail_failed', function ($error) {
+    if (!is_wp_error($error)) {
+        return;
+    }
+    $data = (array) $error->get_error_data();
+    update_option('mandala_mail_last_error', ['time' => time(), 'message' => $error->get_error_message(),
+        'to' => implode(', ', (array) ($data['to'] ?? [])), 'subject' => (string) ($data['subject'] ?? '')], false);
+});
+/** Hogyan küld levelet a szerver: SMTP bővítmény neve, vagy üres (PHP mail()). */
+function mandala_mail_transport(): string
+{
+    $active = (array) get_option('active_plugins', []);
+    foreach (['wp-mail-smtp/wp_mail_smtp.php' => 'WP Mail SMTP', 'wp-mail-smtp-pro/wp_mail_smtp.php' => 'WP Mail SMTP Pro', 'fluent-smtp/fluent-smtp.php' => 'FluentSMTP',
+        'post-smtp/postman-smtp.php' => 'Post SMTP', 'easy-wp-smtp/easy-wp-smtp.php' => 'Easy WP SMTP'] as $file => $name) {
+        if (in_array($file, $active, true)) {
+            return $name;
+        }
+    }
+    return '';
+}
+/** Állapotdoboz a Levélközpont tetején: küldés módja, bemutató mód, utolsó hiba. */
+function mandala_mail_status_box(): string
+{
+    $items = [];
+    $t = mandala_mail_transport();
+    $items[] = $t ? ['ok', 'Levélküldés: ' . $t . '.'] : ['warn', 'Levélküldés: nincs SMTP bővítmény – a szerver saját levélküldőjét használja. Sok tárhelyen (főleg teszt / dev oldalon) ez nem küld semmit, vagy a levél spambe kerül. Megoldás: WP Mail SMTP bővítmény a bolt e-mail-fiókjával (vagy egy levélküldő szolgáltatással).'];
+    if (function_exists('mandala_showcase_on') && mandala_showcase_on()) {
+        $items[] = ['warn', 'Bemutató mód be van kapcsolva: MINDEN levél ide megy: ' . (string) mandala_showcase()['mailto'] . ' (a tárgy elején „[BEMUTATÓ → eredeti címzett]”). A vásárlók nem kapnak levelet.'];
+    }
+    $e = (array) get_option('mandala_mail_last_error', []);
+    if (!empty($e['time']) && $e['time'] > time() - 7 * DAY_IN_SECONDS) {
+        $items[] = ['fail', 'Utolsó küldési hiba (' . wp_date('Y. m. d. H:i', (int) $e['time']) . ', ' . ($e['to'] ?? '') . '): ' . ($e['message'] ?? '')];
+    }
+    $colors = ['ok' => '#008a20', 'warn' => '#996800', 'fail' => '#d63638'];
+    $out = '<div class="mandala-mail-status" style="background:#fff;border:1px solid #dcdcde;border-left:4px solid ' . $colors[array_reduce($items, fn($c, $i) => $i[0] === 'fail' ? 'fail' : ($c === 'fail' ? 'fail' : ($i[0] === 'warn' ? 'warn' : $c)), 'ok')] . ';padding:8px 14px;margin:14px 0">';
+    foreach ($items as [$k, $text]) {
+        $out .= '<p style="margin:6px 0"><span style="color:' . $colors[$k] . ';font-weight:600">' . ($k === 'ok' ? '✓' : ($k === 'warn' ? '!' : '✗')) . '</span> ' . esc_html($text) . '</p>';
+    }
+    return $out . '<p class="description" style="margin:6px 0">Ha a napló szerint „elküldve”, de nem érkezett meg: nézd meg a spam mappát, és kérdezd meg a tárhelyet, küld-e levelet a szerver (SPF / DKIM beállítás).</p></div>';
+}
+/** Egy tesztlevél hibájának oka a figyelmeztetéshez (ha most keletkezett). */
+function mandala_mail_error_hint(int $since): string
+{
+    $e = (array) get_option('mandala_mail_last_error', []);
+    return !empty($e['time']) && $e['time'] >= $since ? ' A szerver válasza: „' . esc_html((string) $e['message']) . '”.' : '';
+}
+
 /* ---------- Küldés ---------- */
 
 /**
@@ -437,7 +488,7 @@ function mandala_mail_admin_page(): void
     $type = sanitize_key($_GET['type'] ?? '');
     $wc = sanitize_key($_GET['wc'] ?? '');
     $base = admin_url('admin.php?page=mandala-automations');
-    echo '<div class="wrap mandala-mail"><h1>Mandala levelek</h1>';
+    echo '<div class="wrap mandala-mail"><h1>Mandala levelek</h1>' . mandala_mail_status_box();
     if (!($type && isset(mandala_mail_types()[$type])) && !$wc) {
         echo '<nav class="nav-tab-wrapper">';
         foreach (['levelek' => 'Automata levelek', 'naplo' => 'Napló', 'beallitasok' => 'Beállítások', 'mailerlite' => 'MailerLite'] as $k => $label) {
@@ -523,8 +574,9 @@ function mandala_mail_admin_edit(string $type, string $base): void
             $to = sanitize_email(wp_unslash($_POST['mail_test_to'] ?? ''));
             [$vars, $blocks] = ($def['sample'])();
             [$subject, $heading, $body] = mandala_mail_render($type, $vars, $blocks, $posted);
+            $since = time();
             $ok = is_email($to) && mandala_send_mail($to, '[Teszt] ' . $subject, $heading, $body, false, ['type' => 'teszt']);
-            $notice = $ok ? '<div class="notice notice-success"><p>Tesztlevél elküldve: ' . esc_html($to) . ' (a szerkesztett, még nem mentett szöveggel, mintaadatokkal).</p></div>' : '<div class="notice notice-error"><p>A tesztlevelet nem sikerült elküldeni – érvényes e-mail-cím? (Levélküldés beállítása: SMTP bővítmény.)</p></div>';
+            $notice = $ok ? '<div class="notice notice-success"><p>Tesztlevél elküldve: ' . esc_html($to) . ' (a szerkesztett, még nem mentett szöveggel, mintaadatokkal).</p></div>' : '<div class="notice notice-error"><p>A tesztlevelet nem sikerült elküldeni – érvényes e-mail-cím? (Levélküldés beállítása: SMTP bővítmény.)' . mandala_mail_error_hint($since) . '</p></div>';
         } elseif (!empty($_POST['mail_reset'])) {
             unset($all[$type]['subject'], $all[$type]['heading'], $all[$type]['body']);
             update_option('mandala_mail_templates', $all, false);

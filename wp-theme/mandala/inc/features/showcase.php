@@ -374,7 +374,13 @@ add_action('admin_menu', function () {
 function mandala_showcase_page(): void
 {
     $log = [];
-    if (!empty($_POST['mandala_showcase']) && check_admin_referer('mandala_showcase')) {
+    if (!empty($_POST['mandala_showcase_test']) && check_admin_referer('mandala_showcase')) {
+        $since = time();
+        $to = (string) (mandala_showcase()['mailto'] ?: get_option('admin_email'));
+        $ok = function_exists('mandala_send_mail') && mandala_send_mail($to, 'Tesztlevél a bemutató módból', 'Tesztlevél', '<p>Ha ezt olvasod, a szerver küld levelet.</p>', false, ['type' => 'teszt']);
+        $log = [$ok ? 'Tesztlevél elküldve ide: ' . $to . '. Ha nem érkezik meg pár percen belül, nézd meg a spam mappát; ha ott sincs, a tárhely nem küld levelet (SMTP bővítmény kell).'
+            : 'A tesztlevelet a szerver nem tudta elküldeni.' . wp_strip_all_tags(function_exists('mandala_mail_error_hint') ? mandala_mail_error_hint($since) : '') . ' Megoldás: WP Mail SMTP bővítmény a bolt e-mail-fiókjával.'];
+    } elseif (!empty($_POST['mandala_showcase']) && check_admin_referer('mandala_showcase')) {
         $log = $_POST['mandala_showcase'] === 'on' ? mandala_showcase_enable(sanitize_email(wp_unslash($_POST['mailto'] ?? ''))) : mandala_showcase_disable(); // phpcs:ignore
     }
     $s = mandala_showcase();
@@ -391,7 +397,7 @@ function mandala_showcase_page(): void
         echo '<p><button class="button button-primary button-hero" name="mandala_showcase" value="on">Bemutató mód bekapcsolása</button></p>';
     } else {
         echo '<p><strong style="color:#0a7c2f">Be van kapcsolva</strong> (' . esc_html(wp_date('Y. m. d. H:i', (int) $s['at'])) . ' óta). Levelek ide: ' . esc_html((string) $s['mailto']) . '</p>';
-        echo '<p><a class="button" href="' . esc_url(home_url('/')) . '" target="_blank">Megnézem a boltot</a> <a class="button" href="' . esc_url(admin_url('admin.php?page=mandala-owner')) . '">Kivonat (demóadatok)</a></p>';
+        echo '<p><a class="button" href="' . esc_url(home_url('/')) . '" target="_blank">Megnézem a boltot</a> <a class="button" href="' . esc_url(admin_url('admin.php?page=mandala-owner')) . '">Kivonat (demóadatok)</a> <button class="button" name="mandala_showcase_test" value="1">Tesztlevél küldése</button></p>';
         echo '<p><button class="button button-hero" name="mandala_showcase" value="off" onclick="return confirm(\'Minden bemutató elem törlődik, a beállítások visszaállnak. Mehet?\')">Kikapcsolás és visszaállítás</button></p>';
     }
     echo '</form></div>';

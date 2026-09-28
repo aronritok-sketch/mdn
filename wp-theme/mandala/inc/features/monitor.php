@@ -104,7 +104,7 @@ function mandala_health_checks(bool $deep = true): array
     // Levélküldés.
     if (function_exists('mandala_mail_table') && get_option('mandala_mail_db')) {
         $mail_failed = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . mandala_mail_table() . " WHERE status = 'failed' AND created > %s", gmdate('Y-m-d H:i:s', $now - HOUR_IN_SECONDS))); // phpcs:ignore
-        $add('mail', 'Levélküldés', $mail_failed ? 'fail' : 'ok', $mail_failed ? sprintf('%d levél nem ment ki az elmúlt órában (rendelés-visszaigazolás is lehet köztük). Ellenőrizd a WP Mail SMTP beállítást.', $mail_failed) : 'Rendben.');
+        $add('mail', 'Levélküldés', $mail_failed ? 'fail' : 'ok', $mail_failed ? sprintf('%d levél nem ment ki az elmúlt órában (rendelés-visszaigazolás is lehet köztük). Ellenőrizd a WP Mail SMTP beállítást.', $mail_failed) . (($e = (array) get_option('mandala_mail_last_error', [])) && !empty($e['message']) ? ' Utolsó hiba: „' . $e['message'] . '”.' : '') : 'Rendben.');
     }
 
     // Feedek, termékindex.
