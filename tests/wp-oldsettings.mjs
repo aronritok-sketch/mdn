@@ -53,6 +53,9 @@ const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }
 const file = path.join(process.env.TMPDIR || '/tmp', 'mandala-regi-beallitasok.json');
 await dl.saveAs(file);
 const exp = JSON.parse(fs.readFileSync(file, 'utf8'));
+// A régi bolt fizetési szolgáltatója a régi angol pénztárcímre küld vissza (mint a Teya: /checkout/order-received/)
+exp.gateways.find((g) => g.id === 'bacs').settings.successurl = `${exp.source}/checkout/order-received/`;
+fs.writeFileSync(file, JSON.stringify(exp));
 ok(exp.v === 1 && exp.wc.general && exp.gateways.some((g) => g.id === 'bacs') && exp.zones.some((z) => z.name === 'Magyarország'), 'export: általános beállítások, fizetési módok, zónák', JSON.stringify({ groups: Object.keys(exp.wc), gw: exp.gateways.length, zones: exp.zones.map((z) => z.name), err: exp.errors }));
 ok(Array.isArray(exp.plugins) && exp.plugins.length > 0 && exp.wp && exp.wp.title === 'Mandala Régi', 'export: bővítménylista és webhely-beállítások');
 
@@ -76,6 +79,10 @@ const s = state();
 ok(s.city === 'Szeged' && s.bacs === 'Banki átutalás (régi)' && s.cod === 'yes', 'átvétel: általános beállítás és fizetési módok', JSON.stringify(s));
 ok(JSON.stringify(s.zones) === JSON.stringify({ 'Magyarország': ['flat_rate:1990', 'free_shipping:25000'] }), 'átvétel: szállítási zóna díjakkal', JSON.stringify(s.zones));
 ok(s.recipient === 'bolt@example.com' && s.blog === 'Mandala Régi' && s.cart_page === cart0, 'átvétel: levélbeállítás és webhelynév; az oldalazonosítók maradnak');
+const succ = wp('echo get_option("woocommerce_bacs_settings")["successurl"] ?? "";');
+ok(succ === wp('echo wc_get_checkout_url();') + 'order-received/', 'átvétel: a fizetési mód régi pénztárcíme (/checkout/…) az itteni pénztárra mutat', succ);
+const legacy = await fetch(`${BASE}/checkout/order-received/123/?key=wc_order_teszt`, { redirect: 'manual' });
+ok(legacy.status === 301 && (legacy.headers.get('location') || '').endsWith(new URL(wp('echo wc_get_checkout_url();')).pathname + 'order-received/123/?key=wc_order_teszt'), 'régi angol WooCommerce-cím → 301 az itteni pénztárra, paraméterekkel', `${legacy.status} ${legacy.headers.get('location')}`);
 ok(s.cod_for.length === 1 && s.flat.split(",").includes(s.cod_for[0]) && s.cod_for[0] !== before.cod_for[0], 'átvétel: az utánvét az ÚJ szállítási mód-példányra mutat (régi azonosító átfordítva)', JSON.stringify({ cod: s.cod_for, flat: s.flat, before: before.cod_for }));
 ok(s.cod_fee === 390 && s.cod_title === 'Utánvét', 'átvétel: utánvét díja a régi címből (390 Ft), a címből kikerült', JSON.stringify({ fee: s.cod_fee, title: s.cod_title }));
 ok(s.terms.includes('Régi ÁSZF szövege') && s.terms.includes('<h2>') && !/elementor|data-id|style=|<script|<div|<section/.test(s.terms), 'átvétel: ÁSZF a régi szöveggel, oldalépítő-jelölések és szkript nélkül', s.terms.slice(0, 200));

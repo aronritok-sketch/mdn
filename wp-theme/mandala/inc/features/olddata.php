@@ -49,6 +49,35 @@ add_action('wp_login', function ($login, $user) {
     delete_user_meta($user->ID, '_mandala_needs_pw');
 }, 10, 2);
 
+/**
+ * A régi bolt angol WooCommerce-címei (/checkout/…, /cart/, /my-account/…) → az itteni oldalak, a folytatással
+ * és a paraméterekkel együtt. Kell a régi könyvjelzőknek, a levelekben lévő linkeknek és a fizetési szolgáltatók
+ * visszairányításának (pl. Teya: /checkout/order-received/123/?key=…).
+ */
+function mandala_od_legacy_url(string $uri): string
+{
+    $path = trim((string) wp_parse_url($uri, PHP_URL_PATH), '/');
+    $base = trim((string) wp_parse_url(home_url('/'), PHP_URL_PATH), '/');
+    if ($base !== '' && str_starts_with($path . '/', $base . '/')) {
+        $path = ltrim(substr($path, strlen($base)), '/');
+    }
+    [$first, $rest] = array_pad(explode('/', $path, 2), 2, '');
+    $page = ['checkout' => 'checkout', 'cart' => 'cart', 'my-account' => 'myaccount', 'shop' => 'shop'][$first] ?? '';
+    $id = $page && function_exists('wc_get_page_id') ? wc_get_page_id($page) : 0;
+    if ($id <= 0 || get_post_field('post_name', $id) === $first) {
+        return '';
+    }
+    $to = trailingslashit(get_permalink($id)) . ($rest !== '' ? trailingslashit($rest) : '');
+    $query = (string) wp_parse_url($uri, PHP_URL_QUERY);
+    return $query !== '' ? $to . '?' . $query : $to;
+}
+add_action('template_redirect', function () {
+    if (is_404() && ($to = mandala_od_legacy_url((string) ($_SERVER['REQUEST_URI'] ?? '')))) { // phpcs:ignore
+        wp_redirect($to, 301, 'Mandala');
+        exit;
+    }
+}, 0);
+
 /* ---------- Segédek ---------- */
 
 function mandala_od_hpos(): bool

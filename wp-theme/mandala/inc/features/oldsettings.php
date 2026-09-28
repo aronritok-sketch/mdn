@@ -264,7 +264,15 @@ function mandala_oldset_apply(array $d, array $parts): array
                 continue;
             }
             $opt = 'woocommerce_' . $g['id'] . '_settings';
-            $settings = array_merge((array) get_option($opt, []), mandala_oldset_remap((array) $g['settings'], $map), ['enabled' => empty($g['enabled']) ? 'no' : 'yes']);
+            $imported = mandala_oldset_remap((array) $g['settings'], $map);
+            // A régi bolt pénztár / kosár / fiók címei (pl. a Teya visszatérési címei) → az itteni oldalak
+            foreach ($imported as $k => $v) {
+                if (is_string($v) && !empty($d['source']) && preg_match('#^https?://(?:www\.)?' . preg_quote(preg_replace('#^https?://(?:www\.)?#i', '', untrailingslashit((string) $d['source'])), '#') . '(/[^?\s]*)?(\?.*)?$#i', $v, $um)
+                    && function_exists('mandala_od_legacy_url') && ($local = mandala_od_legacy_url(($um[1] ?? '/') . ($um[2] ?? '')))) {
+                    $imported[$k] = $local;
+                }
+            }
+            $settings = array_merge((array) get_option($opt, []), $imported, ['enabled' => empty($g['enabled']) ? 'no' : 'yes']);
             if (($g['title'] ?? '') !== '') {
                 $settings['title'] = $g['title'];
             }
