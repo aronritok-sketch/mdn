@@ -26,6 +26,7 @@ function mandala_automation_settings(): array
         'crosssell' => 'yes', 'crosssell_days' => 14,
         'wishlist' => 'yes',
         'browse' => 'yes', 'browse_hours' => 24,
+        'pricedrop' => 'yes',
         'review' => 'yes', 'review_days' => 10,
         'moderator' => '',
         'signature' => "Szeretettel:\na Mandala csapata",

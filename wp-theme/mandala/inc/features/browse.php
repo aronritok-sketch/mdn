@@ -91,7 +91,9 @@ function mandala_browse_record(string $token, int $product_id): void
         return;
     }
     $views = array_values(array_filter((array) json_decode((string) $row->views, true), fn($v) => (int) ($v[0] ?? 0) !== $product_id));
-    array_unshift($views, [$product_id, time()]);
+    // [termék, időpont, ár a megnézéskor] – az ár az árcsökkenés-értesítőhöz kell.
+    $p = wc_get_product($product_id);
+    array_unshift($views, [$product_id, time(), $p ? (float) wc_get_price_to_display($p) : 0]);
     $wpdb->update(mandala_browse_table(), ['views' => wp_json_encode(array_slice($views, 0, 10)), 'last_view' => current_time('mysql', true)], ['token' => $token]);
 }
 
@@ -127,7 +129,8 @@ function mandala_browse_sweep(): int
             continue;
         }
         $products = [];
-        foreach ((array) json_decode((string) $row->views, true) as [$pid, $at]) {
+        foreach ((array) json_decode((string) $row->views, true) as $v) {
+            [$pid, $at] = $v;
             $p = wc_get_product((int) $pid);
             if ((int) $at > $since && $p && $p->get_status() === 'publish' && $p->is_purchasable() && $p->is_in_stock() && !(function_exists('mandala_is_voucher') && mandala_is_voucher($p))) {
                 $products[] = $p;
@@ -185,7 +188,8 @@ add_filter('wp_privacy_personal_data_exporters', function ($exporters) {
         global $wpdb;
         $data = [];
         foreach ($wpdb->get_results($wpdb->prepare('SELECT views FROM ' . mandala_browse_table() . ' WHERE email = %s', strtolower($email))) as $row) { // phpcs:ignore
-            foreach ((array) json_decode((string) $row->views, true) as [$pid, $at]) {
+            foreach ((array) json_decode((string) $row->views, true) as $v) {
+                [$pid, $at] = $v;
                 $data[] = ['group_id' => 'mandala-browse', 'group_label' => 'Megnézett termékek', 'item_id' => 'view-' . (int) $pid, 'data' => [['name' => 'Termék', 'value' => get_the_title((int) $pid)], ['name' => 'Időpont', 'value' => wp_date('Y-m-d H:i', (int) $at)]]];
             }
         }

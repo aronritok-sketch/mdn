@@ -17,8 +17,10 @@ defined('ABSPATH') || exit;
 function mandala_growth_settings(): array
 {
     return wp_parse_args((array) get_option('mandala_growth', []), [
-        'popup' => 'yes', 'popup_percent' => 10, 'popup_days' => 14, 'popup_delay' => 25,
+        'popup' => 'yes', 'popup_percent' => 10, 'popup_days' => 14, 'popup_delay' => 25, 'popup_mode' => 'both',
         'referral' => 'yes', 'ref_percent' => 10, 'ref_reward' => 2000, 'ref_reward_days' => 90,
+        'gwp' => 'no', 'gwp_threshold' => 15000, 'gwp_sku' => '', 'gwp_label' => 'ajándék füstölő',
+        'birthday' => 'yes', 'birthday_percent' => 15, 'birthday_days' => 14,
     ]);
 }
 
@@ -165,7 +167,7 @@ add_filter('mandala_js_data', function ($data) {
     $s = mandala_growth_settings();
     $customer = is_user_logged_in() && function_exists('wc_get_customer_order_count') && wc_get_customer_order_count(get_current_user_id()) > 0;
     if ($s['popup'] === 'yes' && !$customer) {
-        $data['welcome'] = ['percent' => (int) $s['popup_percent'], 'delay' => (int) $s['popup_delay'], 'privacy' => get_privacy_policy_url()];
+        $data['welcome'] = ['percent' => (int) $s['popup_percent'], 'delay' => (int) $s['popup_delay'], 'mode' => $s['popup_mode'], 'privacy' => get_privacy_policy_url()];
     }
     return $data;
 });
@@ -390,12 +392,16 @@ add_action('admin_menu', function () {
         $s = mandala_growth_settings();
         if (!empty($_POST['mandala_growth']) && check_admin_referer('mandala_growth')) {
             $in = (array) wp_unslash($_POST['mandala_growth']);
-            foreach (['popup', 'referral'] as $k) {
+            foreach (['popup', 'referral', 'gwp', 'birthday'] as $k) {
                 $s[$k] = empty($in[$k]) ? 'no' : 'yes';
             }
-            foreach (['popup_percent' => [1, 50], 'popup_days' => [1, 365], 'popup_delay' => [0, 600], 'ref_percent' => [1, 50], 'ref_reward' => [100, 100000], 'ref_reward_days' => [7, 730]] as $k => [$min, $max]) {
+            $s['popup_mode'] = ($in['popup_mode'] ?? '') === 'exit' ? 'exit' : 'both';
+            foreach (['popup_percent' => [1, 50], 'popup_days' => [1, 365], 'popup_delay' => [0, 600], 'ref_percent' => [1, 50], 'ref_reward' => [100, 100000], 'ref_reward_days' => [7, 730],
+                'gwp_threshold' => [1000, 1000000], 'birthday_percent' => [1, 50], 'birthday_days' => [1, 90]] as $k => [$min, $max]) {
                 $s[$k] = max($min, min($max, (int) ($in[$k] ?? $s[$k])));
             }
+            $s['gwp_sku'] = sanitize_text_field((string) ($in['gwp_sku'] ?? ''));
+            $s['gwp_label'] = sanitize_text_field((string) ($in['gwp_label'] ?? '')) ?: 'ajándék';
             update_option('mandala_growth', $s, false);
             echo '<div class="notice notice-success"><p>Mentve.</p></div>';
         }
@@ -406,10 +412,18 @@ add_action('admin_menu', function () {
         echo '<div class="wrap"><h1>Mandala kuponok</h1><p>Önjáró kuponos eszközök. Az üdvözlő és a jutalom levél szövege: Mandala levelek.</p><form method="post">';
         wp_nonce_field('mandala_growth');
         echo '<table class="form-table">'
-            . '<tr><th scope="row">Feliratkozó ablak</th><td><label><input type="checkbox" name="mandala_growth[popup]" value="1"' . checked($s['popup'], 'yes', false) . '> bekapcsolva</label><p>' . $n('popup_percent') . ' % kedvezmény az első rendelésre, ' . $n('popup_days') . ' napig érvényes; az ablak ' . $n('popup_delay') . ' másodperc után (vagy amikor el akarná hagyni az oldalt) jelenik meg, 14 naponta legfeljebb egyszer.</p>'
+            . '<tr><th scope="row">Feliratkozó ablak</th><td><label><input type="checkbox" name="mandala_growth[popup]" value="1"' . checked($s['popup'], 'yes', false) . '> bekapcsolva</label><p>' . $n('popup_percent') . ' % kedvezmény az első rendelésre, ' . $n('popup_days') . ' napig érvényes; 14 naponta legfeljebb egyszer jelenik meg.</p>'
+            . '<p><label><input type="radio" name="mandala_growth[popup_mode]" value="both"' . checked($s['popup_mode'], 'both', false) . '> ' . $n('popup_delay') . ' másodperc után, vagy ha el akarná hagyni az oldalt</label><br>'
+            . '<label><input type="radio" name="mandala_growth[popup_mode]" value="exit"' . checked($s['popup_mode'], 'exit', false) . '> csak kilépési szándékra (asztalon: az egér a böngésző teteje felé megy; mobilon: gyors visszagörgetés az oldal alján)</label></p>'
             . '<p class="description">Nem jelenik meg: a kosárban, a pénztárban, a fiók oldalon, és annak, aki már vásárolt. Eddig kiadott üdvözlő kupon: ' . $welcome . '.</p></td></tr>'
             . '<tr><th scope="row">Ajánlási program</th><td><label><input type="checkbox" name="mandala_growth[referral]" value="1"' . checked($s['referral'], 'yes', false) . '> bekapcsolva</label><p>A barát ' . $n('ref_percent') . ' % kedvezményt kap az első rendelésére; az ajánló ' . $n('ref_reward', 90) . ' Ft kupont, ' . $n('ref_reward_days') . ' napig.</p>'
             . '<p class="description">A link a Fiókom kezdőlapján és a köszönőoldalon (belépett vásárlóknak). Saját magának nem ajánlhat; a jutalom a barát teljesített első rendelése után jár. Eddig kiadott jutalom: ' . $rewards . '.</p></td></tr>'
+            . '<tr><th scope="row">Ajándék értékhatár felett</th><td><label><input type="checkbox" name="mandala_growth[gwp]" value="1"' . checked($s['gwp'], 'yes', false) . '> bekapcsolva</label>'
+            . '<p>' . $n('gwp_threshold', 100) . ' Ft feletti kosárnál ingyen a kosárba kerül: cikkszám <input type="text" name="mandala_growth[gwp_sku]" value="' . esc_attr($s['gwp_sku']) . '" style="width:160px">, a vásárló így látja: <input type="text" name="mandala_growth[gwp_label]" value="' . esc_attr($s['gwp_label']) . '" style="width:200px"></p>'
+            . '<p class="description">' . mandala_gwp_status() . ' A kosárban és a minikosárban sáv mutatja, mennyi hiányzik még; ha a vásárló kiveszi az ajándékot, nem tesszük vissza. Ha elfogy a készlet, magától szünetel.</p></td></tr>'
+            . '<tr><th scope="row">Születésnapi kupon</th><td><label><input type="checkbox" name="mandala_growth[birthday]" value="1"' . checked($s['birthday'], 'yes', false) . '> bekapcsolva</label>'
+            . '<p>' . $n('birthday_percent') . ' % kedvezmény a születésnapon, ' . $n('birthday_days') . ' napig érvényes.</p>'
+            . '<p class="description">A vásárló a Fiókom → Fiókadatok oldalon vagy a pénztárban adhatja meg a születésnapját (hónap és nap, év nélkül). A levél reggel megy; leiratkozottaknak nem. Megadott születésnap eddig: ' . (function_exists('mandala_birthday_count') ? mandala_birthday_count() : 0) . '.</p></td></tr>'
             . '</table>';
         submit_button('Mentés');
         echo '</form></div>';

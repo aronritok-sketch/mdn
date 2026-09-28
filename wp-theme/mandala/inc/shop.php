@@ -395,6 +395,7 @@ function mandala_minicart_content(): void
     if ($meter && !$done) {
         do_action('mandala_after_ship_meter', 'drawer', $threshold - $goods);
     }
+    do_action('mandala_cart_meters', 'drawer');
     echo '<ul class="review-items woocommerce-mini-cart" style="border:0">';
     foreach ($cart->get_cart() as $key => $item) {
         $p = $item['data'];
@@ -541,6 +542,7 @@ add_action('woocommerce_before_cart_table', function () {
     if ($goods < $threshold) {
         do_action('mandala_after_ship_meter', 'cart', $threshold - $goods);
     }
+    do_action('mandala_cart_meters', 'cart');
 });
 
 /* ---------- Alapértelmezett WooCommerce kimenetek, amelyeket a sablonjaink kiváltanak ---------- */

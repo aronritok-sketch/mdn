@@ -1103,6 +1103,49 @@ a.intent-card:hover .art.medal { transform: rotate(30deg) scale(1.04); }
 @media (max-width: 767px) { .cat-nav li { flex-basis: 104px; padding-top: 14px; } .cat-nav-img { max-width: 76px; margin-inline: auto; } }
 .cat-nav-img { margin-bottom: var(--space-5); }
 
+/* Ajándék értékhatár felett */
+.gwp-tag { color: var(--c-success); font-weight: 600; }
+.gwp-badge { background: var(--c-success-soft); color: var(--c-success); margin-left: var(--space-1); vertical-align: middle; }
+.gwp-meter { background: var(--c-success-soft); }
+.gwp-meter .meter span { background: var(--c-success); }
+.gwp-meter p { display: flex; align-items: center; gap: var(--space-2); }
+
+/* Születésnap választó (fiók, pénztár) */
+.birthday-field { border: 0; padding: 0; margin: var(--space-5) 0 0; }
+.birthday-field legend { font-weight: 500; margin-bottom: var(--space-2); }
+.birthday-selects { display: flex; gap: var(--space-3); max-width: 360px; }
+.birthday-selects select { flex: 1; }
+.birthday-field .description { font-size: var(--fs-small); color: var(--c-muted); margin-top: var(--space-2); }
+
+/* Csomagajánlat a termékoldalon */
+.bundle-offer { margin-top: var(--space-5); padding: var(--space-5); border: 1px solid var(--c-accent-soft); border-radius: var(--radius-l); background: linear-gradient(180deg, #FBF3E6, var(--c-white)); }
+.bundle-offer .eyebrow { margin-bottom: var(--space-2); }
+.bundle-offer h3 { font-size: 1.375rem; margin: 0 0 var(--space-3); }
+.bundle-items { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-2); }
+.bundle-items a { display: grid; grid-template-columns: 48px 1fr; gap: var(--space-3); align-items: center; color: var(--c-ink); text-decoration: none; }
+.bundle-items .thumb { width: 48px; height: 48px; }
+.bundle-items small { display: block; color: var(--c-muted); }
+.bundle-total { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.bundle-total s { color: var(--c-muted); }
+.bundle-total strong { font-size: 1.375rem; color: var(--c-accent-deep); }
+
+/* Előfizetés választó */
+.sub-choice { flex-basis: 100%; border: 0; padding: 0; margin: 0 0 var(--space-4); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.sub-opt { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border: var(--border); border-radius: var(--radius-m); background: var(--c-white); cursor: pointer; }
+.sub-opt:has(input:checked) { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent); }
+.sub-opt input { margin-top: 4px; accent-color: var(--c-accent); }
+.sub-opt strong { display: block; }
+.sub-opt small { color: var(--c-muted); }
+.sub-interval { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3); }
+.sub-note { grid-column: 1 / -1; color: var(--c-muted); margin: 0; }
+.sub-table .sub-actions { white-space: nowrap; }
+.iu-button-small { min-height: 34px; padding: 0 var(--space-3); font-size: var(--fs-small); }
+
+/* Partner felület */
+.partner-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-5); }
+.partner-stats > div { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: var(--border); border-radius: var(--radius-m); background: var(--c-white); }
+.partner-stats strong { font-size: 1.5rem; }
+
 
 /* ==========================================================================
    Funkciómodulok: hangminta, egyedi darab, előrendelés, műhelyek, események,

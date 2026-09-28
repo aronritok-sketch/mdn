@@ -66,7 +66,21 @@ if (W && M.rest && !seen()) {
       }
     });
   };
-  setTimeout(show, Math.max(0, W.delay) * 1000);
+  // Időzítve (ha nem „csak kilépéskor” módban van), és kilépési szándékra.
+  if (W.mode !== 'exit') setTimeout(show, Math.max(0, W.delay) * 1000);
+  // Asztali gép: az egér kimegy az ablak tetején (a fülek / a címsor felé).
   document.addEventListener('mouseout', (e) => { if (!e.relatedTarget && e.clientY <= 0 && matchMedia('(pointer: fine)').matches) show(); });
+  // Mobil: az oldal legalább harmadáig görgetett, majd gyorsan visszafelé görget (a „vissza” / fejléc felé) – 15 mp böngészés után.
+  if (matchMedia('(pointer: coarse)').matches) {
+    const since = Date.now();
+    let lastY = scrollY; let lastT = Date.now(); let deep = false;
+    addEventListener('scroll', () => {
+      const now = Date.now(); const y = scrollY;
+      if (y > document.documentElement.scrollHeight / 3) deep = true;
+      const speed = (lastY - y) / Math.max(1, now - lastT); // px/ms, felfelé pozitív
+      if (deep && now - since > 15000 && speed > 2.5 && lastY - y > 120) show();
+      lastY = y; lastT = now;
+    }, { passive: true });
+  }
   window.mandalaWelcome = show; // tesztekhez
 }
