@@ -432,8 +432,13 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
   const overlay = async (q) => {
     if (!(await page.isVisible('#search-input'))) await page.click('[data-open-search]');
+    const before = (await page.textContent('#search-results').catch(() => '')) || '';
     await page.fill('#search-input', q);
-    await page.waitForFunction((term) => (term.trim().length < 2 ? true : /Termékek \(\d+\)/.test(document.querySelector('#search-results')?.textContent || '')), q, { timeout: 8000 }).catch(() => {});
+    // Az ÚJ eredményre várunk (az előző keresés „Termékek (N)” szövege nem számít)
+    await page.waitForFunction(([term, prev]) => {
+      const t = document.querySelector('#search-results')?.textContent || '';
+      return term.trim().length < 2 || (t !== prev && /Termékek \(\d+\)|Nincs termék erre/.test(t));
+    }, [q, before], { timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(300);
     return (await page.textContent('#search-results')).replace(/\s+/g, ' ');
   };
@@ -445,7 +450,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   const n500 = Number(t.match(/Termékek \((\d+)\)/)[1]);
   ok(t.includes('Súly ≤ 500 g') && n500 > 0, 'élő kereső: „500 g alatt” szűrőként', String(n500));
   await page.click('#search-results .search-filters .chip');
-  await page.waitForTimeout(500);
+  await page.waitForFunction((n) => { const m = (document.querySelector('#search-results')?.textContent || '').match(/Termékek \((\d+)\)/); return m && Number(m[1]) > n; }, n500, { timeout: 10000 }).catch(() => {});
   ok((await page.inputValue('#search-input')) === 'hangtál' && Number((await page.textContent('#search-results')).match(/Termékek \((\d+)\)/)[1]) > n500, 'élő kereső: az értelmezett szűrő egy kattintással levehető');
   t = await overlay('singing bowl');
   ok(t.includes('hangtál'), 'élő kereső: szinonima (singing bowl → hangtál)');
