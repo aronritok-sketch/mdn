@@ -15,6 +15,11 @@ mandala_add_block('mandala/notice', [
         if (function_exists('is_checkout') && is_checkout() && !is_order_received_page()) {
             return '';
         }
+        // Aktív kampány: a sáv a kampányé (campaigns.php).
+        $campaign = apply_filters('mandala_notice_override', '');
+        if ($campaign !== '') {
+            return $campaign;
+        }
         $free = (int) mandala_config('freeShippingFrom', 25000);
         $out = '<p class="mandala-notice">' . ($free > 0 ? '<span>' . mandala_icon('truck', 'ico ico-s') . '</span><span>'
             . sprintf(esc_html__('Ingyenes szállítás %s felett', 'mandala'), '<strong>' . esc_html(mandala_fmt($free)) . '</strong>') . '</span>' : '');

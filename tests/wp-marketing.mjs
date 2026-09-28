@@ -178,6 +178,54 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   await page.context().close();
 }
 
+// ======================= Kampány + ?kupon= link =======================
+{
+  wp('foreach (["KAMPANY10" => 10, "LINK5" => 5] as $code => $pct) { if (!wc_get_coupon_id_by_code($code)) { $c = new WC_Coupon(); $c->set_code($code); $c->set_discount_type("percent"); $c->set_amount($pct); $c->save(); } }');
+  wp('update_option("mandala_campaigns", [["name" => "Teszt kampány", "start" => wp_date("Y-m-d H:i", time() - 3600), "end" => wp_date("Y-m-d H:i", time() + 86400 * 2), "bar" => "Teszt kampány fut", "eyebrow" => "Kampány", "title" => "Kampány cím", "text" => "Szöveg", "button" => "Megnézem", "url" => "", "coupon" => "kampany10", "auto" => "yes", "enabled" => "yes"]]);');
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.campaign-banner') && /Teszt kampány fut/.test(await page.textContent('.mandala-notice')), 'kampány: aktív kampány alatt banner a főoldalon és a felső sáv a kampányé');
+  ok(/még \d+ nap/.test(await page.textContent('.campaign-bar')), 'kampány: visszaszámláló a felső sávban');
+  await page.goto(`${BASE}/?add-to-cart=${wp('echo wc_get_product_id_by_sku("MND-FK-0012");')}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+  ok(/kampany10/i.test(await page.textContent('.cart_totals')), 'kampány: az automatikus kupon a kosárban');
+  wp('update_option("mandala_campaigns", []);');
+  await page.context().close();
+  const p2 = await newPage();
+  await p2.goto(`${BASE}/rolunk/?kupon=LINK5`, { waitUntil: 'networkidle' });
+  await p2.goto(`${BASE}/?add-to-cart=${wp('echo wc_get_product_id_by_sku("MND-FK-0012");')}`, { waitUntil: 'networkidle' });
+  await p2.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+  ok(/link5/i.test(await p2.textContent('.cart_totals')), '?kupon= link: üres kosárnál is megjegyzi, a kosárban érvényesül');
+  const r = await p2.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(!(await p2.$('.campaign-banner')), 'kampány: lejárt / törölt kampány után nincs banner');
+  await p2.context().close();
+}
+
+// ======================= Csatornák: Pinterest, Árukereső Megbízható Bolt, Google (Store), vásárlói fotók =======================
+{
+  wp('mandala_feeds_build();');
+  const feed = await (await fetch(`${BASE}/?mandala_feed=pinterest`)).text();
+  ok(/<item>[\s\S]*<g:id>/.test(feed), 'Pinterest feed: RSS termékekkel');
+  wp('update_option("mandala_trustedshop", ["key" => "teszt-kulcs", "consent" => "yes", "widget" => "<span data-ts>AK</span>"]);');
+  wp('update_option("mandala_localbiz", array_merge(mandala_localbiz(), ["street" => "Váci utca 1.", "zip" => "1052", "lat" => "47.49", "lng" => "19.05"]));');
+  const page = await newPage();
+  const home = await (await fetch(`${BASE}/`)).text();
+  ok(/"@type":"Store"[\s\S]*"streetAddress":"Váci utca 1\."[\s\S]*OpeningHoursSpecification/.test(home), 'Google: bemutatóterem adatai (Store, cím, nyitvatartás) a főoldalon');
+  ok(/<span data-ts>AK<\/span>/.test(home), 'Árukereső: jelvény a láblécben');
+  await page.goto(`${BASE}/?add-to-cart=${wp('echo wc_get_product_id_by_sku("MND-FK-0012");')}`, { waitUntil: 'networkidle' });
+  const oid = await checkout(page, { email: 'ak@example.com', before: async () => {
+    ok(await page.isVisible('input[name="mandala_ts_ok"]'), 'Árukereső: hozzájárulás a pénztárban (alapból nincs bepipálva)');
+    await page.check('input[name="mandala_ts_ok"]');
+  } });
+  ok(/Árukereső Megbízható Bolt/.test(wp(`echo implode(" | ", array_map(fn($n) => $n->content, wc_get_order_notes(["order_id" => ${oid}])));`)), 'Árukereső: a köszönőoldalon elküldve (a rendelésnél megjegyzés)');
+  wp('update_option("mandala_trustedshop", ["key" => "", "consent" => "yes", "widget" => ""]);');
+  // Vásárlói fotó egy jóváhagyott értékelésből
+  wp('$src = get_stylesheet_directory() . "/assets/img/lotusz-800.webp"; $up = wp_upload_dir(); $dst = $up["path"] . "/ugc-teszt.webp"; copy($src, $dst); $att = wp_insert_attachment(["post_mime_type" => "image/webp", "post_title" => "ugc", "post_status" => "inherit"], $dst); require_once ABSPATH . "wp-admin/includes/image.php"; wp_update_attachment_metadata($att, wp_generate_attachment_metadata($att, $dst)); $r = wp_insert_post(["post_type" => "mandala_review", "post_status" => "publish", "post_title" => "Szép"]); update_post_meta($r, "_product", wc_get_product_id_by_sku("MND-HT-0490")); update_post_meta($r, "_rating", 5); update_post_meta($r, "_photos", [$att]);');
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.ugc-grid li') && /Vásárlóink fotói/.test(await page.textContent('main')), 'vásárlói fotók: jóváhagyott értékelés fotója a főoldalon');
+  await page.context().close();
+}
+
 // ======================= Levélközpont =======================
 ok(wp('$t = mandala_mail_types(); echo (int) (isset($t["birthday"], $t["price_drop"], $t["sub_upcoming"], $t["sub_renewal"], $t["partner_welcome"], $t["partner_sale"]));') === '1', 'levélközpont: az új levelek szerkeszthetők');
 

@@ -20,6 +20,7 @@ const MANDALA_FEEDS = [
     'meta' => ['label' => 'Meta (Facebook / Instagram katalógus)', 'where' => 'Commerce Manager → Katalógus → Adatforrások → Adatfeed → ütemezett URL', 'type' => 'google'],
     'arukereso' => ['label' => 'Árukereső', 'where' => 'Árukereső partnerfelület → Termékfeed (XML) URL', 'type' => 'arukereso'],
     'argep' => ['label' => 'Árgép', 'where' => 'Árgép boltfelület → Terméklista (XML) URL', 'type' => 'argep'],
+    'pinterest' => ['label' => 'Pinterest katalógus', 'where' => 'business.pinterest.com → Katalógusok → Adatforrás hozzáadása → „Adatforrás URL-je” (RSS/XML)', 'type' => 'google'],
 ];
 
 function mandala_feed_settings(): array
@@ -247,5 +248,7 @@ function mandala_feeds_admin(): void
         . '<tr><th scope="row"><label for="mf-time">Szállítási idő</label></th><td><input type="text" id="mf-time" name="mandala_feeds[delivery_time]" value="' . esc_attr($s['delivery_time']) . '" class="regular-text"></td></tr>'
         . '<tr><th scope="row">Elfogyott termékek</th><td><label><input type="checkbox" name="mandala_feeds[skip_out]" value="1"' . checked($s['skip_out'], 'yes', false) . '> az Árukeresőből és az Árgépből kimaradnak</label><p class="description">A Google és a Meta feedben „nincs raktáron” jelzéssel szerepelnek (így nem kell újra jóváhagyatni őket).</p></td></tr></table>';
     submit_button('Mentés és feedek frissítése');
-    echo '</form></div>';
+    echo '</form>';
+    do_action('mandala_feeds_admin_after');
+    echo '</div>';
 }

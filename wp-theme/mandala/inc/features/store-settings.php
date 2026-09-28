@@ -49,6 +49,8 @@ add_action('admin_menu', function () {
             . '<tr><th scope="row"><label for="ms-cod">Utánvét díja (Ft, bruttó)</label></th><td><input type="number" min="0" step="10" id="ms-cod" name="mandala_store[cod_fee]" value="' . esc_attr((string) $cod) . '" style="width:120px"><p class="description">Személyes átvételnél nincs díj.</p></td></tr>'
             . '</table>';
         submit_button('Mentés');
-        echo '</form><p class="description">Banki adatok (előre utaláshoz): <a href="' . esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=bacs')) . '">WooCommerce → Fizetés → Előre utalás</a>.</p></div>';
+        echo '</form><p class="description">Banki adatok (előre utaláshoz): <a href="' . esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=bacs')) . '">WooCommerce → Fizetés → Előre utalás</a>.</p>';
+        do_action('mandala_store_admin_after');
+        echo '</div>';
     });
 });

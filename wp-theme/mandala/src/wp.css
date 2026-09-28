@@ -432,3 +432,27 @@ a.intent-card:hover .art.medal { transform: rotate(30deg) scale(1.04); }
 .partner-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-5); }
 .partner-stats > div { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: var(--border); border-radius: var(--radius-m); background: var(--c-white); }
 .partner-stats strong { font-size: 1.5rem; }
+
+/* Vásárlóink fotói */
+.ugc-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.ugc-grid a { position: relative; display: block; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-m); color: var(--c-white); text-decoration: none; }
+.ugc-grid img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s var(--ease); }
+.ugc-grid a:hover img { transform: scale(1.05); }
+.ugc-cap { position: absolute; inset: auto 0 0 0; padding: var(--space-5) var(--space-3) var(--space-3); background: linear-gradient(transparent, rgba(22,18,15,.75)); font-size: var(--fs-small); line-height: 1.3; }
+.ugc-stars { display: block; color: #E8B04B; letter-spacing: 1px; }
+@media (max-width: 767px) { .ugc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Kampány: felső sáv és főoldali banner */
+.campaign-bar a { display: inline-flex; align-items: center; gap: var(--space-2); color: inherit; text-decoration: none; }
+.campaign-bar strong { color: #E8B04B; }
+.campaign-count { opacity: .8; }
+.campaign-section { padding-block: var(--space-6) 0; }
+.campaign-banner { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); padding: var(--space-7); border-radius: var(--radius-l); background: var(--c-maroon); color: var(--c-white); isolation: isolate; }
+.campaign-banner::before { content: ''; position: absolute; right: -120px; top: 50%; width: 420px; height: 420px; margin-top: -210px; background: #E8B04B; opacity: .14; z-index: -1;
+  -webkit-mask: url(assets/mandala/lines-1.svg) center / contain no-repeat; mask: url(assets/mandala/lines-1.svg) center / contain no-repeat; }
+.campaign-banner h2 { color: var(--c-white); margin: 0 0 var(--space-2); }
+.campaign-banner p { margin: 0; color: rgba(255,255,255,.85); max-width: 60ch; }
+.campaign-banner .eyebrow { color: #E8B04B; margin-bottom: var(--space-3); }
+.campaign-count-big { margin-top: var(--space-3) !important; font-weight: 600; color: #E8B04B !important; }
+.campaign-banner .iu-button { flex: none; background: var(--c-white); color: var(--c-ink); border-color: var(--c-white); }
+@media (max-width: 767px) { .campaign-banner { flex-direction: column; align-items: flex-start; padding: var(--space-6) var(--space-5); } }
