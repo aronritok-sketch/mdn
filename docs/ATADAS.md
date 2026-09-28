@@ -28,9 +28,15 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
 2. **Megjelenés → Témák → Új hozzáadása → Téma feltöltése** → `mandala-tema.zip` → bekapcsolás
    (frissítésnél: **Csere a feltöltöttre**). Az első admin betöltéskor a nem szerkesztett oldalak maguktól frissülnek.
 3. **Megjelenés → Mandala telepítő** (vagy a varázsló bővítmény): lépésenként végigmegy, a végén önellenőrzés.
-4. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.
-5. Próbarendelések: [TELEPITES.md 6. pont](TELEPITES.md).
-6. Élesítés napja: [TELEPITES.md 7. pont](TELEPITES.md) (301-es átirányítások, feedek, kereső-konzol).
+4. **A régi bolt beállításainak átvétele** (WooCommerce → Régi bolt beállításai): az oldalon lévő szöveget
+   a régi bolt adminjában a böngészőkonzolba másolva letöltődik egy fájl (fizetési módok a kulcsokkal,
+   szállítási zónák és díjak, adók, WooCommerce-, levél- és fiókbeállítások, bővítménylista); ezt feltöltve
+   előnézet, majd egy kattintással átvétel. Előbb telepítsd a régi bolt fizetési / szállítási / számlázó
+   bővítményeit (az oldal listázza, melyik hiányzik), mert azok beállításai csak így jönnek át. Visszavonható.
+   A fájlt utána töröld a gépedről (fizetési kulcsok vannak benne).
+5. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.
+6. Próbarendelések: [TELEPITES.md 6. pont](TELEPITES.md).
+7. Élesítés napja: [TELEPITES.md 7. pont](TELEPITES.md) (301-es átirányítások, feedek, kereső-konzol).
 
 ---
 
@@ -196,6 +202,7 @@ Helyi WordPress + WooCommerce + a téma (`wp mandala setup --demo`), majd:
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-e2e.mjs        # vásárlás végig
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-features.mjs   # funkciómodulok
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-marketing.mjs  # marketingeszközök
+BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-oldsettings.mjs # régi bolt beállításainak átvétele
 ```
 
 Témafrissítés készítése: `python3 tools/build-theme.py --content` → `dist/`.
