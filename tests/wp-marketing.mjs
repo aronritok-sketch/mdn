@@ -226,6 +226,34 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   await page.context().close();
 }
 
+// ======================= Tulajdonosi kivonat: mérés =======================
+{
+  const stats = () => JSON.parse(wp('echo wp_json_encode(mandala_stats_sum(wp_date("Y-m-d"), wp_date("Y-m-d")));') || '{}');
+  const s0 = stats();
+  const bot = await newPage(); // a headless böngésző robotnak számít
+  await bot.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await bot.context().close();
+  const s1 = stats();
+  ok((s1.views || 0) === (s0.views || 0), 'kivonat: robot (headless) látogatás nem számít');
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 MandalaTest/' + Date.now() });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  const pid = wp('echo wc_get_product_id_by_sku("MND-FK-0012");');
+  await page.goto(`${BASE}/?p=${pid}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/?add-to-cart=${pid}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  const s2 = stats(), d = (k) => (s2[k] || 0) - (s1[k] || 0);
+  ok(d('visitors') === 1 && d('views') >= 2 && d('product_views') >= 1, 'kivonat: látogató, oldal- és termékmegtekintés mérve', JSON.stringify(s2));
+  ok(d('carts') === 1 && d('checkouts') === 1, 'kivonat: kosárba tétel és pénztárba lépés mérve');
+  await ctx.close();
+  const od = JSON.parse(wp('echo wp_json_encode(mandala_owner_data(7));'));
+  ok(od.cur.orders > 0 && od.cur.revenue > 0 && od.traffic.visitors > 0 && typeof od.traffic.conversion === 'number' && Object.keys(od.daily).length === 7, 'kivonat: heti adatok (bevétel, forgalom, konverzió, napi sor)', JSON.stringify(od.cur));
+  ok(Object.keys(od.features).includes('bundle') && od.sources && od.subs.active >= 1, 'kivonat: források, csomag, előfizetés');
+  const mail = wp('$s = mandala_report_settings(); update_option("mandala_report", array_merge($s, ["ai" => "no"])); add_filter("pre_wp_mail", function ($r, $a) { echo $a["subject"] . "|" . (int) (strpos($a["message"], "Tölcsér") !== false && strpos($a["message"], "Mi hozta a bevételt") !== false); return true; }, 10, 2); mandala_report_send("tulaj@example.com"); update_option("mandala_report", $s);');
+  ok(/Heti tulajdonosi kivonat.*\|1$/.test(mail), 'kivonat: a heti levél elején a tulajdonosi kivonat', mail);
+}
+
 // ======================= Adminoldalak =======================
 {
   const page = await newPage();
@@ -233,11 +261,14 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'admin');
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
   for (const [slug, text] of [['mandala-growth', 'Ajándék értékhatár felett'], ['mandala-bundles', 'Mandala csomagok'], ['mandala-subs', 'Előfizetések'], ['mandala-partners', 'Partnerek'],
-    ['mandala-campaigns', 'Kampányok'], ['mandala-feeds', 'Árukereső Megbízható Bolt'], ['mandala-store', 'Bemutatóterem (Google)']]) {
+    ['mandala-campaigns', 'Kampányok'], ['mandala-feeds', 'Árukereső Megbízható Bolt'], ['mandala-store', 'Bemutatóterem (Google)'], ['mandala-owner', 'Tulajdonosi kivonat']]) {
     const res = await page.goto(`${BASE}/wp-admin/admin.php?page=${slug}`, { waitUntil: 'domcontentloaded' });
     const body = await page.textContent('#wpbody-content').catch(() => '');
     ok(res.status() === 200 && body.includes(text) && !/Fatal error|Warning:/.test(body), `admin: ${slug} oldal betölt`);
   }
+  await page.goto(`${BASE}/wp-admin/admin.php?page=mandala-owner`, { waitUntil: 'domcontentloaded' });
+  const ownerTxt = await page.textContent('#wpbody-content');
+  ok(/előző 30 nappal/.test(ownerTxt) && Number((await page.textContent('.mo-card:nth-child(2) strong')).trim()) > 0, 'admin: kivonat alapból 30 nap, a rendelések látszanak');
   await page.goto(`${BASE}/wp-admin/admin.php?page=mandala-campaigns&preset=karacsony`, { waitUntil: 'domcontentloaded' });
   ok(/december 19-ig/.test(await page.inputValue('input[name="bar"]')), 'admin: kampánysablon kitölti az űrlapot');
   await page.context().close();

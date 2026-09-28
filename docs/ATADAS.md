@@ -40,7 +40,8 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
 |---|---|---|
 | **Naponta** | Új rendelések feldolgozása, csomagfeladás (a feladási levél magától megy a csomagszámmal) | WooCommerce → Rendelések |
 | **Naponta** | Új JUTA-termékek jóváhagyása (az „ellenőrizendő” sor) | Termékek → Új termékek |
-| **Hetente** | A hétfői összefoglaló levél átolvasása (forgalom, kifogyó termékek, keresések, chatkérdések) | e-mail |
+| **Hetente** | A hétfői **tulajdonosi kivonat** levél átolvasása (bevétel az előző héthez, konverzió, tölcsér, mi hozta a bevételt, kifogyó termékek, keresések) | e-mail |
+| **Bármikor** | Részletes számok 7 / 30 / 90 / 365 napra, az előző időszakhoz mérve | **Kivonat** (bal oldali menü, a Vezérlőpult alatt) |
 | **Hetente** | Értékelések jóváhagyása (fotósok a főoldalra is kikerülnek) | Értékelések |
 | **Hetente** | Visszaküldések kezelése | WooCommerce → Visszaküldések |
 | **Havonta** | „Nincs találat” keresések → szinonimák | WooCommerce → Mandala kereső |
@@ -48,6 +49,25 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
 | **Havonta** | Levélnapló, leiratkozások átnézése | WooCommerce → Mandala levelek → Napló |
 | **Kampány előtt 2 héttel** | Kampány beállítása sablonból, kupon létrehozása | WooCommerce → Kampányok |
 | **Baj esetén** | Az Őrszem levelet küld (6 óránként legfeljebb egyszer ugyanarról) | Vezérlőpult → Mandala őrszem |
+
+---
+
+## 3a. Tulajdonosi kivonat (mérés)
+
+Az admin **Kivonat** menüje egy képernyőn mutatja a bolt állapotát, a hétfői levél ugyanezt küldi 7 napra.
+
+- **Bevétel, rendelés, átlagos kosárérték** – az előző ugyanilyen hosszú időszakhoz mérve (▲/▼ %).
+- **Látogató, konverzió, új / visszatérő vásárló** – a látogatót a bolt maga számolja: süti nélkül, naponta
+  változó, visszafejthetetlen azonosítóval; a bejelentkezett munkatársak és a robotok nem számítanak.
+- **Vásárlási tölcsér** – látogató → terméket nézett → kosárba tett → pénztárba lépett → rendelt.
+- **Mi hozta a bevételt** – kuponforrások (üdvözlő, születésnapi, ajánlási, partner, kampány), automata levél
+  utáni rendelések (7 napon belül kapott levél), csomagkedvezmény, ajándék, előfizetés, partnerek.
+- **Röviden** – aktív előfizetések és havi ismétlődő bevétel, AI tanácsadó (beszélgetés, költség), kereső
+  (eredménytelen arány), kiküldött levelek, értékelések, partnerjutalék, szerveroldali betöltési idő, háttérfeladatok.
+
+A levél címzettje és az AI „Mire figyelj” bekezdés: **WooCommerce → Mandala levelek → Beállítások → Heti
+tulajdonosi kivonat** (ugyanitt „küldés most” próbához). A mérés az élesítés napjától gyűjt; az első teljes
+összevetés 2× annyi nap után látszik.
 
 ---
 

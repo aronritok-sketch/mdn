@@ -1120,7 +1120,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   before = mails().length;
   wp('mandala_report_send("tulaj@example.com");');
   m = mails().slice(before);
-  ok(m.includes('TO: tulaj@example.com') && m.includes('Heti összefoglaló') && m.includes('AI összefoglaló') && m.includes('Legtöbbet eladott') && m.includes('visszaküldési kérés vár'), 'heti összefoglaló: számok, top termékek, AI összefoglaló, teendők');
+  ok(m.includes('TO: tulaj@example.com') && m.includes('Heti tulajdonosi kivonat') && m.includes('Tölcsér') && m.includes('AI összefoglaló') && m.includes('Legtöbbet eladott') && m.includes('visszaküldési kérés vár'), 'heti kivonat: KPI-k, tölcsér, top termékek, AI összefoglaló, teendők');
   ok(!(await (await fetch(`${BASE}/`)).text()).includes('wp-emoji-release'), 'gyorsítás: emoji szkript kikapcsolva');
 
   // --- Telepítő varázsló ---
@@ -1143,7 +1143,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok((await admin.textContent('.notice-success, .notice-error')).includes('Claude: rendben'), 'varázsló: API-kulcs ellenőrzése');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=growth`);
   await Promise.all([admin.waitForNavigation(), admin.click('button:has-text("Indítás / frissítés most")')]);
-  ok((await admin.textContent('.notice-success')).includes('gyűjtőoldal') && (await admin.$$('.wiz-code')).length === 4, 'varázsló: önjáró részek indítása, feed címek');
+  ok((await admin.textContent('.notice-success')).includes('gyűjtőoldal') && (await admin.$$('.wiz-code')).length === 5, 'varázsló: önjáró részek indítása, feed címek');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=legal`);
   ok((await admin.textContent('.wiz-main')).includes('kitöltendő részek maradtak'), 'varázsló: a jogi oldalak kitöltendő részeit jelzi');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=plugins`);

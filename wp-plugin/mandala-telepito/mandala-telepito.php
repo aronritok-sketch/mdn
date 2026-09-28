@@ -885,7 +885,7 @@ function mandala_wiz_step_live(): void
     if ($open) {
         echo '<div class="notice notice-warning inline"><p>Még nyitott kötelező lépés: <strong>' . esc_html(implode(', ', $open)) . '</strong>.</p></div>';
     }
-    echo '<ol><li>Teya és GLS éles módba.</li><li>Bemutató tartalom törölve (ha volt).</li><li>Beállítások → Olvasás: „A keresőmotorok indexelése” engedélyezve.</li><li>Google Search Console: oldaltérkép beküldése; Merchant Center: feed.</li><li>Az első napokban figyeld a Mandala levelek naplóját és a heti összefoglalót.</li>'
+    echo '<ol><li>Teya és GLS éles módba.</li><li>Bemutató tartalom törölve (ha volt).</li><li>Beállítások → Olvasás: „A keresőmotorok indexelése” engedélyezve.</li><li>Google Search Console: oldaltérkép beküldése; Merchant Center: feed.</li><li>Az első napokban figyeld a Mandala levelek naplóját és a heti tulajdonosi kivonatot (bal menü: Kivonat).</li>'
         . '<li>Külső figyelő (ingyenes, 5 percenként – akkor is jelez, ha az egész oldal leáll): <a href="https://uptimerobot.com" target="_blank" rel="noopener">UptimeRobot</a> → HTTP(s) figyelő ezzel a címmel: ' . (function_exists('mandala_health_url') ? '<code>' . esc_html(mandala_health_url()) . '</code>' : 'Mandala levelek → Beállítások → Őrszem') . '</li>'
         . '<li>Egy hét múlva: Eszközök → Átirányítások – a gyakori, meg nem talált régi címeknek adj célt.</li></ol>';
     echo mandala_wiz_button('live', $open ? 'Élesítés így is' : 'A bolt élesítve', [], 'button button-primary button-hero');

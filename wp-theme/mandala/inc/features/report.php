@@ -1,6 +1,6 @@
 <?php
 /**
- * Heti összefoglaló levél a boltnak – hétfő reggel, admin felület nézegetése nélkül.
+ * Heti tulajdonosi kivonat levél a boltnak (a KPI-k: owner.php) – hétfő reggel, admin felület nézegetése nélkül.
  *
  * Forgalom (az előző héthez képest), top termékek, mi fogy ki az eladási ütem alapján (utánrendelési
  * javaslattal), eredménytelen keresések, miről kérdezték az AI tanácsadót, visszaküldések, jóváhagyásra
@@ -184,17 +184,20 @@ function mandala_report_send(string $to = ''): bool
     $to = $to ?: ($s['to'] ?: (string) (mandala_config('contact', [])['email'] ?? get_option('admin_email')));
     $d = mandala_report_data();
     $html = mandala_report_html($d, mandala_report_ai($d));
-    return mandala_send_mail($to, sprintf('[%s] Heti összefoglaló – %s', get_bloginfo('name'), wp_date('Y. m. d.')), 'Heti összefoglaló', $html, false, ['type' => 'belso']);
+    if (function_exists('mandala_owner_email_html')) { // a tulajdonosi kivonat (bevétel, konverzió, források, sebesség) kerül a levél elejére
+        $html = mandala_owner_email_html(mandala_owner_data(7)) . $html;
+    }
+    return mandala_send_mail($to, sprintf('[%s] Heti tulajdonosi kivonat – %s', get_bloginfo('name'), wp_date('Y. m. d.')), 'Heti tulajdonosi kivonat', $html, false, ['type' => 'belso']);
 }
 
 /* ---------- Beállítás a levélközpontban ---------- */
 
 add_action('mandala_mail_settings_fields', function () {
     $s = mandala_report_settings();
-    echo '<tr><th scope="row">Heti összefoglaló</th><td><label><input type="checkbox" name="mandala_report[enabled]" value="1"' . checked($s['enabled'], 'yes', false) . '> hétfő reggel levélben</label> '
+    echo '<tr><th scope="row">Heti tulajdonosi kivonat</th><td><label><input type="checkbox" name="mandala_report[enabled]" value="1"' . checked($s['enabled'], 'yes', false) . '> hétfő reggel levélben</label> '
         . '<input type="email" name="mandala_report[to]" value="' . esc_attr($s['to']) . '" placeholder="' . esc_attr((string) (mandala_config('contact', [])['email'] ?? '')) . '" class="regular-text" aria-label="Címzett">'
         . '<p><label><input type="checkbox" name="mandala_report[ai]" value="1"' . checked($s['ai'], 'yes', false) . '> AI összefoglaló („Mire figyelj”)</label> · <label><input type="checkbox" name="mandala_report[now]" value="1"> küldés most (próba)</label></p>'
-        . '<p class="description">Forgalom, top termékek, mi fogy ki (utánrendelési javaslattal), eredménytelen keresések, AI kérdések, teendők.</p></td></tr>';
+        . '<p class="description">Bevétel az előző héthez képest, látogató → kosár → rendelés konverzió, mi hozta a bevételt (levelek, kuponok, csomagok, előfizetés, partnerek), AI tanácsadó, sebesség – a részletek: Kivonat menü. Utána: top termékek, mi fogy ki (utánrendelési javaslattal), eredménytelen keresések, AI kérdések, teendők.</p></td></tr>';
 });
 add_action('mandala_mail_settings_save', function () {
     $in = (array) wp_unslash($_POST['mandala_report'] ?? []);
