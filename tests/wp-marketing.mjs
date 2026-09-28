@@ -226,6 +226,23 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   await page.context().close();
 }
 
+// ======================= Adminoldalak =======================
+{
+  const page = await newPage();
+  await page.goto(`${BASE}/wp-login.php`, { waitUntil: 'networkidle' });
+  await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'admin');
+  await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
+  for (const [slug, text] of [['mandala-growth', 'Ajándék értékhatár felett'], ['mandala-bundles', 'Mandala csomagok'], ['mandala-subs', 'Előfizetések'], ['mandala-partners', 'Partnerek'],
+    ['mandala-campaigns', 'Kampányok'], ['mandala-feeds', 'Árukereső Megbízható Bolt'], ['mandala-store', 'Bemutatóterem (Google)']]) {
+    const res = await page.goto(`${BASE}/wp-admin/admin.php?page=${slug}`, { waitUntil: 'domcontentloaded' });
+    const body = await page.textContent('#wpbody-content').catch(() => '');
+    ok(res.status() === 200 && body.includes(text) && !/Fatal error|Warning:/.test(body), `admin: ${slug} oldal betölt`);
+  }
+  await page.goto(`${BASE}/wp-admin/admin.php?page=mandala-campaigns&preset=karacsony`, { waitUntil: 'domcontentloaded' });
+  ok(/december 19-ig/.test(await page.inputValue('input[name="bar"]')), 'admin: kampánysablon kitölti az űrlapot');
+  await page.context().close();
+}
+
 // ======================= Levélközpont =======================
 ok(wp('$t = mandala_mail_types(); echo (int) (isset($t["birthday"], $t["price_drop"], $t["sub_upcoming"], $t["sub_renewal"], $t["partner_welcome"], $t["partner_sale"]));') === '1', 'levélközpont: az új levelek szerkeszthetők');
 

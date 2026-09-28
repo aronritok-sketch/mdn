@@ -136,9 +136,15 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
 | Eszközök → **Átirányítások** | a régi címek magától az új helyükre visznek; ide csak a meg nem talált régi címek kerülnek (találatszámmal) – a gyakoriaknak adj célt; tömeges betöltés „régi;új” sorokkal |
 | Vezérlőpult → **Mandala őrszem** | óránkénti állapot (háttérfeladatok, hibák, rendelések, fizetések, levélküldés, feedek, tárhely, SSL); baj esetén levél megy |
-| WooCommerce → **Mandala feedek** | Árukereső, Árgép, Google Merchant, Meta katalógus feed címei (egyszer bemásolni a szolgáltatónál); óránként frissülnek |
+| WooCommerce → **Mandala feedek** | Árukereső, Árgép, Google Merchant, Meta és Pinterest katalógus feed címei (egyszer bemásolni a szolgáltatónál); óránként frissülnek |
 | WooCommerce → **Mandala SEO** | AI keresőoptimalizálás állapota (cím, meta leírás, kép alt, GYIK termékenként; napi korlát), gyűjtőoldalak |
-| WooCommerce → **Mandala kuponok** | feliratkozó ablak első vásárlási kuponnal (%, érvényesség, késleltetés), ajánlási program (a barát kedvezménye, az ajánló jutalma) |
+| WooCommerce → **Mandala kuponok** | feliratkozó ablak első vásárlási kuponnal (%, érvényesség, időzítve vagy csak kilépéskor), ajánlási program (a barát kedvezménye, az ajánló jutalma), **ajándék értékhatár felett** (határ, ajándék termék cikkszáma), **születésnapi kupon** (%, érvényesség) |
+| WooCommerce → **Mandala csomagok** | csomagkedvezmények (cikkszámok + %), javaslat a gyakran együtt vásárolt párokból |
+| WooCommerce → **Előfizetések** | előfizetések listája (kihagyás, szüneteltetés, lemondás) és beállítások: kedvezmény, gyakoriság, előfizethető kategóriák, emlékeztető |
+| WooCommerce → **Partnerek** | partnerprogram: partner felvétele (e-mail, kód, egyedi arányok), kifizetés rögzítése, alapértelmezett kedvezmény / jutalék |
+| WooCommerce → **Kampányok** | szezonális kampányok sablonból (Black Friday, Karácsony, Valentin, Nőnap, Anyák napja, Újév): időszak, felső sáv, főoldali banner, kupon |
+| WooCommerce → Mandala feedek → **Árukereső Megbízható Bolt** | WebAPI kulcs, hozzájárulás a pénztárban, jelvény (widget) kód |
+| WooCommerce → Mandala bolt adatai → **Bemutatóterem (Google)** | pontos cím, nyitvatartás napokra, koordináták, térkép és Google Cégprofil link (schema.org Store) |
 | WooCommerce → **Visszaküldések** | a vásárlók által online indított visszaküldések; „Megérkezett” / „Lezárva” |
 | WooCommerce → **Mandala levelek** | minden levél egy helyen: a téma automata levelei és a WooCommerce levelei (szöveg, be/ki, időzítés, előnézet, tesztlevél), **saját levelek** triggerrel, feltétellel, egyedi kuponnal (+ Új saját levél); napló. Beállítások fül: aláírás, fogyóeszköz kategóriák, értékelés-moderátor, **a GLS bővítmény csomagszám mezője** (lásd 6. pont, Csomagkövetés) |
 | WooCommerce → **Ajándék és hűség** | utalvány összegek és érvényesség, ajándékcsomag, hűségpontok (gyűjtés, beváltás) |

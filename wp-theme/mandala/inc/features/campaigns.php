@@ -9,7 +9,7 @@
  *  - opcionális kupon: automatikusan minden kosárra, vagy csak a kampány linkjével (?kupon=KOD).
  * A ?kupon=KOD link kampánytól függetlenül is működik (hírlevélben, hirdetésben): a kupon a kosárba kerül.
  *
- * Admin: Marketing → Kampányok (sablonok a jellemző dátumokkal és szövegekkel).
+ * Admin: WooCommerce → Kampányok (sablonok a jellemző dátumokkal és szövegekkel).
  */
 
 defined('ABSPATH') || exit;
@@ -170,10 +170,10 @@ function mandala_campaign_presets(): array
     ];
 }
 
-/* ---------- Admin: Marketing → Kampányok ---------- */
+/* ---------- Admin: WooCommerce → Kampányok ---------- */
 
 add_action('admin_menu', function () {
-    add_submenu_page('woocommerce-marketing', 'Kampányok', 'Kampányok', 'manage_woocommerce', 'mandala-campaigns', 'mandala_campaigns_admin');
+    add_submenu_page('woocommerce', 'Kampányok', 'Kampányok', 'manage_woocommerce', 'mandala-campaigns', 'mandala_campaigns_admin');
 }, 20);
 function mandala_campaigns_admin(): void
 {
