@@ -105,6 +105,8 @@ function mandala_readiness(bool $deep = false): array
     $gtm = (array) get_option('gtm4wp-options', []);
     $out['keys'] = ['claude_api' => $set($ai), 'arukereso_trustedshop' => $set($ts['key'] ?? ''), 'gtm_container' => $set($gtm['gtm-code'] ?? ''),
         'meta_pixel' => $set($an['pixel_id'] ?? ''), 'meta_capi' => ($an['capi'] ?? 'no') === 'yes' && $set($an['capi_token'] ?? '')];
+    $last = get_option('mandala_olddata_last');
+    $out['migration'] = $last ? ['time' => wp_date('Y-m-d H:i', (int) $last['time']), 'counts' => $last['counts']] : null;
     $out['showcase_on'] = function_exists('mandala_showcase_on') && mandala_showcase_on();
 
     // Háttérfeladatok, átirányítások

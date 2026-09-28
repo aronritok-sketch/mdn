@@ -79,11 +79,14 @@ function mandala_voucher_normalize(string $code): string
 function mandala_voucher_find(string $code): ?WP_Post
 {
     $code = mandala_voucher_normalize($code);
-    if (!preg_match('/^MND-[A-Z0-9]{4}-[A-Z0-9]{4}$/', $code)) {
+    $own = (bool) preg_match('/^MND-[A-Z0-9]{4}-[A-Z0-9]{4}$/', $code);
+    // A régi boltból átvett ajándékkártyák (YITH) a saját kódjukkal válthatók be
+    if (!$own && !preg_match('/^[A-Z0-9][A-Z0-9-]{5,39}$/', $code)) {
         return null;
     }
     $posts = get_posts(['post_type' => 'mandala_voucher', 'post_status' => 'publish', 'title' => $code, 'numberposts' => 1]);
-    return $posts[0] ?? null;
+    $voucher = $posts[0] ?? null;
+    return $voucher && ($own || get_post_meta($voucher->ID, '_mandala_imported', true)) ? $voucher : null;
 }
 
 /** Beváltható egyenleg (lejárt vagy üres utalványnál 0). */
@@ -158,7 +161,7 @@ add_action('save_post_mandala_voucher', function ($post_id, $post) {
         return;
     }
     $in = array_map('sanitize_text_field', (array) wp_unslash($_POST['mandala_voucher'] ?? []));
-    if (!preg_match('/^MND-/', $post->post_title)) {
+    if (!preg_match('/^MND-/', $post->post_title) && !get_post_meta($post_id, '_mandala_imported', true)) {
         remove_all_actions('save_post_mandala_voucher');
         wp_update_post(['ID' => $post_id, 'post_title' => mandala_voucher_code()]);
     }
@@ -401,10 +404,10 @@ function mandala_session_vouchers(): array
 function mandala_try_apply_voucher(string $code): ?bool
 {
     $code = mandala_voucher_normalize($code);
-    if (!str_starts_with($code, 'MND-')) {
-        return null; // nem utalvány → marad a WooCommerce kupon
-    }
     $voucher = mandala_voucher_find($code);
+    if (!str_starts_with($code, 'MND-') && !$voucher) {
+        return null; // nem utalvány (és nem is átvett régi ajándékkártya) → marad a WooCommerce kupon
+    }
     if (!$voucher) {
         wc_add_notice(__('Ezt az utalványkódot nem találjuk. Ellenőrizd a betűket (a kód MND-XXXX-XXXX formájú).', 'mandala'), 'error');
         return false;

@@ -6,9 +6,12 @@
 
 // Levelek a wp-content/mail.log fájlba (nincs sendmail).
 add_filter('pre_wp_mail', function ($null, $atts) {
+    if ($null !== null) { // egy korábbi szűrő már eldöntötte (pl. az adatátvétel letiltja a leveleket)
+        return $null;
+    }
     file_put_contents(WP_CONTENT_DIR . '/mail.log', date('c') . ' TO: ' . (is_array($atts['to']) ? implode(',', $atts['to']) : $atts['to']) . "\nSUBJECT: {$atts['subject']}\n{$atts['message']}\n-----\n", FILE_APPEND);
     return true;
-}, 10, 2);
+}, 100, 2);
 
 // Az SQLite illesztő nem ismeri a WooCommerce készletfoglaló lekérdezését (LOCK IN SHARE MODE).
 add_filter('woocommerce_hold_stock_for_checkout', '__return_false');

@@ -38,6 +38,18 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
    pedig a téma díjbeállításába teszi (a régi díjbővítmény nem kell). Előbb telepítsd a régi bolt fizetési / szállítási / számlázó
    bővítményeit (az oldal listázza, melyik hiányzik), mert azok beállításai csak így jönnek át. Visszavonható.
    A fájlt utána töröld a gépedről (fizetési kulcsok vannak benne).
+   **A régi bolt adatai** (WooCommerce → Régi bolt adatai): ugyanígy, egy másik konzolszkripttel – vásárlók
+   (a munkatársak nélkül; akik már itt vannak, e-mail alapján összekapcsolódnak), rendelések jegyzetekkel,
+   visszatérítésekkel és a **régi rendelésszámmal** (a chat, a csomagkövetés és az admin keresés is ezt ismeri),
+   kuponok, termékértékelések, blogbejegyzések képekkel (letöltve a régi boltból), a hiányzó oldalak tervezetként,
+   és a **YITH ajándékkártyák** a téma ajándékutalványaiként – a régi kódjukkal beválthatók, a maradék egyenleggel.
+   Átvétel közben **nem megy ki levél**, és nem fut készletlevonás, pontjóváírás, számlázás vagy automata levél.
+   A fájlt a böngésző olvassa be és adagokban küldi (nincs feltöltési korlát, nem marad a szerveren).
+   **Újrafuttatható:** próbaként most, majd az élesítés napján (a régi bolt lezárása után) még egyszer – az addigi
+   új rendeléseket, az állapotváltozásokat és a kártyák egyenlegét hozza át, duplikáció nélkül. Próba után az
+   „Átvett adatok törlése” mindent visszavon. A jelszavak nem jöhetnek át (a WordPress nem adja ki őket): a régi
+   jelszóval belépő vásárló magyarázatot és „Kérj új jelszót” linket kap. Az új rendelések száma a régiek fölött
+   folytatódik. Utána: WooCommerce → Analytics → „Előzmények importálása”.
 5. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.
    **Ellenőrzés távolról:** a `/wp-json/mandala/v1/readiness` cím (csak adminnak / boltkezelőnek) egyben
    megmutatja az élesítés állapotát: varázslólépések, önellenőrzés, bővítmények, fizetési és szállítási módok,
@@ -213,6 +225,7 @@ BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-e2e.mjs   
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-features.mjs   # funkciómodulok
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-marketing.mjs  # marketingeszközök
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-oldsettings.mjs # régi bolt beállításainak átvétele
+BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-olddata.mjs     # régi bolt adatainak átvétele
 ```
 
 Témafrissítés készítése: `python3 tools/build-theme.py --content` → `dist/`.
