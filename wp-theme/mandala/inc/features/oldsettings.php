@@ -69,7 +69,7 @@ function mandala_oldset_group_label(string $g): string
 /** Előnézet: mi változna. */
 function mandala_oldset_plan(array $d): array
 {
-    $plan = ['groups' => [], 'gateways' => [], 'zones' => [], 'taxes' => 0, 'tax_note' => '', 'wp' => [], 'plugins_missing' => []];
+    $plan = ['groups' => [], 'gateways' => [], 'zones' => [], 'taxes' => 0, 'tax_note' => '', 'wp' => [], 'plugins_missing' => [], 'legal' => []];
     foreach ((array) $d['wc'] as $group => $list) {
         $rows = [];
         foreach ((array) $list as $s) {
@@ -94,6 +94,9 @@ function mandala_oldset_plan(array $d): array
     foreach ((array) $d['zones'] as $z) {
         $plan['zones'][] = ['name' => (string) $z['name'], 'locations' => count((array) $z['locations']),
             'methods' => array_map(fn($m) => ['title' => (string) $m['title'], 'id' => (string) $m['method_id'], 'available' => isset($methods[$m['method_id']]), 'enabled' => !empty($m['enabled'])], (array) $z['methods'])];
+    }
+    foreach (mandala_oldset_legal_targets((array) ($d['legal'] ?? [])) as $role => $t) {
+        $plan['legal'][] = ['title' => $t['title'], 'chars' => mb_strlen(wp_strip_all_tags((string) $t['src']['html'])), 'target' => $t['id'] ? 'a mostani „' . get_the_title($t['id']) . '” oldal helyére' : 'új oldal'];
     }
     $plan['taxes'] = count((array) ($d['taxes'] ?? []));
     global $wpdb;
@@ -131,14 +134,28 @@ function mandala_oldset_zones_export(): array
         $zone = new WC_Shipping_Zone((int) ($zd['id'] ?? $zd['zone_id'] ?? 0));
         $methods = [];
         foreach ($zone->get_shipping_methods(false) as $m) {
-            $methods[] = ['method_id' => $m->id, 'title' => $m->get_title(), 'enabled' => $m->is_enabled(), 'order' => (int) $m->method_order, 'settings' => (array) get_option($m->get_instance_option_key(), [])];
+            $methods[] = ['method_id' => $m->id, 'instance_id' => (int) $m->instance_id, 'title' => $m->get_title(), 'enabled' => $m->is_enabled(), 'order' => (int) $m->method_order, 'settings' => (array) get_option($m->get_instance_option_key(), [])];
         }
         $out[] = ['id' => $zone->get_id(), 'name' => $zone->get_zone_name(), 'order' => $zone->get_zone_order(),
             'locations' => array_map(fn($l) => ['code' => $l->code, 'type' => $l->type], $zone->get_zone_locations()), 'methods' => $methods];
     }
     return $out;
 }
-/** A zónák teljes cseréje a megadottakra. Visszaad: [hiányzó szállítási módok]. */
+/** Szállítási módokra hivatkozó listák (pl. utánvét: „flat_rate:10”) átírása a régi példányazonosítóról az újra. */
+function mandala_oldset_remap(array $settings, array $map): array
+{
+    foreach ($settings as $k => $v) {
+        if (is_array($v) && $map) {
+            $settings[$k] = array_values(array_map(fn($x) => is_string($x) && isset($map[$x]) ? $map[$x] : $x, $v));
+        }
+    }
+    return $settings;
+}
+/**
+ * A zónák teljes cseréje a megadottakra. Visszaad: ['missing' => hiányzó szállítási módok,
+ * 'map' => régi „módazonosító:példány” → új] – a fizetési módok (pl. utánvét „csak ezeknél a szállítási
+ * módoknál”) így a régi példányazonosítók helyett az újakra mutatnak.
+ */
 function mandala_oldset_zones_import(array $zones): array
 {
     global $wpdb;
@@ -151,6 +168,7 @@ function mandala_oldset_zones_import(array $zones): array
     }
     $available = WC()->shipping()->get_shipping_methods();
     $missing = [];
+    $map = [];
     foreach ($zones as $z) {
         $zone = (int) $z['id'] === 0 ? new WC_Shipping_Zone(0) : new WC_Shipping_Zone();
         if ((int) $z['id'] !== 0) {
@@ -169,20 +187,23 @@ function mandala_oldset_zones_import(array $zones): array
                 continue;
             }
             update_option('woocommerce_' . $m['method_id'] . '_' . $iid . '_settings', (array) $m['settings']);
+            if (!empty($m['instance_id'])) {
+                $map[$m['method_id'] . ':' . (int) $m['instance_id']] = $m['method_id'] . ':' . $iid;
+            }
             $wpdb->update($wpdb->prefix . 'woocommerce_shipping_zone_methods', ['is_enabled' => empty($m['enabled']) ? 0 : 1, 'method_order' => (int) ($m['order'] ?? 0)], ['instance_id' => $iid]);
         }
     }
     WC_Cache_Helper::get_transient_version('shipping', true);
-    return array_values(array_unique($missing));
+    return ['missing' => array_values(array_unique($missing)), 'map' => $map];
 }
 
 /* ---------- Átvétel és visszavonás ---------- */
 
-/** $parts: a kiválasztott csoportok + 'gateways', 'zones', 'taxes', 'wp'. Visszaad: napló (sorok). */
+/** $parts: a kiválasztott csoportok + 'gateways', 'zones', 'taxes', 'legal', 'wp'. Visszaad: napló (sorok). */
 function mandala_oldset_apply(array $d, array $parts): array
 {
     $log = [];
-    $backup = ['time' => time(), 'options' => [], 'zones' => null, 'tax_rates' => [], 'tax_classes' => []];
+    $backup = ['time' => time(), 'options' => [], 'zones' => null, 'tax_rates' => [], 'tax_classes' => [], 'posts' => [], 'created_posts' => [], 'menu_items' => []];
     $set = function (string $opt, $value, ?string $key = null) use (&$backup) {
         if (!array_key_exists($opt, $backup['options'])) {
             $backup['options'][$opt] = get_option($opt, null);
@@ -212,6 +233,23 @@ function mandala_oldset_apply(array $d, array $parts): array
     if ($n) {
         $log[] = $n . ' WooCommerce-beállítás átvéve.';
     }
+    $map = [];
+    // Szállítási zónák
+    if (in_array('zones', $parts, true)) {
+        $backup['zones'] = mandala_oldset_zones_export();
+        $res = mandala_oldset_zones_import((array) $d['zones']);
+        $map = $res['map'];
+        $missing = $res['missing'];
+        $log[] = count((array) $d['zones']) . ' szállítási zóna átvéve (a korábbiak helyett).';
+        if ($missing) {
+            $log[] = 'Szállítási módok, amelyek bővítménye itt nincs telepítve (kimaradtak): ' . implode(', ', $missing) . '.';
+        }
+        if (function_exists('mandala_shipping_zone_warnings')) { // a régi bolt zónahibái is átjönnek – szóljunk róluk
+            foreach (mandala_shipping_zone_warnings() as $w) {
+                $log[] = 'FIGYELEM: ' . $w;
+            }
+        }
+    }
     // Fizetési módok
     if (in_array('gateways', $parts, true)) {
         $available = WC()->payment_gateways()->payment_gateways();
@@ -226,9 +264,24 @@ function mandala_oldset_apply(array $d, array $parts): array
                 continue;
             }
             $opt = 'woocommerce_' . $g['id'] . '_settings';
-            $settings = array_merge((array) get_option($opt, []), (array) $g['settings'], ['enabled' => empty($g['enabled']) ? 'no' : 'yes']);
+            $settings = array_merge((array) get_option($opt, []), mandala_oldset_remap((array) $g['settings'], $map), ['enabled' => empty($g['enabled']) ? 'no' : 'yes']);
             if (($g['title'] ?? '') !== '') {
                 $settings['title'] = $g['title'];
+            }
+            // A régi bolt a díjat a címben mutatta („Utánvétes fizetés (390 Ft)”, külön díjbővítménnyel) –
+            // itt a téma számolja fel: a díj a Mandala bolt adataiba kerül, a címből kikerül (különben kétszer látszana).
+            if ($g['id'] === 'cod' && preg_match('/\s*\(\s*(\d[\d\s.]*)\s*Ft\s*\)/u', (string) $settings['title'], $fm) && function_exists('mandala_config')) {
+                $fee = (int) preg_replace('/\D/', '', $fm[1]);
+                $payment = (array) mandala_config('payment', []);
+                foreach ($payment as &$p) {
+                    if (($p['id'] ?? '') === 'cod') {
+                        $p['fee'] = $fee;
+                    }
+                }
+                unset($p);
+                $set('mandala_payment', $payment);
+                $settings['title'] = trim(str_replace($fm[0], '', (string) $settings['title']));
+                $log[] = 'Utánvét díja: ' . $fee . ' Ft (a régi bolt címéből; a téma számolja fel, a cím: „' . $settings['title'] . '”).';
             }
             if (isset($g['description'])) {
                 $settings['description'] = $g['description'];
@@ -243,15 +296,6 @@ function mandala_oldset_apply(array $d, array $parts): array
         }
         if ($missing) {
             $log[] = 'NEM vehető át, mert a bővítménye itt nincs telepítve: ' . implode(', ', $missing) . ' – telepítsd, és futtasd újra az átvételt.';
-        }
-    }
-    // Szállítási zónák
-    if (in_array('zones', $parts, true)) {
-        $backup['zones'] = mandala_oldset_zones_export();
-        $missing = mandala_oldset_zones_import((array) $d['zones']);
-        $log[] = count((array) $d['zones']) . ' szállítási zóna átvéve (a korábbiak helyett).';
-        if ($missing) {
-            $log[] = 'Szállítási módok, amelyek bővítménye itt nincs telepítve (kimaradtak): ' . implode(', ', $missing) . '.';
         }
     }
     // Adók – csak ha még nincs itt adókulcs
@@ -284,6 +328,38 @@ function mandala_oldset_apply(array $d, array $parts): array
             $log[] = count($backup['tax_rates']) . ' adókulcs átvéve.';
         }
     }
+    // Jogi oldalak (ÁSZF, adatvédelem, bankkártyás fizetés) a régi bolt szövegével
+    if (in_array('legal', $parts, true) && !empty($d['legal'])) {
+        $done = [];
+        foreach (mandala_oldset_legal_targets((array) $d['legal']) as $role => $t) {
+            $content = mandala_oldset_clean_html((string) $t['src']['html']);
+            if ($content === '') {
+                continue;
+            }
+            if ($t['id']) {
+                $post = get_post($t['id']);
+                $backup['posts'][$t['id']] = ['post_title' => $post->post_title, 'post_content' => $post->post_content, 'post_status' => $post->post_status];
+                wp_update_post(['ID' => $t['id'], 'post_title' => $t['title'], 'post_content' => $content, 'post_status' => 'publish']);
+                $id = $t['id'];
+            } else {
+                $id = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => $t['title'], 'post_name' => $t['slug'], 'post_content' => $content]);
+                if (!$id || is_wp_error($id)) {
+                    continue;
+                }
+                $backup['created_posts'][] = $id;
+            }
+            if ($t['option'] && (int) get_option($t['option']) !== (int) $id) {
+                $set($t['option'], (int) $id);
+            }
+            if ($role === 'card' && ($item = mandala_oldset_menu_add((int) $id))) {
+                $backup['menu_items'][] = $item;
+            }
+            $done[] = $t['title'];
+        }
+        if ($done) {
+            $log[] = 'Jogi oldalak a régi bolt szövegével: ' . implode(', ', $done) . '.';
+        }
+    }
     // Webhely neve, időzóna, dátum
     if (in_array('wp', $parts, true)) {
         foreach (mandala_oldset_plan($d)['wp'] as $opt => $ch) {
@@ -306,7 +382,12 @@ function mandala_oldset_undo(): array
         $val === null ? delete_option($opt) : update_option($opt, $val);
     }
     if (is_array($b['zones'] ?? null)) {
-        mandala_oldset_zones_import($b['zones']);
+        $map = mandala_oldset_zones_import($b['zones'])['map'];
+        foreach (array_keys((array) ($b['options'] ?? [])) as $opt) { // a visszaállított zónák új példányazonosítót kapnak
+            if (preg_match('/^woocommerce_\w+_settings$/', $opt) && is_array($val = get_option($opt))) {
+                update_option($opt, mandala_oldset_remap($val, $map));
+            }
+        }
     }
     foreach ((array) ($b['tax_rates'] ?? []) as $id) {
         WC_Tax::_delete_tax_rate((int) $id);
@@ -314,9 +395,84 @@ function mandala_oldset_undo(): array
     foreach ((array) ($b['tax_classes'] ?? []) as $slug) {
         WC_Tax::delete_tax_class_by('slug', $slug);
     }
+    foreach ((array) ($b['posts'] ?? []) as $id => $p) {
+        wp_update_post(['ID' => (int) $id] + (array) $p);
+    }
+    foreach ((array) ($b['menu_items'] ?? []) as $item) {
+        wp_delete_post((int) $item, true);
+    }
+    foreach ((array) ($b['created_posts'] ?? []) as $id) {
+        wp_delete_post((int) $id, true);
+    }
     delete_option(MANDALA_OLDSET_BACKUP);
     return ['Visszaállítva az átvétel előtti állapot (' . count((array) ($b['options'] ?? [])) . ' beállítás' . (is_array($b['zones'] ?? null) ? ', szállítási zónák' : '') . ').'];
 }
+
+/* ---------- Jogi oldalak ---------- */
+
+/** Hova kerül a régi bolt ÁSZF-je, adatvédelmi tájékoztatója és bankkártyás fizetési oldala. */
+function mandala_oldset_legal_targets(array $legal): array
+{
+    $out = [];
+    foreach (['terms' => 'woocommerce_terms_page_id', 'privacy' => 'wp_page_for_privacy_policy', 'card' => ''] as $role => $opt) {
+        if (empty($legal[$role]['html'])) {
+            continue;
+        }
+        $src = $legal[$role];
+        $id = $opt ? (int) get_option($opt) : 0;
+        if (!$id || !get_post($id) || get_post_status($id) === 'trash') {
+            $existing = get_page_by_path((string) $src['slug']);
+            $id = $existing ? (int) $existing->ID : 0;
+        }
+        $out[$role] = ['id' => $id, 'option' => $opt, 'title' => wp_strip_all_tags(html_entity_decode((string) $src['title'])), 'slug' => sanitize_title((string) $src['slug']), 'src' => $src];
+    }
+    return $out;
+}
+/** Oldalépítő (Elementor) jelölések nélkül, tiszta HTML. */
+function mandala_oldset_clean_html(string $html): string
+{
+    // Fogyasztóbarát (fogyasztobarat.hu) ÁSZF/adatvédelmi beágyazás: rövidkóddá alakul, a téma ugyanúgy tölti be
+    $html = preg_replace_callback('#<script[^>]*>(?:(?!</script>).)*fogyasztobarat\.hu(?:(?!</script>).)*</script>#is', function ($m) {
+        preg_match('/"data-id",\s*"([A-Za-z0-9]+)"/', $m[0], $id);
+        preg_match('/"data-type",\s*"([a-z_-]+)"/', $m[0], $type);
+        return $id ? "\n[mandala_fogyasztobarat ref=\"{$id[1]}\" type=\"" . ($type[1] ?? 'aszf') . "\"]\n" : '';
+    }, $html);
+    $html = preg_replace('#<(script|style|noscript|svg)\b[^>]*>.*?</\1>#is', '', $html);
+    $html = preg_replace('#</?(div|section|span|article|header|footer|figure|main|font)\b[^>]*>#i', '', $html);
+    $html = preg_replace('#\s(class|style|id|data-[\w-]+|aria-[\w-]+|role)="[^"]*"#i', '', $html);
+    $html = wp_kses_post($html);
+    $html = preg_replace('#<p>\s*(&nbsp;)?\s*</p>#i', '', $html);
+    $html = preg_replace('/^[ \t]+|[ \t]+$/m', '', $html);
+    return trim(preg_replace("/\n\s*\n+/", "\n\n", $html));
+}
+/** A bankkártyás fizetési oldal a lábléc „Jogi linkek” menüjébe (ha még nincs benne). */
+function mandala_oldset_menu_add(int $page_id): int
+{
+    $menu = (int) (get_nav_menu_locations()['mandala-legal'] ?? 0);
+    if (!$menu) {
+        return 0;
+    }
+    foreach ((array) wp_get_nav_menu_items($menu) as $item) {
+        if ((int) $item->object_id === $page_id) {
+            return 0;
+        }
+    }
+    $id = wp_update_nav_menu_item($menu, 0, ['menu-item-object-id' => $page_id, 'menu-item-object' => 'page', 'menu-item-type' => 'post_type', 'menu-item-status' => 'publish']);
+    return is_wp_error($id) ? 0 : (int) $id;
+}
+
+/** A régi bolt Fogyasztóbarát-beágyazása (jogi szöveg a fogyasztobarat.hu-ról) – ugyanaz a betöltő, mint a régi oldalon. */
+add_shortcode('mandala_fogyasztobarat', function ($atts) {
+    $a = shortcode_atts(["ref" => "", "type" => "aszf"], $atts);
+    $id = preg_replace('/[^A-Za-z0-9]/', '', (string) $a["ref"]);
+    $type = preg_replace('/[^a-z_-]/', '', (string) $a['type']);
+    if ($id === '') {
+        return '';
+    }
+    return '<script id="barat_script">var st=document.createElement("script");st.src="//admin.fogyasztobarat.hu/e-api.js";st.type="text/javascript";'
+        . 'st.setAttribute("data-id",' . wp_json_encode($id) . ');st.setAttribute("id","fbarat-embed");st.setAttribute("data-type",' . wp_json_encode($type) . ');'
+        . 'var s=document.getElementById("barat_script");s.parentNode.insertBefore(st,s);</script>';
+});
 
 /* ---------- Admin ---------- */
 
@@ -393,6 +549,13 @@ function mandala_oldset_page(): void
             echo '<li><strong>' . esc_html($z['name']) . '</strong>' . ($z['locations'] ? ' (' . (int) $z['locations'] . ' terület)' : '') . ': ' . esc_html(implode(', ', array_map(fn($m) => $m['title'] . ($m['enabled'] ? '' : ' [ki]') . ($m['available'] ? '' : ' [bővítmény hiányzik]'), $z['methods'])) ?: '–') . '</li>';
         }
         echo '</ul>';
+        if ($plan['legal']) {
+            echo '<h3><label><input type="checkbox" name="parts[]" value="legal" checked> Jogi oldalak a régi bolt szövegével</label></h3><ul style="list-style:disc;padding-left:20px">';
+            foreach ($plan['legal'] as $l) {
+                echo '<li><strong>' . esc_html($l['title']) . '</strong> (' . number_format_i18n($l['chars']) . ' karakter) – ' . esc_html($l['target']) . '</li>';
+            }
+            echo '</ul><p class="description">Az oldalépítő (Elementor) jelölései nélkül, tiszta szövegként kerülnek át. A bankkártyás fizetési tájékoztató (a Teya előírja) a lábléc jogi linkjei közé is bekerül.</p>';
+        }
         if ($plan['taxes']) {
             echo '<h3><label><input type="checkbox" name="parts[]" value="taxes"' . checked($plan['tax_note'] === '', true, false) . '> Adókulcsok (' . (int) $plan['taxes'] . ')</label></h3>' . ($plan['tax_note'] ? '<p>' . esc_html($plan['tax_note']) . '</p>' : '');
         }

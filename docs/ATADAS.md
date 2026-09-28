@@ -31,7 +31,11 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
 4. **A régi bolt beállításainak átvétele** (WooCommerce → Régi bolt beállításai): az oldalon lévő szöveget
    a régi bolt adminjában a böngészőkonzolba másolva letöltődik egy fájl (fizetési módok a kulcsokkal,
    szállítási zónák és díjak, adók, WooCommerce-, levél- és fiókbeállítások, bővítménylista); ezt feltöltve
-   előnézet, majd egy kattintással átvétel. Előbb telepítsd a régi bolt fizetési / szállítási / számlázó
+   előnézet, majd egy kattintással átvétel. A jogi oldalakat (ÁSZF, adatvédelmi tájékoztató, „A bankkártyás
+   fizetésről”) is átveszi a régi szöveggel, oldalépítő-jelölések nélkül; a Fogyasztóbarát ÁSZF-beágyazás
+   `[mandala_fogyasztobarat]` rövidkódként megmarad. Az utánvét „csak ezeknél a szállítási módoknál” listáját
+   az új szállítási módokra fordítja, a régi címben szereplő utánvéti díjat („Utánvétes fizetés (390 Ft)”)
+   pedig a téma díjbeállításába teszi (a régi díjbővítmény nem kell). Előbb telepítsd a régi bolt fizetési / szállítási / számlázó
    bővítményeit (az oldal listázza, melyik hiányzik), mert azok beállításai csak így jönnek át. Visszavonható.
    A fájlt utána töröld a gépedről (fizetési kulcsok vannak benne).
 5. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.

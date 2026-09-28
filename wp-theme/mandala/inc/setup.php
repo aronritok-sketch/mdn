@@ -766,7 +766,7 @@ function mandala_plugin_status(): array
         'gls' => ['name' => 'GLS szállítás', 'why' => 'Házhozszállítás, GLS CsomagPont és csomagautomata, díjak, térképes pontválasztó.', 'search' => 'GLS WooCommerce',
             'active' => $has('gls') || stripos($shipping, 'gls') !== false],
         'teya' => ['name' => 'Teya kártyás fizetés', 'why' => 'Bankkártya, Apple Pay, Google Pay – a Teya bővítménye vagy fizetőoldala.', 'search' => 'Teya',
-            'active' => $has('teya') || stripos($gateways, 'teya') !== false],
+            'active' => $has('teya') || stripos($gateways, 'teya') !== false || stripos($gateways, 'borgun') !== false], // a Teya SecurePay bővítmény „borgun” azonosítóval regisztrál
         'szamlazz' => ['name' => 'Számlázz.hu', 'why' => 'Automatikus számla a rendelésekhez (NAV online számla).', 'search' => 'Számlázz.hu WooCommerce',
             'active' => $has('szamlazz')],
         'wholesale' => ['name' => 'WooCommerce Wholesale Prices', 'why' => 'Viszonteladói szerep és nagyker ár (a JUTA „Akciós ár”-a termékfelvételkor).', 'search' => 'Wholesale Prices',

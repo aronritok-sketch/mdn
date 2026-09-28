@@ -43,7 +43,7 @@
     log('Szállítási zónák…');
     for (const z of (await get('shipping/zones')).data) {
       const locations = z.id === 0 ? [] : (await get(`shipping/zones/${z.id}/locations`)).data.map((l) => ({ code: l.code, type: l.type }));
-      const methods = (await get(`shipping/zones/${z.id}/methods`)).data.map((m) => ({ method_id: m.method_id, title: m.title, enabled: m.enabled, order: m.order, settings: settings(m.settings) }));
+      const methods = (await get(`shipping/zones/${z.id}/methods`)).data.map((m) => ({ method_id: m.method_id, instance_id: m.instance_id, title: m.title, enabled: m.enabled, order: m.order, settings: settings(m.settings) }));
       out.zones.push({ id: z.id, name: z.name, order: z.order, locations, methods });
     }
 
@@ -55,6 +55,24 @@
         pages = r.pages;
         out.taxes.push(...r.data.map((t) => ({ country: t.country, state: t.state, postcodes: t.postcodes, cities: t.cities, rate: t.rate, name: t.name, priority: t.priority, compound: t.compound, shipping: t.shipping, order: t.order, class: t.class })));
       }
+    } catch (e) { out.errors.push(String(e.message)); }
+
+    log('Jogi oldalak (ÁSZF, adatvédelem, bankkártyás fizetés)…');
+    try {
+      const termsId = Number((out.wc.advanced || []).find((x) => x.id === 'woocommerce_terms_page_id')?.value || 0);
+      const pages = [];
+      for (let page = 1, pages_ = 1; page <= pages_; page++) {
+        const r = await get('pages', { per_page: 100, page, status: 'publish', _fields: 'id,slug,title,content,modified' }, 'wp/v2');
+        pages_ = r.pages;
+        pages.push(...r.data);
+      }
+      const pick = (test) => pages.filter(test).sort((a, b) => String(b.modified).localeCompare(String(a.modified)))[0];
+      const roles = {
+        terms: pick((p) => p.id === termsId) || pick((p) => /aszf|altalanos-szerzodesi/.test(p.slug)),
+        privacy: pick((p) => /privacy|adatved|adatkezel/.test(p.slug)),
+        card: pick((p) => /bankkartya/.test(p.slug)),
+      };
+      out.legal = Object.fromEntries(Object.entries(roles).filter(([, p]) => p).map(([role, p]) => [role, { slug: p.slug, title: p.title.rendered, html: p.content.rendered }]));
     } catch (e) { out.errors.push(String(e.message)); }
 
     log('Webhely-beállítások és bővítmények…');

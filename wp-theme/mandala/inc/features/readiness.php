@@ -69,6 +69,7 @@ function mandala_readiness(bool $deep = false): array
                 'methods' => array_map(fn($m) => $m->get_title() . ' [' . $m->id . ']' . ($m->is_enabled() ? '' : ' – kikapcsolva')
                     . (($c = $m->get_option('cost')) !== '' && $c !== null ? ' · ' . $c . ' Ft' : '') . (($min = $m->get_option('min_amount')) ? ' · ' . $min . ' Ft felett' : ''), array_values($zone->get_shipping_methods()))];
         }
+        $out['shipping_warnings'] = mandala_shipping_zone_warnings();
         $out['tax'] = ['enabled' => get_option('woocommerce_calc_taxes') === 'yes', 'prices_include_tax' => get_option('woocommerce_prices_include_tax') === 'yes',
             'rates' => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}woocommerce_tax_rates")];
         $out['store'] = ['address' => trim(get_option('woocommerce_store_address') . ' ' . get_option('woocommerce_store_postcode') . ' ' . get_option('woocommerce_store_city')),
@@ -117,4 +118,41 @@ function mandala_readiness(bool $deep = false): array
         }
     }
     return $out;
+}
+
+/**
+ * Gyakori zónahibák: a hely nélküli zóna a WooCommerce-ben MINDEN címre illeszkedik (zóna-sorrend, majd azonosító
+ * szerint az első nyer), így ha nem az utolsó, a mögötte lévő (pl. külföldi) zónák sosem érvényesülnek; egy ország
+ * két zónában; a zóna nevében szereplő ország hiányzik a helyek közül.
+ */
+function mandala_shipping_zone_warnings(): array
+{
+    if (!class_exists('WC_Shipping_Zones')) {
+        return [];
+    }
+    $warn = [];
+    $zones = array_map(fn($z) => new WC_Shipping_Zone((int) $z['id']), WC_Shipping_Zones::get_zones());
+    usort($zones, fn($a, $b) => [$a->get_zone_order(), $a->get_id()] <=> [$b->get_zone_order(), $b->get_id()]);
+    $names = ['HU' => 'Magyarország', 'AT' => 'Ausztria', 'SK' => 'Szlovákia', 'RO' => 'Románia', 'HR' => 'Horvátország', 'SI' => 'Szlovénia', 'CZ' => 'Csehország', 'RS' => 'Szerbia', 'UA' => 'Ukrajna', 'DE' => 'Németország', 'PL' => 'Lengyelország'];
+    $seen = [];
+    foreach ($zones as $i => $zone) {
+        $codes = array_map(fn($l) => $l->code, array_filter($zone->get_zone_locations(), fn($l) => $l->type === 'country'));
+        if (!$zone->get_zone_locations() && $i < count($zones) - 1) {
+            $after = implode(', ', array_map(fn($z) => '„' . $z->get_zone_name() . '”', array_slice($zones, $i + 1)));
+            $warn[] = '„' . $zone->get_zone_name() . '” zónához nincs ország rendelve, ezért MINDEN címre ez érvényes – a(z) ' . $after
+                . ' zóna díjai sosem jutnak érvényre (külföldi vevő is a hazai díjat fizeti). Javítás: WooCommerce → Beállítások → Szállítás → a zónához add hozzá az országot (pl. Magyarország).';
+        }
+        foreach ($codes as $c) {
+            if (isset($seen[$c])) {
+                $warn[] = ($names[$c] ?? $c) . ' két zónában is szerepel („' . $seen[$c] . '” és „' . $zone->get_zone_name() . '”) – csak az első érvényes.';
+            }
+            $seen[$c] ??= $zone->get_zone_name();
+        }
+        foreach ($names as $c => $n) {
+            if (mb_stripos($zone->get_zone_name(), $n) !== false && $codes && !in_array($c, $codes, true)) {
+                $warn[] = 'A „' . $zone->get_zone_name() . '” zóna nevében szerepel ' . $n . ', de a zóna országai között nincs.';
+            }
+        }
+    }
+    return $warn;
 }

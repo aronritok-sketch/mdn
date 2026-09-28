@@ -202,7 +202,8 @@ function mandala_wiz_status_store(): array
     if (get_option('mandala_contact') === false) {
         $todo[] = 'elérhetőség';
     }
-    if (!$bank || empty($bank[0]['account_number']) || ($placeholder && $bank[0]['account_number'] === $placeholder)) {
+    $bacs_on = (((array) get_option('woocommerce_bacs_settings', []))['enabled'] ?? 'no') === 'yes';
+    if ($bacs_on && (!$bank || empty($bank[0]['account_number']) || ($placeholder && $bank[0]['account_number'] === $placeholder))) { // bankszámla csak bekapcsolt átutalásnál kell
         $todo[] = 'bankszámla';
     }
     return $todo ? ['todo', 'Hiányzik: ' . implode(', ', $todo)] : ['ok', ($c['email'] ?? '') . ' · ' . ($c['phone'] ?? '')];
