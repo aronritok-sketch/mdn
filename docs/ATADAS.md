@@ -35,6 +35,12 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
    bővítményeit (az oldal listázza, melyik hiányzik), mert azok beállításai csak így jönnek át. Visszavonható.
    A fájlt utána töröld a gépedről (fizetési kulcsok vannak benne).
 5. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.
+   **Ellenőrzés távolról:** a `/wp-json/mandala/v1/readiness` cím (csak adminnak / boltkezelőnek) egyben
+   megmutatja az élesítés állapotát: varázslólépések, önellenőrzés, bővítmények, fizetési és szállítási módok,
+   adók, termékek (kép / ár nélküliek, jóváhagyási sor), jogi oldalak kitöltése, levélküldés, kulcsok megléte
+   (az értékük nélkül), háttérfeladatok, 404 napló. `?deep=1` a teljes önellenőrzéssel (oldalbetöltések is).
+   Egy ideiglenes felhasználó alkalmazásjelszavával (Felhasználók → Profil → Alkalmazásjelszavak) a fejlesztő
+   belépés nélkül, csak olvasva átnézheti; utána a jelszót vagy a felhasználót töröld.
 6. Próbarendelések: [TELEPITES.md 6. pont](TELEPITES.md).
 7. Élesítés napja: [TELEPITES.md 7. pont](TELEPITES.md) (301-es átirányítások, feedek, kereső-konzol).
 

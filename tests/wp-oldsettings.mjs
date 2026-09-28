@@ -67,6 +67,19 @@ await Promise.all([page.waitForNavigation(), page.click('button[value="undo"]')]
 const u = state();
 ok(u.city === 'Budapest' && u.bacs === 'Átutalás' && u.cod === 'no' && JSON.stringify(u.zones) === JSON.stringify({ 'Egyéb': ['flat_rate:999'] }) && u.blog === 'Mandala', 'visszavonás: minden az átvétel előtti állapotban', JSON.stringify(u));
 
+// 5. Élesítési állapot (REST, csak adminnak, titkok nélkül)
+wp('$a = (array) get_option("mandala_analytics", []); $a["capi"] = "yes"; $a["capi_token"] = "TITKOS-CAPI-123"; update_option("mandala_analytics", $a);');
+const anon = await fetch(`${BASE}/wp-json/mandala/v1/readiness`);
+ok(anon.status === 401 || anon.status === 403, 'élesítési állapot: bejelentkezés nélkül nem olvasható', String(anon.status));
+const rd = await page.evaluate(async (base) => {
+  const nonce = (await (await fetch(base + '/wp-admin/admin-ajax.php?action=rest-nonce')).text()).trim();
+  const r = await fetch(base + '/wp-json/mandala/v1/readiness', { headers: { 'X-WP-Nonce': nonce } });
+  return { status: r.status, body: await r.text() };
+}, BASE);
+const rj = JSON.parse(rd.body);
+ok(rd.status === 200 && rj.payments && rj.shipping && rj.products && rj.legal && rj.mail && rj.checks && rj.keys.meta_capi === true, 'élesítési állapot: fizetés, szállítás, termékek, jogi oldalak, levelek, ellenőrzések', rd.body.slice(0, 300));
+ok(!rd.body.includes('TITKOS-CAPI-123'), 'élesítési állapot: titkot (kulcsot) nem ad ki');
+
 ok(errors.length === 0, 'nincs JS hiba', errors.join(' | '));
 await b.close();
 fs.unlinkSync(file);
