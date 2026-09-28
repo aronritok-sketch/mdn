@@ -261,7 +261,7 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'admin');
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
   for (const [slug, text] of [['mandala-growth', 'Ajándék értékhatár felett'], ['mandala-bundles', 'Mandala csomagok'], ['mandala-subs', 'Előfizetések'], ['mandala-partners', 'Partnerek'],
-    ['mandala-campaigns', 'Kampányok'], ['mandala-feeds', 'Árukereső Megbízható Bolt'], ['mandala-store', 'Bemutatóterem (Google)'], ['mandala-owner', 'Tulajdonosi kivonat']]) {
+    ['mandala-campaigns', 'Kampányok'], ['mandala-feeds', 'Árukereső Megbízható Bolt'], ['mandala-store', 'Bemutatóterem (Google)'], ['mandala-owner', 'Tulajdonosi kivonat'], ['mandala-showcase', 'Bemutató mód bekapcsolása']]) {
     const res = await page.goto(`${BASE}/wp-admin/admin.php?page=${slug}`, { waitUntil: 'domcontentloaded' });
     const body = await page.textContent('#wpbody-content').catch(() => '');
     ok(res.status() === 200 && body.includes(text) && !/Fatal error|Warning:/.test(body), `admin: ${slug} oldal betölt`);
@@ -279,6 +279,23 @@ ok(wp('$t = mandala_mail_types(); echo (int) (isset($t["birthday"], $t["price_dr
 
 wp('update_option("mandala_bundles", []); $s = mandala_growth_settings(); $s["gwp"] = "no"; update_option("mandala_growth", $s);');
 wp('$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_stock_quantity(2); $p->save();');
+// ======================= Bemutató mód =======================
+{
+  const snap = () => wp('echo md5(serialize([get_option("mandala_growth"), get_option("mandala_campaigns"), get_option("mandala_bundles"), get_option("mandala_subs")])), "|", count(wc_get_product_ids_on_sale()), "|", wp_count_posts("mandala_review")->publish, "|", wp_count_posts("mandala_event")->publish;');
+  const before = snap();
+  const log = wp('echo implode("\n", mandala_showcase_enable("bemutato@example.com"));');
+  ok(/Akció: [1-9]/.test(log) && /Csomagkedvezmény: 3/.test(log) && /Értékelések: [1-9]/.test(log), 'bemutató mód: bekapcsol (akció, csomag, értékelés)', log.replace(/\n/g, ' / '));
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  const main = await page.textContent('body');
+  ok(await page.isVisible('.campaign-bar') && /Egy hét, ami csak rólad szól/.test(main) && /Akciós darabok/.test(main), 'bemutató mód: kampánysáv, banner, akciós sor a főoldalon');
+  await page.context().close();
+  ok(wp('add_filter("pre_wp_mail", function ($r, $a) { echo $a["to"], "|", $a["subject"]; return true; }, 10, 2); wp_mail("vevo@valos.hu", "Rendelés", "x");') === 'bemutato@example.com|[BEMUTATÓ → vevo@valos.hu] Rendelés', 'bemutató mód: minden levél az admin címre megy');
+  ok(wp('$d = mandala_owner_data(30); echo (int) (!empty($d["demo"]) && $d["cur"]["orders"] > 50 && $d["traffic"]["visitors"] > 1000);') === '1', 'bemutató mód: a Kivonat demóadatokat mutat');
+  wp('echo implode("\n", mandala_showcase_disable());');
+  ok(snap() === before && wp('echo (int) wc_get_coupon_id_by_code("CSENDESHET"), (int) (bool) get_user_by("email", "partner.bemutato@example.com"), (int) mandala_showcase_on();') === '000', 'bemutató mód: kikapcsoláskor minden pontosan visszaáll', snap() + ' vs ' + before);
+}
+
 ok(errors.length === 0, 'nincs JS / szerver hiba', errors.slice(0, 5).join(' | '));
 await browser.close();
 console.log(`\n${fails ? fails + ' HIBA' : 'Minden rendben.'}`);

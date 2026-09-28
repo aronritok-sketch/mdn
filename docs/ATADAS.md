@@ -71,6 +71,27 @@ tulajdonosi kivonat** (ugyanitt „küldés most” próbához). A mérés az é
 
 ---
 
+## 3b. Bemutató mód (dev / tesztoldalra)
+
+**Kivonat → Bemutató mód → Bemutató mód bekapcsolása**: egy kattintással minden marketingeszköz fut a valós
+termékekkel, hogy látszódjon, milyen a bolt „teljes gőzzel”:
+
+- futó kampány („Csendes hét”) felső sávval, visszaszámlálóval, főoldali bannerrel és automatikus 10%-os kuponnal;
+- 8 akciós termék (-15%), ajándék 20 000 Ft felett (egy füstölő), 3 csomagkedvezmény (-10%), füstölő-előfizetés;
+- üdvözlő / kilépési ablak, születésnapi kupon, ajánlás; bemutató partner (kód: `JOGA10`, link: `?partner=JOGA10`);
+- 8 értékelés (fotósok a főoldali vásárlói fotók között), 2 esemény jeggyel, 1 érkező szállítmány;
+- a Kivonat és a heti levél élethű **demóadatokat** mutat (a Kivonatban egy kattintással átváltható a valósra).
+
+**Biztonság:** amíg be van kapcsolva, **minden kimenő levél** (a rendelési levelek is) a megadott címre megy –
+a teszt oldalon lévő valós vásárlói címekre semmi nem jut ki. A felső admin sávban „BEMUTATÓ MÓD” jelzés látszik.
+
+**Kikapcsolás és visszaállítás:** ugyanitt. A beállítások a bekapcsolás előtti állapotra állnak vissza, a
+bemutató elemek (kupon, értékelések, események, partner) törlődnek, az árak és a készletjelzők az eredetiek.
+Parancssorból: `wp mandala showcase on --mailto=cim@example.com` / `wp mandala showcase off`.
+Éles boltba ne kapcsold be.
+
+---
+
 ## 4. Marketingeszközök – kézikönyv
 
 Minden automata levél szövege, be/ki kapcsolása és előnézete: **WooCommerce → Mandala levelek**.

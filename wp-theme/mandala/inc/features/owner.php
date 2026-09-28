@@ -122,9 +122,10 @@ add_action('shutdown', function () {
         return;
     }
     $ms = (int) round((microtime(true) - (float) $_SERVER['REQUEST_TIME_FLOAT']) * 1000);
-    if ($ms > 0 && $ms < 60000) {
-        mandala_stat('resp_ms', $ms);
-        mandala_stat('resp_n');
+    if ($ms > 0 && $ms < 60000 && !mandala_stat_is_bot()) {
+        global $wpdb;
+        $day = wp_date('Y-m-d');
+        $wpdb->query($wpdb->prepare('INSERT INTO ' . mandala_stats_table() . ' (day, metric, n) VALUES (%s, %s, %d), (%s, %s, 1) ON DUPLICATE KEY UPDATE n = n + VALUES(n)', $day, 'resp_ms', $ms, $day, 'resp_n')); // phpcs:ignore -- egy írás a két számlálóra
     }
 });
 // Az egyedi-azonosítók 2 nap után törlődnek (csak a darabszám marad).
@@ -156,10 +157,49 @@ function mandala_stats_daily(string $from, string $to, string $metric): array
     return $out;
 }
 
-/** Egy időszak rendelései (feldolgozott / teljesített / fizetésre vár). */
+function mandala_owner_hpos(): bool
+{
+    return class_exists(\Automattic\WooCommerce\Utilities\OrderUtil::class) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+}
+/**
+ * Egy időszak rendelései (feldolgozott / teljesített / fizetésre vár) könnyű sorokként: id, total, refunded,
+ * email, created. Közvetlen lekérdezés – a teljes rendelésobjektumok betöltése egy évnyi rendelésnél
+ * (több ezer) másodpercekig tartana és több száz MB memóriát igényelne.
+ */
 function mandala_owner_orders(int $from, int $to): array
 {
-    return wc_get_orders(['status' => ['processing', 'completed', 'on-hold'], 'date_created' => $from . '...' . $to, 'limit' => -1, 'type' => 'shop_order']);
+    global $wpdb;
+    $st = "'wc-processing','wc-completed','wc-on-hold'";
+    $sql = mandala_owner_hpos()
+        ? "SELECT o.id, o.total_amount AS total, LOWER(o.billing_email) AS email, o.date_created_gmt AS created,
+                (SELECT ABS(COALESCE(SUM(r.total_amount), 0)) FROM {$wpdb->prefix}wc_orders r WHERE r.parent_order_id = o.id AND r.type = 'shop_order_refund') AS refunded
+            FROM {$wpdb->prefix}wc_orders o WHERE o.type = 'shop_order' AND o.status IN ($st) AND o.date_created_gmt BETWEEN %s AND %s"
+        : "SELECT p.ID AS id, t.meta_value AS total, LOWER(e.meta_value) AS email, p.post_date_gmt AS created,
+                (SELECT COALESCE(SUM(rm.meta_value), 0) FROM {$wpdb->posts} r INNER JOIN {$wpdb->postmeta} rm ON rm.post_id = r.ID AND rm.meta_key = '_refund_amount' WHERE r.post_parent = p.ID AND r.post_type = 'shop_order_refund') AS refunded
+            FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} t ON t.post_id = p.ID AND t.meta_key = '_order_total' LEFT JOIN {$wpdb->postmeta} e ON e.post_id = p.ID AND e.meta_key = '_billing_email'
+            WHERE p.post_type = 'shop_order' AND p.post_status IN ($st) AND p.post_date_gmt BETWEEN %s AND %s";
+    $out = [];
+    foreach ($wpdb->get_results($wpdb->prepare($sql, gmdate('Y-m-d H:i:s', $from), gmdate('Y-m-d H:i:s', $to))) as $r) { // phpcs:ignore
+        $out[] = ['id' => (int) $r->id, 'total' => (float) $r->total, 'refunded' => (float) $r->refunded, 'email' => (string) $r->email, 'created' => (int) strtotime($r->created . ' UTC')];
+    }
+    return $out;
+}
+/** Rendelésmeta több rendelésre egyszerre: [order_id => [kulcs => érték]]. */
+function mandala_owner_order_meta(array $ids, array $keys): array
+{
+    global $wpdb;
+    $out = [];
+    $k = implode(',', array_map(fn($x) => $wpdb->prepare('%s', $x), $keys));
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        $in = implode(',', array_map('intval', $chunk));
+        $sql = mandala_owner_hpos()
+            ? "SELECT order_id AS id, meta_key, meta_value FROM {$wpdb->prefix}wc_orders_meta WHERE order_id IN ($in) AND meta_key IN ($k)"
+            : "SELECT post_id AS id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ($in) AND meta_key IN ($k)";
+        foreach ($wpdb->get_results($sql) as $r) { // phpcs:ignore
+            $out[(int) $r->id][$r->meta_key] = $r->meta_value;
+        }
+    }
+    return $out;
 }
 
 /** A kivonat adatai. $days: időszak hossza napban, a mai nappal bezárólag; az összevetés az előtte lévő ugyanilyen időszak. */
@@ -168,18 +208,22 @@ function mandala_owner_data(int $days = 7, ?int $end = null): array
     global $wpdb;
     $days = max(1, $days);
     $end ??= time();
+    $pre = apply_filters('mandala_owner_data_pre', null, $days, $end); // pl. a bemutató mód demóadatai
+    if (is_array($pre)) {
+        return $pre;
+    }
     $start = (int) strtotime(wp_date('Y-m-d', $end - ($days - 1) * DAY_IN_SECONDS) . ' 00:00:00 ' . wp_timezone_string());
     $pstart = $start - $days * DAY_IN_SECONDS;
     $orders = mandala_owner_orders($start, $end);
     $porders = mandala_owner_orders($pstart, $start - 1);
     $sales = function (array $list) {
-        $rev = array_sum(array_map(fn($o) => (float) $o->get_total() - (float) $o->get_total_refunded(), $list));
+        $rev = array_sum(array_map(fn($o) => $o['total'] - $o['refunded'], $list));
         return ['orders' => count($list), 'revenue' => $rev, 'aov' => $list ? $rev / count($list) : 0];
     };
     $cur = $sales($orders);
     $prev = $sales($porders);
     // Új / visszatérő vásárló
-    $emails = array_unique(array_filter(array_map(fn($o) => strtolower($o->get_billing_email()), $orders)));
+    $emails = array_values(array_unique(array_filter(array_column($orders, 'email'))));
     $first = function_exists('mandala_first_order_dates') ? mandala_first_order_dates($emails) : [];
     $new = count(array_filter($emails, fn($e) => ($first[$e] ?? 0) >= $start));
     // Forgalom és tölcsér
@@ -196,38 +240,62 @@ function mandala_owner_data(int $days = 7, ?int $end = null): array
     };
     $feature = ['bundle' => [0, 0.0], 'gift' => [0, 0.0], 'sub_first' => [0, 0.0], 'sub_renewal' => [0, 0.0], 'partner' => [0, 0.0]];
     $commission = 0.0;
+    $ids = array_column($orders, 'id');
+    // Kuponok rendelésenként, és a kuponok forrása (egy-egy lekérdezés, nem rendelésenként)
+    $order_coupons = [];
+    $coupon_meta = [];
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        foreach ($wpdb->get_results('SELECT order_id, LOWER(order_item_name) AS code FROM ' . $wpdb->prefix . "woocommerce_order_items WHERE order_item_type = 'coupon' AND order_id IN (" . implode(',', array_map('intval', $chunk)) . ')') as $r) { // phpcs:ignore
+            $order_coupons[(int) $r->order_id][] = $r->code;
+        }
+    }
+    $codes = array_values(array_unique(array_merge([], ...array_values($order_coupons))));
+    foreach (array_chunk($codes, 500) as $chunk) {
+        $in = implode(',', array_map(fn($c) => $wpdb->prepare('%s', $c), $chunk));
+        foreach ($wpdb->get_results("SELECT LOWER(p.post_title) AS code, m.meta_key, m.meta_value FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key IN ('_mandala_source', '_mandala_partner', '_mandala_referrer') WHERE p.post_type = 'shop_coupon' AND LOWER(p.post_title) IN ($in)") as $r) { // phpcs:ignore
+            $coupon_meta[$r->code][$r->meta_key] = $r->meta_value;
+        }
+    }
+    // Tételjelzők: csomag, ajándék, előfizetés
+    $flags = [];
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        foreach ($wpdb->get_results('SELECT oi.order_id, im.meta_key FROM ' . $wpdb->prefix . 'woocommerce_order_items oi INNER JOIN ' . $wpdb->prefix . "woocommerce_order_itemmeta im ON im.order_item_id = oi.order_item_id
+            WHERE oi.order_item_type = 'line_item' AND oi.order_id IN (" . implode(',', array_map('intval', $chunk)) . ") AND im.meta_key IN ('Csomagkedvezmény', 'Ajándék', '_mandala_sub') AND im.meta_value NOT IN ('', '0')") as $r) { // phpcs:ignore
+            $flags[(int) $r->order_id][$r->meta_key] = true;
+        }
+    }
+    $ometa = mandala_owner_order_meta($ids, ['_mandala_sub_id', '_mandala_partner_id', '_mandala_partner_commission']);
+    $campaign_codes = array_map('strtolower', $campaign_codes);
     foreach ($orders as $o) {
-        $rev = (float) $o->get_total() - (float) $o->get_total_refunded();
-        foreach ($o->get_coupon_codes() as $code) {
-            $c = new WC_Coupon($code);
-            $src = (string) $c->get_meta('_mandala_source');
-            $k = $c->get_meta('_mandala_partner') ? 'partner' : ($src === 'welcome' ? 'welcome' : ($src === 'birthday' ? 'birthday' : ($src === 'referral' || $c->get_meta('_mandala_referrer') ? 'referral'
-                : (in_array(wc_format_coupon_code($code), $campaign_codes, true) ? 'campaign' : 'other'))));
+        $rev = $o['total'] - $o['refunded'];
+        $via_partner = false;
+        foreach ($order_coupons[$o['id']] ?? [] as $code) {
+            $cm = $coupon_meta[$code] ?? [];
+            $src = (string) ($cm['_mandala_source'] ?? '');
+            $via_partner = $via_partner || !empty($cm['_mandala_partner']);
+            $k = !empty($cm['_mandala_partner']) ? 'partner' : ($src === 'welcome' ? 'welcome' : ($src === 'birthday' ? 'birthday' : ($src === 'referral' || !empty($cm['_mandala_referrer']) ? 'referral'
+                : (in_array($code, $campaign_codes, true) ? 'campaign' : 'other'))));
             $add($k, $rev);
         }
-        $flags = ['bundle' => false, 'gift' => false, 'sub' => false];
-        foreach ($o->get_items() as $item) {
-            $flags['bundle'] = $flags['bundle'] || $item->get_meta('Csomagkedvezmény') !== '';
-            $flags['gift'] = $flags['gift'] || $item->get_meta('Ajándék') !== '';
-            $flags['sub'] = $flags['sub'] || (int) $item->get_meta('_mandala_sub') > 0;
-        }
-        foreach (['bundle', 'gift'] as $k) {
-            if ($flags[$k]) {
+        $fl = $flags[$o['id']] ?? [];
+        foreach (['bundle' => 'Csomagkedvezmény', 'gift' => 'Ajándék'] as $k => $key) {
+            if (!empty($fl[$key])) {
                 $feature[$k][0]++;
                 $feature[$k][1] += $rev;
             }
         }
-        if ($o->get_meta('_mandala_sub_id')) {
+        $m = $ometa[$o['id']] ?? [];
+        if (!empty($m['_mandala_sub_id'])) {
             $feature['sub_renewal'][0]++;
             $feature['sub_renewal'][1] += $rev;
-        } elseif ($flags['sub']) {
+        } elseif (!empty($fl['_mandala_sub'])) {
             $feature['sub_first'][0]++;
             $feature['sub_first'][1] += $rev;
         }
-        if ($o->get_meta('_mandala_partner_id') || (function_exists('mandala_order_partner') && mandala_order_partner($o))) {
+        if (!empty($m['_mandala_partner_id']) || $via_partner) {
             $feature['partner'][0]++;
             $feature['partner'][1] += $rev;
-            $commission += (float) $o->get_meta('_mandala_partner_commission');
+            $commission += (float) ($m['_mandala_partner_commission'] ?? 0);
         }
     }
     // Automata levelek után 7 napon belüli rendelések (az utolsó kapott marketinglevél típusa szerint)
@@ -236,12 +304,16 @@ function mandala_owner_data(int $days = 7, ?int $end = null): array
         $types = array_keys(array_filter(function_exists('mandala_mail_types') ? mandala_mail_types() : [], fn($d) => !empty($d['marketing']) || in_array($d['group'] ?? '', ['Emlékeztetők', 'Értesítések'], true)));
         $in = implode(',', array_map(fn($e) => $wpdb->prepare('%s', $e), $emails));
         $rows = $wpdb->get_results($wpdb->prepare('SELECT recipient, type, created FROM ' . mandala_mail_table() . " WHERE recipient IN ($in) AND status = 'sent' AND created > %s ORDER BY created DESC", gmdate('Y-m-d H:i:s', $start - 7 * DAY_IN_SECONDS))); // phpcs:ignore
+        $by_rcpt = [];
+        foreach ($rows as $r) { // címzettenként, legújabb elöl
+            if (in_array($r->type, $types, true)) {
+                $by_rcpt[strtolower($r->recipient)][] = [strtotime($r->created . ' UTC'), $r->type];
+            }
+        }
         foreach ($orders as $o) {
-            $ts = $o->get_date_created() ? $o->get_date_created()->getTimestamp() : 0;
-            foreach ($rows as $r) {
-                $sent = strtotime($r->created . ' UTC');
-                if (strtolower($r->recipient) === strtolower($o->get_billing_email()) && in_array($r->type, $types, true) && $sent <= $ts && $sent > $ts - 7 * DAY_IN_SECONDS) {
-                    $mail[$r->type] = ['n' => ($mail[$r->type]['n'] ?? 0) + 1, 'revenue' => ($mail[$r->type]['revenue'] ?? 0) + (float) $o->get_total()];
+            foreach ($by_rcpt[$o['email']] ?? [] as [$sent, $type]) {
+                if ($sent <= $o['created'] && $sent > $o['created'] - 7 * DAY_IN_SECONDS) {
+                    $mail[$type] = ['n' => ($mail[$type]['n'] ?? 0) + 1, 'revenue' => ($mail[$type]['revenue'] ?? 0) + $o['total']];
                     break;
                 }
             }
@@ -288,9 +360,9 @@ function mandala_owner_data(int $days = 7, ?int $end = null): array
         $daily[wp_date('Y-m-d', $d)] = ['revenue' => 0.0, 'orders' => 0, 'visitors' => $vis[wp_date('Y-m-d', $d)] ?? 0];
     }
     foreach ($orders as $o) {
-        $k = $o->get_date_created() ? wp_date('Y-m-d', $o->get_date_created()->getTimestamp()) : '';
+        $k = wp_date('Y-m-d', $o['created']);
         if (isset($daily[$k])) {
-            $daily[$k]['revenue'] += (float) $o->get_total() - (float) $o->get_total_refunded();
+            $daily[$k]['revenue'] += $o['total'] - $o['refunded'];
             $daily[$k]['orders']++;
         }
     }
@@ -329,7 +401,8 @@ function mandala_owner_email_html(array $d): string
     $td = 'style="padding:10px 12px;border-bottom:1px solid #EEE7DB"';
     $kpi = fn($label, $value, $delta = '') => '<td style="width:33%;padding:12px;background:#F7F4EE;border-radius:10px;vertical-align:top"><div style="font-size:12px;color:#6E6357;text-transform:uppercase;letter-spacing:.06em">' . esc_html($label) . '</div><div style="font-size:22px;font-weight:600;color:#1C1916;margin-top:4px">' . $value . '</div>' . ($delta !== '' ? '<div style="font-size:13px;color:#6E6357">' . esc_html($delta) . ' az előző héthez</div>' : '') . '</td>';
     $tr = $d['traffic'];
-    $h = '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:8px;margin:0 -8px 8px"><tr>'
+    $h = !empty($d['demo']) ? '<p style="background:#E2B77A;color:#16120F;padding:8px 12px;border-radius:8px;font-size:14px">Bemutató mód: az alábbi számok demóadatok.</p>' : '';
+    $h .= '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:8px;margin:0 -8px 8px"><tr>'
         . $kpi('Bevétel', esc_html(mandala_fmt($d['cur']['revenue'])), $pct($d['cur']['revenue'], $d['prev']['revenue']))
         . $kpi('Rendelés', (string) (int) $d['cur']['orders'], $pct($d['cur']['orders'], $d['prev']['orders']))
         . $kpi('Átlagos kosár', esc_html(mandala_fmt($d['cur']['aov'])), $pct($d['cur']['aov'], $d['prev']['aov'])) . '</tr><tr>'
@@ -385,8 +458,13 @@ function mandala_owner_page(): void
     $days = in_array($days, [7, 30, 90, 365], true) ? $days : 30;
     $d = mandala_owner_data($days);
     $tr = $d['traffic'];
+    $demo = !empty($d['demo']);
     $card = fn($label, $value, $delta = '', $note = '') => '<div class="mo-card"><span class="mo-l">' . esc_html($label) . '</span><strong>' . $value . '</strong>' . $delta . ($note ? '<small>' . esc_html($note) . '</small>' : '') . '</div>';
-    echo '<div class="wrap mandala-owner"><h1>Tulajdonosi kivonat</h1><p class="mo-period">';
+    echo '<div class="wrap mandala-owner"><h1>Tulajdonosi kivonat' . ($demo ? ' <span class="mo-demo">demóadatok</span>' : '') . '</h1>';
+    if ($demo || (function_exists('mandala_showcase_on') && mandala_showcase_on())) {
+        echo '<p class="description">Bemutató mód: ' . ($demo ? 'élethű demóadatok láthatók. <a href="' . esc_url(add_query_arg('adatok', 'valos')) . '">Valós adatok</a>' : 'valós adatok láthatók. <a href="' . esc_url(remove_query_arg('adatok')) . '">Demóadatok</a>') . '</p>';
+    }
+    echo '<p class="mo-period">';
     foreach ([7 => '7 nap', 30 => '30 nap', 90 => '90 nap', 365 => '1 év'] as $n => $l) {
         echo '<a class="button' . ($n === $days ? ' button-primary' : '') . '" href="' . esc_url(add_query_arg('napok', $n)) . '">' . esc_html($l) . '</a> ';
     }
@@ -470,6 +548,6 @@ function mandala_owner_page(): void
         . '.mo-card{background:#fff;border:1px solid #dcdcde;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}.mo-card .mo-l{font-size:12px;color:#646970;text-transform:uppercase;letter-spacing:.05em}.mo-card strong{font-size:22px;line-height:1.2}.mo-card small{color:#646970}'
         . '.d{font-size:12px;font-weight:600}.d.up{color:#2E6A3E}.d.down{color:#b42318}.mo-panel{background:#fff;border:1px solid #dcdcde;border-radius:10px;padding:16px;margin:12px 0}.mo-panel h2{margin-top:0;font-size:15px}'
         . '.mo-chart{width:100%;height:auto}.mo-key{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle}.mo-key-r{background:#A9581A}.mo-key-v{background:#51613F}.mo-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}'
-        . '.mo-funnel{width:100%;border-collapse:collapse}.mo-funnel td{padding:8px 6px;border-bottom:1px solid #f0f0f1}.mo-funnel td:first-child{width:34%}.mo-funnel td:nth-child(2){width:46%}.mo-bar{display:block;height:10px;border-radius:5px;background:#A9581A}.num{text-align:right;white-space:nowrap}'
+        . '.mo-demo{font-size:13px;background:#E2B77A;color:#16120F;padding:3px 10px;border-radius:99px;vertical-align:middle}.mo-funnel{width:100%;border-collapse:collapse}.mo-funnel td{padding:8px 6px;border-bottom:1px solid #f0f0f1}.mo-funnel td:first-child{width:34%}.mo-funnel td:nth-child(2){width:46%}.mo-bar{display:block;height:10px;border-radius:5px;background:#A9581A}.num{text-align:right;white-space:nowrap}'
         . '@media(max-width:1100px){.mo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mo-cols{grid-template-columns:1fr}}</style>';
 }

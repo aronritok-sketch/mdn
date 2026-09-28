@@ -69,21 +69,21 @@ function mandala_report_data(): array
     global $wpdb;
     $now = time();
     $sum = function (int $from, int $to) {
-        $orders = wc_get_orders(['status' => ['processing', 'completed', 'on-hold'], 'date_created' => $from . '...' . $to, 'limit' => -1, 'type' => 'shop_order']);
-        $rev = array_sum(array_map(fn($o) => (float) $o->get_total() - (float) $o->get_total_refunded(), $orders));
+        $orders = mandala_owner_orders($from, $to); // könnyű sorok (owner.php)
+        $rev = array_sum(array_map(fn($o) => $o['total'] - $o['refunded'], $orders));
         return ['orders' => $orders, 'n' => count($orders), 'revenue' => $rev, 'aov' => $orders ? $rev / count($orders) : 0];
     };
     $cur = $sum($now - 7 * DAY_IN_SECONDS, $now);
     $prev = $sum($now - 14 * DAY_IN_SECONDS, $now - 7 * DAY_IN_SECONDS);
     // Tételek és új vásárlók közvetlen SQL-lel (rendelésenkénti lekérdezés helyett – élesben több
     // tízezer rendelésnél a régi megoldás percekig terhelte volna az adatbázist).
-    $cur_ids = array_map(fn($o) => $o->get_id(), $cur['orders']);
+    $cur_ids = array_column($cur['orders'], 'id');
     $top = [];
     foreach (mandala_order_lines($cur_ids) as $line) {
         $top[$line['name']] = ($top[$line['name']] ?? 0) + $line['qty'];
     }
     arsort($top);
-    $emails = array_unique(array_filter(array_map(fn($o) => strtolower($o->get_billing_email()), $cur['orders'])));
+    $emails = array_values(array_unique(array_filter(array_column($cur['orders'], 'email'))));
     $first = mandala_first_order_dates($emails);
     $new_customers = count(array_filter($emails, fn($e) => ($first[$e] ?? 0) >= $now - 7 * DAY_IN_SECONDS));
     // Eladási ütem (30 nap) → hány napra elég a készlet.

@@ -143,6 +143,8 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Előfizetések** | előfizetések listája (kihagyás, szüneteltetés, lemondás) és beállítások: kedvezmény, gyakoriság, előfizethető kategóriák, emlékeztető |
 | WooCommerce → **Partnerek** | partnerprogram: partner felvétele (e-mail, kód, egyedi arányok), kifizetés rögzítése, alapértelmezett kedvezmény / jutalék |
 | WooCommerce → **Kampányok** | szezonális kampányok sablonból (Black Friday, Karácsony, Valentin, Nőnap, Anyák napja, Újév): időszak, felső sáv, főoldali banner, kupon |
+| **Kivonat** (bal menü) | tulajdonosi kivonat: bevétel, konverzió, tölcsér, bevételi források, AI-költség, sebesség; hétfőnként levélben (címzett: Mandala levelek → Beállítások) |
+| Kivonat → **Bemutató mód** | csak dev / teszt oldalon: minden marketingeszköz demóként, minden levél az admin címre; kikapcsoláskor minden visszaáll (ATADAS.md 3b) |
 | WooCommerce → Mandala feedek → **Árukereső Megbízható Bolt** | WebAPI kulcs, hozzájárulás a pénztárban, jelvény (widget) kód |
 | WooCommerce → Mandala bolt adatai → **Bemutatóterem (Google)** | pontos cím, nyitvatartás napokra, koordináták, térkép és Google Cégprofil link (schema.org Store) |
 | WooCommerce → **Visszaküldések** | a vásárlók által online indított visszaküldések; „Megérkezett” / „Lezárva” |

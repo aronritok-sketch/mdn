@@ -49,6 +49,32 @@ magától követte az eladásokat. 40 látogatónál a 4 mag telítődik (~31 k�
 | 14 | Az ajándékutalvány és a vélemény mentésének hibáját nem kezelte a kód (`wp_insert_post` 0-t ad vissza, nem hibát). | Utalványnál végzetes hiba a fizetés utáni lépésben. | Hibakezelés; az utalványnál rendelési jegyzet és újrapróbálható. |
 | 15 | A varázsló 5 percenkénti cront ajánlott. | Eladás után akár 5 percig régi készlet a keresőben. | Percenkénti cron ajánlás (varázsló, wp-config minta, útmutató). |
 
+## Újramérés: minden marketingeszköz bekapcsolva (bemutató mód)
+
+A bemutató mód egyszerre kapcsol be mindent: futó kampány automatikus kuponnal, 8 akciós termék, ajándék
+20 000 Ft felett, 3 csomagkedvezmény, előfizetés, kilépési ablak, értékelések, események, érkező szállítmány,
+partner. Ugyanaz a környezet (4 vCPU, 3034 termék, 5000+ rendelés, gyorsítótár nélkül), 60 mp-es futások:
+
+| Forgalom | Bemutató mód | Kérés / mp | Hiba | p50 | p95 | Rendelés / perc |
+|---|---|---:|---:|---:|---:|---:|
+| 20 látogató + 2 vásárló + 2 robot | ki | 27,1 | 0 % | 656 ms | 1364 ms | 21 |
+| 20 látogató + 2 vásárló + 2 robot | **be** | **27,3** | **0 %** | 651 ms | 1312 ms | 22 |
+| roham: 30 látogató + 10 vásárló | ki | 28,4 | 0 % | 1023 ms | 2362 ms | 82 |
+| roham: 30 látogató + 10 vásárló | **be** | **27,2** | **0 %** | 1042 ms | 2351 ms | **82** |
+
+- A sok bekapcsolt eszköz **nem lassítja** a boltot (a különbség a mérési szórásban van); nincs
+  adatbázis-holtpont, nincs sikertelen háttérfeladat.
+- A terhelés alatt leadott rendelések **mind megkapták a kampánykupont**, a 20 000 Ft felettiek az ajándékot.
+- Oldalanként: főoldal 190 lekérdezés / ~230 ms (korábban 188), kategória ~115, keresés ~145.
+- A 4 mag roham alatt telítődik (~28 kérés/mp) – élesben ezt az oldal-gyorsítótár viszi el (lásd lent).
+
+### Amit ez a kör talált, és a javítás
+
+| # | Probléma | Hatás | Javítás |
+|---|---|---|---|
+| 16 | **A Kivonat és a heti levél minden rendelést teljes objektumként töltött be.** | 1 év (3931 rendelés): **10,4 mp és 594 MB** – egy 256 MB-os tárhelyen az oldal összeomlott volna. | Közvetlen, összesítő lekérdezések (rendelés, visszatérítés, kupon, tétel, meta) – mindkét rendelés-tárolásra (HPOS és régi): **0,29 mp**, a memória a WordPress alapja. Az eredmény forintra azonos. |
+| 17 | A sebességminta két külön írás volt minden 10. kérésnél. | Felesleges írás. | Egy lekérdezés, robotok nélkül. |
+
 ## Ami a szerveren kell (élesítés előtt)
 
 1. **Oldal-gyorsítótár** (LiteSpeed Cache / WP Super Cache) – ez viszi el a nagy forgalmat.
