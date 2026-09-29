@@ -13,8 +13,9 @@
  * Újrafuttatható (a már átvett tételeket felismeri, a rendelések állapotát és a kártyák egyenlegét frissíti),
  * és minden átvett adat egy gombbal törölhető (a próbaátvételhez).
  *
- * A vásárlók jelszava a régi boltból nem hozható át (a WordPress nem adja ki): belépéskor a hibás jelszóra
- * a bolt elmagyarázza, hogy kérjenek újat (Elfelejtett jelszó).
+ * Jelszavak: ha a régi boltban aktív a „Mandala költöztető segéd” bővítmény (wp-plugin/mandala-koltozes), az export a
+ * jelszavak lenyomatát is hozza, és a vásárlók a régi jelszavukkal lépnek be. Nélküle a jelszó nem jöhet át (a
+ * WordPress REST nem adja ki): belépéskor a hibás jelszóra a bolt elmagyarázza, hogy kérjenek újat.
  */
 
 defined('ABSPATH') || exit;
@@ -156,6 +157,22 @@ function mandala_od_quiet(): void
 
 /* ---------- Átvétel: részenként ---------- */
 
+/**
+ * A régi jelszó lenyomata (a régi bolt „Mandala költöztető segéd” bővítményéből): a WordPress ugyanígy ellenőrzi
+ * (phpass, bcrypt, $wp$ formátum), így a vásárló a régi jelszavával lép be. Csak felismert formátumot fogad el.
+ */
+function mandala_od_set_hash(int $user_id, string $hash): bool
+{
+    global $wpdb;
+    if ($hash === '' || strlen($hash) > 255 || !preg_match('/^(\$P\$|\$H\$|\$wp\$|\$2[aby]\$|\$argon2(id?)?\$|[a-f0-9]{32}$)/', $hash)) {
+        return false;
+    }
+    $wpdb->update($wpdb->users, ['user_pass' => $hash, 'user_activation_key' => ''], ['ID' => $user_id]);
+    clean_user_cache($user_id);
+    delete_user_meta($user_id, '_mandala_needs_pw');
+    return true;
+}
+
 function mandala_od_customers(array $items): array
 {
     $res = ['created' => 0, 'matched' => 0, 'skipped' => 0, 'log' => []];
@@ -165,6 +182,11 @@ function mandala_od_customers(array $items): array
         $email = sanitize_email((string) ($c['email'] ?? ''));
         $role = (string) ($c['role'] ?? 'customer');
         if (isset($known[(int) $c['id']])) {
+            // Újrafuttatás a segéd bővítménnyel: a korábban lenyomat nélkül átvett vásárló megkapja a régi jelszavát
+            $uid = $known[(int) $c['id']];
+            if (get_user_meta($uid, MANDALA_OD_FLAG, true) && get_user_meta($uid, '_mandala_needs_pw', true) && mandala_od_set_hash($uid, (string) ($c['pass_hash'] ?? ''))) {
+                $res['passwords'] = ($res['passwords'] ?? 0) + 1;
+            }
             $res['matched']++;
             continue;
         }
@@ -205,7 +227,11 @@ function mandala_od_customers(array $items): array
         }
         update_user_meta($id, '_mandala_old_user_id', (int) $c['id']);
         update_user_meta($id, MANDALA_OD_FLAG, 1);
-        update_user_meta($id, '_mandala_needs_pw', 1);
+        if (mandala_od_set_hash($id, (string) ($c['pass_hash'] ?? ''))) {
+            $res['passwords'] = ($res['passwords'] ?? 0) + 1;
+        } else {
+            update_user_meta($id, '_mandala_needs_pw', 1);
+        }
         $res['created']++;
     }
     return $res;
@@ -842,6 +868,7 @@ function mandala_od_page(): void
         try { data = JSON.parse(await f.text()); } catch (e) { data = null; }
         if (!data || data.kind !== 'mandala-old-data') { $('mod-preview').innerHTML = '<div class="notice notice-error inline"><p>Ez nem a régi bolt adatfájlja (mandala-regi-adatok.json).</p></div>'; $('mod-start').hidden = true; return; }
         const cust = data.customers.filter((c) => !staff.includes(c.role));
+        const withPw = cust.filter((c) => c.pass_hash).length;
         const roles = {}; cust.forEach((c) => { roles[c.role] = (roles[c.role] || 0) + 1; });
         const st = {}; data.orders.forEach((o) => { st[o.status] = (st[o.status] || 0) + 1; });
         const dates = data.orders.map((o) => o.date_created_gmt).filter(Boolean).sort();
@@ -851,7 +878,7 @@ function mandala_od_page(): void
         const row = (part, label, n, extra, checked = true) => `<tr><td><label><input type="checkbox" data-part="${part}" ${checked && n ? 'checked' : ''} ${n ? '' : 'disabled'}> <strong>${label}</strong></label></td><td>${n}</td><td>${extra}</td></tr>`;
         $('mod-preview').innerHTML = `<p>Forrás: <strong>${esc(data.source)}</strong>, export: ${esc(new Date(data.created).toLocaleString('hu-HU'))}${data.errors.length ? ` · <span style="color:#b32d2e">${data.errors.length} hiba az exportban</span>` : ''}</p>
           <table class="widefat striped" style="max-width:900px"><thead><tr><th>Mit</th><th>Darab</th><th>Megjegyzés</th></tr></thead><tbody>
-          ${row('customers', 'Vásárlók', cust.length, esc(Object.entries(roles).map(([k, v]) => `${k}: ${v}`).join(', ')) + ` · a munkatársak (${data.customers.length - cust.length}) kimaradnak · az e-mail alapján már itt lévők megmaradnak · jelszó nem jön át (belépéskor új jelszót kérnek)`)}
+          ${row('customers', 'Vásárlók', cust.length, esc(Object.entries(roles).map(([k, v]) => `${k}: ${v}`).join(', ')) + ` · a munkatársak (${data.customers.length - cust.length}) kimaradnak · az e-mail alapján már itt lévők megmaradnak · ` + (withPw ? `<strong>${withPw} régi jelszó átjön</strong> (költöztető segéd)` : 'jelszó nem jön át – a régi boltba tedd fel a „Mandala költöztető segéd” bővítményt, és exportálj újra (különben belépéskor új jelszót kérnek)'))}
           ${row('orders', 'Rendelések', data.orders.length, esc(`${(dates[0] || '').slice(0, 10)} – ${(dates[dates.length - 1] || '').slice(0, 10)} · ` + Object.entries(st).map(([k, v]) => `${k}: ${v}`).join(', ')) + ' · jegyzetekkel, visszatérítésekkel, régi rendelésszámmal')}
           ${row('coupons', 'Kuponok', data.coupons.length, 'a már létező kódok maradnak')}
           ${row('reviews', 'Termékértékelések', data.reviews.length, 'a jóváhagyottak közzétéve, a függők moderálásra')}
@@ -891,13 +918,13 @@ function mandala_od_page(): void
             $('mod-status').textContent = `${job.label}… (${++i} / ${jobs.length})`;
             const r = await call(job.part, job.items);
             const t = total[job.label] = total[job.label] || { created: 0, updated: 0, matched: 0, skipped: 0 };
-            ['created', 'updated', 'matched', 'skipped'].forEach((k) => { t[k] += r[k] || 0; });
+            ['created', 'updated', 'matched', 'skipped', 'passwords'].forEach((k) => { t[k] = (t[k] || 0) + (r[k] || 0); });
             (r.log || []).forEach(log);
             $('mod-bar').value = Math.round((i / jobs.length) * 100);
           }
           const counts = Object.fromEntries(Object.entries(total).map(([k, v]) => [k, v.created]));
           const fin = await call('finalize', { max_number: nums.length ? Math.max(...nums) : 0, counts });
-          Object.entries(total).forEach(([k, v]) => log(`${k}: ${v.created} átvéve` + (v.updated ? `, ${v.updated} frissítve` : '') + (v.matched ? `, ${v.matched} már itt volt (összekapcsolva)` : '') + (v.skipped ? `, ${v.skipped} kihagyva` : '')));
+          Object.entries(total).forEach(([k, v]) => log(`${k}: ${v.created} átvéve` + (v.updated ? `, ${v.updated} frissítve` : '') + (v.matched ? `, ${v.matched} már itt volt (összekapcsolva)` : '') + (v.skipped ? `, ${v.skipped} kihagyva` : '') + (v.passwords ? `, ${v.passwords} régi jelszóval` : '')));
           (fin.log || []).forEach(log);
           $('mod-status').innerHTML = '<strong>Kész.</strong> A letöltött fájlt töröld a gépedről (személyes adatok vannak benne).';
         } catch (e) {

@@ -6,6 +6,8 @@
 // Ctrl+Shift+J), másold be ezt a teljes szöveget, Enter (Chrome először kérheti: allow pasting).
 // Semmit nem módosít a régi boltban, csak olvas. Pár percig tart (a rendelések jegyzetei rendelésenként
 // külön kérés). A letöltött fájlban a vásárlók személyes adatai vannak: az átvétel után töröld a gépedről.
+// Ha a régi boltban aktív a „Mandala költöztető segéd” bővítmény, a jelszavak lenyomata is átjön (a vásárlók
+// a régi jelszavukkal léphetnek be).
 (async () => {
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;z-index:999999;top:40px;right:20px;background:#1d2327;color:#fff;padding:14px 18px;border-radius:8px;font:14px/1.4 system-ui;max-width:380px;box-shadow:0 4px 16px rgba(0,0,0,.3)';
@@ -49,6 +51,11 @@
       customers: [], orders: [], coupons: [], reviews: [], posts: [], post_categories: [], post_tags: [], pages: [], gift_cards: null, products: {}, product_cats: {}, errors: [] };
 
     out.customers = (await all('customers', { role: 'all', orderby: 'id', order: 'asc' }, 'wc/v3', 'Vásárlók')).map(strip);
+    // A régi jelszavak lenyomata – csak ha a régi boltban aktív a „Mandala költöztető segéd” bővítmény
+    try {
+      const byId = Object.fromEntries((await all('users', {}, 'mandala-migrate/v1')).map((u) => [u.id, u]));
+      out.customers.forEach((c) => { const u = byId[c.id]; if (u && u.pass && String(u.email).toLowerCase() === String(c.email).toLowerCase()) c.pass_hash = u.pass; });
+    } catch (e) { /* nincs segéd bővítmény: a jelszavak nem jönnek át */ }
 
     const orders = await all('orders', { status: 'any', orderby: 'id', order: 'asc' }, 'wc/v3', 'Rendelések');
     let done = 0;
@@ -116,7 +123,7 @@
     a.download = 'mandala-regi-adatok.json';
     document.body.appendChild(a);
     a.click();
-    log(`Kész: ${out.customers.length} felhasználó, ${out.orders.length} rendelés, ${out.coupons.length} kupon, ${out.reviews.length} értékelés, ${out.posts.length} blogbejegyzés, ${out.gift_cards ? out.gift_cards.length : 0} ajándékkártya`
+    log(`Kész: ${out.customers.length} felhasználó (${out.customers.filter((c) => c.pass_hash).length} jelszóval), ${out.orders.length} rendelés, ${out.coupons.length} kupon, ${out.reviews.length} értékelés, ${out.posts.length} blogbejegyzés, ${out.gift_cards ? out.gift_cards.length : 0} ajándékkártya`
       + (out.errors.length ? ` (${out.errors.length} hiba, lásd konzol)` : '') + '. A fájl letöltődött (mandala-regi-adatok.json) – töltsd fel az új boltban: WooCommerce → Régi bolt adatai.');
     if (out.errors.length) console.warn('[Mandala adat-export] hibák:', out.errors);
     window.__mandalaDataExport = out;

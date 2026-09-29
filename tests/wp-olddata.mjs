@@ -30,6 +30,7 @@ const old = JSON.parse(wp(`
   if (!$p->get_sku()) { $p->set_sku("REGI-TESZT-1"); }
   $p->set_manage_stock(true); $p->set_stock_quantity(50); $p->save();
   $u = wp_insert_user(["user_login" => "regivevo", "user_email" => "regi.vevo@example.com", "user_pass" => "regi-jelszo", "role" => "customer", "first_name" => "Réka", "last_name" => "Régi"]);
+  $u2 = wp_insert_user(["user_login" => "regimasik", "user_email" => "regi2@example.com", "user_pass" => "masik-jelszo", "role" => "customer"]);
   update_user_meta($u, "billing_city", "Pécs"); update_user_meta($u, "billing_phone", "+36301112233"); update_user_meta($u, "billing_email", "regi.vevo@example.com");
   $m = wp_insert_user(["user_login" => "regimunkatars", "user_email" => "munkatars@example.com", "user_pass" => "x-Munka-1", "role" => "shop_manager"]);
   $o = wc_create_order(["customer_id" => $u]);
@@ -55,11 +56,16 @@ const old = JSON.parse(wp(`
   $page = wp_insert_post(["post_type" => "page", "post_title" => "Régi rólunk oldal", "post_name" => "regi-rolunk", "post_status" => "publish", "post_content" => "<div class=\\"elementor\\"><p>Ez a régi bolt bemutatkozó oldala, hosszabb szöveggel a vásárlóknak.</p></div>"]);
   $gc1 = wp_insert_post(["post_type" => "gift_card", "post_status" => "publish", "post_title" => "ABCD-1234-EFGH-5678", "meta_input" => ["_ywgc_amount_total" => 10000, "_ywgc_balance_total" => 6500, "_ywgc_expiration" => time() + 200 * DAY_IN_SECONDS, "_ywgc_recipient" => "kapja@example.com"]]);
   $gc2 = wp_insert_post(["post_type" => "gift_card", "post_status" => "publish", "post_title" => "ELHASZ-NALT-0000", "meta_input" => ["_ywgc_amount_total" => 5000, "_ywgc_balance_total" => 0]]);
-  echo wp_json_encode(["p" => $p->get_id(), "sku" => $p->get_sku(), "u" => $u, "m" => $m, "o" => $o->get_id(), "total" => $o->get_total(), "g" => $g->get_id(), "c" => $c->get_id(), "rid" => $rid,
+  echo wp_json_encode(["p" => $p->get_id(), "sku" => $p->get_sku(), "u" => $u, "u2" => $u2, "m" => $m, "o" => $o->get_id(), "total" => $o->get_total(), "g" => $g->get_id(), "c" => $c->get_id(), "rid" => $rid,
     "att" => $att, "url" => $url, "cat" => $cat, "post" => $post, "page" => $page, "gc" => [$gc1, $gc2]]);`));
 ok(old.o > 0 && old.att > 0 && old.post > 0, '„régi bolt” adatok létrehozva', JSON.stringify(old));
 
-// 2. Export a konzolszkripttel
+// 2. Export a konzolszkripttel – a régi boltban a „Mandala költöztető segéd” is aktív (jelszó-lenyomatok)
+const PLUG = wp('echo WP_PLUGIN_DIR;') + '/mandala-koltozes';
+if (!fs.existsSync(PLUG)) fs.symlinkSync(new URL('../wp-plugin/mandala-koltozes', import.meta.url).pathname, PLUG);
+execSync(`${WP} plugin activate mandala-koltozes 2>/dev/null`);
+const anonHash = await fetch(`${BASE}/wp-json/mandala-migrate/v1/users`);
+ok(anonHash.status === 401 || anonHash.status === 403, 'költöztető segéd: bejelentkezés nélkül nem adja ki a lenyomatokat', String(anonHash.status));
 const b = await chromium.launch();
 const page = await (await b.newContext({ acceptDownloads: true })).newPage();
 const errors = [];
@@ -73,6 +79,12 @@ const file = path.join(process.env.TMPDIR || '/tmp', 'mandala-regi-adatok.json')
 await dl.saveAs(file);
 const exp = JSON.parse(fs.readFileSync(file, 'utf8'));
 const eo = exp.orders.find((o) => o.id === old.o);
+const c1 = exp.customers.find((c) => c.id === old.u), c2 = exp.customers.find((c) => c.id === old.u2);
+ok(/^\$/.test(c1?.pass_hash || '') && /^\$/.test(c2?.pass_hash || '') && !exp.customers.some((c) => c.role === 'administrator' && c.pass_hash && !c.email), 'export: a jelszavak lenyomata (segéd bővítménnyel)');
+// A második vásárlónál „nincs lenyomat” (mintha a segéd nélkül exportáltak volna) – az újrafuttatás pótolja
+const hash2 = c2.pass_hash;
+delete c2.pass_hash;
+fs.writeFileSync(file, JSON.stringify(exp));
 ok(exp.kind === 'mandala-old-data' && exp.customers.some((c) => c.email === 'regi.vevo@example.com') && eo && eo.notes.length >= 2 && eo.refund_details?.length === 1, 'export: vásárlók, rendelések jegyzetekkel és visszatérítéssel', JSON.stringify({ n: exp.orders.length, notes: eo?.notes?.length, ref: eo?.refund_details, err: exp.errors }));
 ok(exp.coupons.some((c) => c.code === 'regikupon') && exp.reviews.some((r) => r.reviewer === 'Teszt Elek') && exp.products[old.p]?.sku === old.sku, 'export: kupon, értékelés, termék-cikkszám');
 ok(exp.posts.some((p) => p.slug === 'regi-blogcikk-hangtalak' && p.featured?.url) && exp.pages.some((p) => p.slug === 'regi-rolunk'), 'export: blog kiemelt képpel, oldalak');
@@ -81,7 +93,7 @@ ok(Array.isArray(exp.gift_cards) && exp.gift_cards.length === 2 && exp.gift_card
 // 3. Az „új bolt”: nincs rendelés, a régi vásárló / kupon / értékelés / blog / oldal / kártya nincs meg
 wp(`require_once ABSPATH . "wp-admin/includes/user.php";
   foreach (wc_get_orders(["limit" => -1, "return" => "ids", "type" => "shop_order", "status" => array_keys(wc_get_order_statuses())]) as $id) { $x = wc_get_order($id); foreach ($x->get_refunds() as $r) { $r->delete(true); } $x->delete(true); }
-  wp_delete_user(${old.u}); wp_delete_user(${old.m}); wp_delete_post(${old.c}, true); wp_delete_comment(${old.rid}, true); wp_delete_post(${old.post}, true); wp_delete_post(${old.page}, true);
+  wp_delete_user(${old.u}); wp_delete_user(${old.u2}); wp_delete_user(${old.m}); wp_delete_post(${old.c}, true); wp_delete_comment(${old.rid}, true); wp_delete_post(${old.post}, true); wp_delete_post(${old.page}, true);
   wp_delete_term(${old.cat}, "category"); wp_delete_post(${old.gc[0]}, true); wp_delete_post(${old.gc[1]}, true);`);
 const stock0 = wp(`echo wc_get_product(${old.p})->get_stock_quantity();`);
 const mail0 = mailLen();
@@ -124,7 +136,9 @@ ok(r1.prev.includes('Rendelések') && r1.prev.includes('munkatársak (') && r1.p
 ok(r1.status.includes('Kész'), 'átvétel lefutott', r1.status + ' | ' + r1.log);
 const s = state();
 ok(s.orders === exp.orders.length, 'rendelések: mind átjött', `${s.orders} / ${exp.orders.length}`);
-ok(s.user && s.user.city === 'Pécs' && s.user.pw === 1 && s.user.role === 'customer' && !s.staff, 'vásárló: címadatokkal, új jelszót kell kérnie; a munkatárs nem jött át', JSON.stringify({ u: s.user, staff: s.staff }));
+ok(s.user && s.user.city === 'Pécs' && s.user.pw === 0 && s.user.role === 'customer' && !s.staff, 'vásárló: címadatokkal; a munkatárs nem jött át', JSON.stringify({ u: s.user, staff: s.staff }));
+const signon = (login, pass) => wp(`$r = wp_signon(["user_login" => "${login}", "user_password" => "${pass}"], false); echo is_wp_error($r) ? $r->get_error_message() : "ok";`);
+ok(signon('regi.vevo@example.com', 'regi-jelszo') === 'ok', 'vásárló: a RÉGI jelszavával be tud lépni az új boltba');
 ok(s.o && s.o.number === String(old.o) && s.o.id !== old.o && s.o.status === 'completed' && s.o.total === old.total && s.o.customer === s.user?.id, 'rendelés: régi rendelésszám, állapot, végösszeg, vásárlóhoz kötve', JSON.stringify(s.o));
 ok(s.o && s.o.items.length === 1 && s.o.items[0][1] === old.p && s.o.items[0][2] === 2 && Number(s.o.ship) === 1116 && s.o.fees === 1 && s.o.city === 'Pécs', 'rendelés: tétel a termékhez kötve (cikkszám), szállítás, díj, cím', JSON.stringify({ items: s.o?.items, ship: s.o?.ship, fees: s.o?.fees, city: s.o?.city, p: old.p }));
 ok(s.o && s.o.created === Math.floor(Date.parse('2025-03-14T10:20:00Z') / 1000) && s.o.note === 'Kérem délután hozzák.' && Number(s.o.refunded) === 500, 'rendelés: eredeti dátum, vásárlói megjegyzés, visszatérítés');
@@ -138,11 +152,12 @@ ok(s.post && s.post.status === 'publish' && s.post.cats.includes('regi-hirek') &
 ok(s.post && !s.post.content.includes(old.url) && /wp-content\/uploads\/[^"]+\.webp/.test(s.post.content) && !s.post.content.includes(`wp-image-${old.att}`) && !s.post.content.includes(`"id":${old.att}`), 'blog: a beágyazott kép letöltve, a hivatkozás átírva', s.post?.content);
 ok(s.page === 'draft', 'hiányzó oldal: tervezetként', String(s.page));
 ok(s.voucher && s.voucher.balance === 6500 && s.voucher.value === 10000 && /^\d{4}-\d\d-\d\d$/.test(s.voucher.expires) && !s.voucher0, 'ajándékkártya: egyenleggel, lejárattal; az elhasznált nem jön át', JSON.stringify(s.voucher));
-const login = wp('$r = wp_signon(["user_login" => "regi.vevo@example.com", "user_password" => "rossz-jelszo"], false); echo is_wp_error($r) ? $r->get_error_message() : "ok";');
-ok(login.includes('Új webáruházba költöztünk') && login.includes('jelszót'), 'belépés régi jelszóval: magyarázat + új jelszó kérése', login);
+const login = signon('regi2@example.com', 'masik-jelszo');
+ok(login.includes('Új webáruházba költöztünk') && login.includes('jelszót'), 'lenyomat nélkül átvett vásárló: magyarázat + új jelszó kérése', login);
 
 // 5. Újrafuttatás (az élesítés napján): nincs duplikáció; állapot és egyenleg frissül, levél nélkül
 const exp2 = JSON.parse(fs.readFileSync(file, 'utf8'));
+exp2.customers.find((c) => c.id === old.u2).pass_hash = hash2;
 exp2.orders.find((o) => o.id === old.g).status = 'completed';
 exp2.gift_cards.find((c) => c.code === 'ABCD-1234-EFGH-5678').meta._ywgc_balance_total = '4000';
 const file2 = file.replace('.json', '-2.json');
@@ -150,6 +165,7 @@ fs.writeFileSync(file2, JSON.stringify(exp2));
 const r2 = await runImport(file2);
 const s2 = state();
 ok(r2.status.includes('Kész') && s2.orders === exp.orders.length && /Rendelések: 0 átvéve/.test(r2.log), 'újrafuttatás: nincs duplikáció', r2.log.slice(0, 400));
+ok(signon('regi2@example.com', 'masik-jelszo') === 'ok', 'újrafuttatás a segéddel: a korábban jelszó nélkül átvett vásárló is a régi jelszavával lép be');
 ok(s2.g?.status === 'completed' && s2.voucher?.balance === 4000 && mailLen() === mail0, 'újrafuttatás: az állapot és a kártyaegyenleg frissül, levél nélkül', JSON.stringify({ g: s2.g?.status, v: s2.voucher, mail: mailLen() - mail0 }));
 
 // 6. Törlés
@@ -164,6 +180,8 @@ ok(errors.length === 0, 'nincs JS hiba', errors.join(' | '));
 await b.close();
 wp(`wp_delete_attachment(${old.att}, true);`);
 fs.unlinkSync(MU);
+execSync(`${WP} plugin deactivate mandala-koltozes 2>/dev/null`);
+if (fs.lstatSync(PLUG).isSymbolicLink()) fs.unlinkSync(PLUG);
 fs.unlinkSync(file);
 fs.unlinkSync(file2);
 console.log(`\n${fails ? fails + ' HIBA' : 'Minden rendben.'}`);

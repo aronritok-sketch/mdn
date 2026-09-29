@@ -777,11 +777,26 @@ def build_wizard():
     print(f'{WIZARD.relative_to(ROOT)}  {WIZARD.stat().st_size / 1024:.0f} KB')
 
 
+MOVER = ROOT / 'dist' / 'mandala-koltozes-segito.zip'
+
+
+def build_mover():
+    """A régi boltba szánt költöztető segéd (a jelszó-lenyomatokat adja ki az adat-exportnak)."""
+    src = ROOT / 'wp-plugin/mandala-koltozes'
+    with zipfile.ZipFile(MOVER, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(src.rglob('*')):
+            if f.is_file() and f.name != '.DS_Store':
+                z.write(f, Path('mandala-koltozes') / f.relative_to(src))
+    print(f'{MOVER.relative_to(ROOT)}  {MOVER.stat().st_size / 1024:.0f} KB')
+
+
 def build_package():
     """Telepítő csomag: a téma zip, a telepítési útmutató, a munkafolyamat és a wp-config kiegészítés."""
     files = {
         'mandala-telepito-varazslo.zip': WIZARD,
         'mandala-tema.zip': DIST,
+        'mandala-koltozes-segito.zip': MOVER,
+        'ATALLAS.md': ROOT / 'docs/ATALLAS.md',
         'TELEPITES.md': ROOT / 'docs/TELEPITES.md',
         'UJ-TERMEKEK.md': ROOT / 'docs/UJ-TERMEKEK.md',
         'TERHELESI-TESZT.md': ROOT / 'docs/TERHELESI-TESZT.md',
@@ -806,4 +821,5 @@ if __name__ == '__main__':
         print('blokk-markup: változatlan (újragenerálás: --content, utána dev/canon.mjs)')
     build_zip()
     build_wizard()
+    build_mover()
     build_package()

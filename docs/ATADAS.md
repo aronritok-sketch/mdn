@@ -47,7 +47,8 @@ a Claude (AI) funkciókhoz Anthropic API-kulcs.
    A fájlt a böngésző olvassa be és adagokban küldi (nincs feltöltési korlát, nem marad a szerveren).
    **Újrafuttatható:** próbaként most, majd az élesítés napján (a régi bolt lezárása után) még egyszer – az addigi
    új rendeléseket, az állapotváltozásokat és a kártyák egyenlegét hozza át, duplikáció nélkül. Próba után az
-   „Átvett adatok törlése” mindent visszavon. A jelszavak nem jöhetnek át (a WordPress nem adja ki őket): a régi
+   „Átvett adatok törlése” mindent visszavon. A jelszavak a régi boltba feltett **költöztető segéd**
+   bővítménnyel jönnek át (dist/mandala-koltozes-segito.zip – csak adminnak, csak olvas, utána törlendő); nélküle a régi
    jelszóval belépő vásárló magyarázatot és „Kérj új jelszót” linket kap. Az új rendelések száma a régiek fölött
    folytatódik. Utána: WooCommerce → Analytics → „Előzmények importálása”.
 5. Beállítások az adminban: [TELEPITES.md 4. pont](TELEPITES.md) – táblázat, sorrendben.

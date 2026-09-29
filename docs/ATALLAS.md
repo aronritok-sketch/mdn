@@ -27,11 +27,14 @@ A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a
    - átnézni: a régi WPCode Lite kódrészletei – mit csinálnak (ezt csak az adminban látni).
 9. ☐ **Kulcsok:** Árukereső Megbízható Bolt, Meta pixel + CAPI (a Claude-kulcs megvan).
 10. ☐ **Termékek:** 102 termék Claude-besorolása; a jóváhagyási sor átnézése.
-11. ☐ **Próbaátvétel** (WooCommerce → Régi bolt adatai): export a régi admin konzoljából, feltöltés, átvétel.
+11. ☐ **Költöztető segéd a RÉGI boltba** (mandala-koltozes-segito.zip → régi admin: Bővítmények → Új → Feltöltés →
+    Bekapcsolás). Csak adminnak, csak olvas: a jelszavak lenyomatát adja az exportnak, így a vásárlók a **régi
+    jelszavukkal** lépnek be az új boltba. A költözés után töröld.
+12. ☐ **Próbaátvétel** (WooCommerce → Régi bolt adatai): export a régi admin konzoljából, feltöltés, átvétel.
     Vásárlók, rendelések (régi rendelésszámmal), kuponok, értékelések, blog képekkel, hiányzó oldalak tervezetként,
     ajándékkártyák. Levél nem megy ki. Nézz át néhány rendelést, vásárlót, blogcikket; a tervezet oldalakból
     tedd közzé, ami kell. (Ha valami nem stimmel: „Átvett adatok törlése”, javítás, újra.)
-12. ☐ **A telepítő varázsló 8 próbája** (Próbarendelések lépés): kártyás (Teya) és utánvétes rendelés GLS CsomagPontra,
+13. ☐ **A telepítő varázsló 8 próbája** (Próbarendelések lépés): kártyás (Teya) és utánvétes rendelés GLS CsomagPontra,
     átutalás (ha bekapcsolod), Számlázz.hu számla, GLS csomagszám + „Feladtuk” levél, mobilos vásárlás, hírlevél-
     feliratkozás, AI tanácsadó. Pluszban: egy átvett régi YITH ajándékkártya kódjának beváltása a pénztárban.
 
@@ -53,7 +56,8 @@ A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a
    - régi vásárló belépése: magyarázatot kap, új jelszót kér, a régi rendelései látszanak;
    - a varázsló önellenőrzése zöld.
 7. ☐ **Statisztika:** WooCommerce → Analytics → Beállítások → „Előzmények importálása”.
-8. ☐ **Takarítás:** a letöltött JSON-fájlok törlése a gépről (személyes adatok, fizetési kulcsok); a
+8. ☐ **Takarítás:** a letöltött JSON-fájlok törlése a gépről (személyes adatok, jelszó-lenyomatok, fizetési kulcsok);
+   a költöztető segéd törlése a régi boltból; a
    `claude-ellenorzes` felhasználó törlése mindkét boltban.
 
 ## C) Utána (1–2 hét)
@@ -63,6 +67,7 @@ A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a
 
 ## Amit a régi boltból nem lehet áthozni
 
-- **Jelszavak** (a WordPress nem adja ki): a régi jelszóval belépő vásárló magyarázatot és új jelszó linket kap.
+- **Jelszavak – csak a költöztető segéddel jönnek át** (A/11). Nélküle a régi jelszóval belépő vásárló magyarázatot és
+  új jelszó linket kap.
 - **Munkatársi fiókok:** szándékosan kimaradnak – az új boltban kell létrehozni őket.
 - **Régi bővítmények saját adatai** (pl. Booking Calendar foglalásai, WPCode kódrészletek): külön kell átnézni.
