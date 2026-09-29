@@ -21,6 +21,12 @@ const MU = wp('echo WPMU_PLUGIN_DIR;') + '/zz-test-olddata.php';
 fs.writeFileSync(MU, `<?php
 add_action('init', fn() => register_post_type('gift_card', ['public' => false, 'can_export' => true, 'label' => 'Gift cards']));
 add_filter('http_request_host_is_external', '__return_true');
+// Egy „beragadó” rendelés: a jegyzeteire a szerver nem válaszol időben (mint a túlterhelt régi bolt)
+add_filter('rest_pre_dispatch', function ($r, $server, $req) {
+    $hang = (int) get_option('mandala_test_hang_order');
+    if ($hang && $req->get_route() === '/wc/v3/orders/' . $hang . '/notes') { sleep(6); }
+    return $r;
+}, 10, 3);
 add_filter('http_request_args', function ($a) { $a['reject_unsafe_urls'] = false; return $a; });
 `);
 
@@ -74,11 +80,15 @@ await page.goto(`${BASE}/wp-login.php`);
 await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'admin');
 await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
 await page.goto(`${BASE}/wp-admin/`, { waitUntil: 'networkidle' });
+wp(`update_option("mandala_test_hang_order", ${old.g});`);
+await page.evaluate(() => { window.__mandalaExportTimeout = 4000; });
 const [dl] = await Promise.all([page.waitForEvent('download', { timeout: Number(process.env.TIMEOUT || 240000) }), page.evaluate(SCRIPT)]);
 const file = path.join(process.env.TMPDIR || '/tmp', 'mandala-regi-adatok.json');
 await dl.saveAs(file);
 const exp = JSON.parse(fs.readFileSync(file, 'utf8'));
 const eo = exp.orders.find((o) => o.id === old.o);
+wp('delete_option("mandala_test_hang_order");');
+ok(exp.orders.find((o) => o.id === old.g)?.notes_error === true && exp.errors.some((e) => e.includes('időtúllépés')), 'export: a válasz nélkül maradó kérés nem akasztja meg (időkorlát, újrapróbálás, kihagyás)', JSON.stringify(exp.errors));
 const c1 = exp.customers.find((c) => c.id === old.u), c2 = exp.customers.find((c) => c.id === old.u2);
 ok(/^\$/.test(c1?.pass_hash || '') && /^\$/.test(c2?.pass_hash || '') && !exp.customers.some((c) => c.role === 'administrator' && c.pass_hash && !c.email), 'export: a jelszavak lenyomata (segéd bővítménnyel)');
 // A második vásárlónál „nincs lenyomat” (mintha a segéd nélkül exportáltak volna) – az újrafuttatás pótolja

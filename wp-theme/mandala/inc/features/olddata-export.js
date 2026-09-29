@@ -21,13 +21,32 @@
     ajax.searchParams.set('action', 'rest-nonce');
     const nonce = (await (await fetch(ajax, { credentials: 'same-origin' })).text()).trim();
     if (!/^[a-f0-9]{10}$/.test(nonce)) throw new Error('Nem vagy belépve adminként (vagy a REST API tiltva van). Lépj be a wp-adminba, és ott futtasd.');
+    // Minden kérésnek időkorlátja van: egy válasz nélkül maradt kérés (túlterhelt szerver, tűzfal) nem akaszthatja meg
+    // az egészet – lejárat után újra, végül kihagyva (a hiba a végén látszik).
+    const TIMEOUT = Number(window.__mandalaExportTimeout || 30000);
+    const fetchT = async (url, opts = {}, ms = TIMEOUT, read = 'json') => {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      try {
+        const r = await fetch(url, { ...opts, signal: ctl.signal });
+        return { r, body: r.ok ? await (read === 'json' ? r.json() : r.text()) : null };
+      } finally {
+        clearTimeout(timer);
+      }
+    };
     const get = async (path, params = {}, base = 'wc/v3', tries = 4) => {
       const url = new URL(`${root}/${base}/${path}`);
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
       for (let attempt = 1; ; attempt++) {
-        const r = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce } });
-        if (r.ok) return { data: await r.json(), pages: Number(r.headers.get('X-WP-TotalPages') || 1) };
-        if (attempt >= tries || r.status === 403 || r.status === 404 || r.status === 400) throw new Error(`${path}: HTTP ${r.status}`);
+        let status = 0;
+        try {
+          const { r, body } = await fetchT(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce } });
+          if (r.ok) return { data: body, pages: Number(r.headers.get('X-WP-TotalPages') || 1) };
+          status = r.status;
+        } catch (e) {
+          status = e.name === 'AbortError' ? 'időtúllépés' : 'hálózati hiba';
+        }
+        if (attempt >= tries || status === 403 || status === 404 || status === 400) throw new Error(`${path}: ${typeof status === 'number' ? 'HTTP ' + status : status}`);
         await new Promise((res) => setTimeout(res, 1500 * attempt));
       }
     };
@@ -59,16 +78,18 @@
 
     const orders = await all('orders', { status: 'any', orderby: 'id', order: 'asc' }, 'wc/v3', 'Rendelések');
     let done = 0;
-    await pool(orders, 6, async (o) => {
+    await pool(orders, 4, async (o) => {
       strip(o);
       try { o.notes = (await get(`orders/${o.id}/notes`, { type: 'any' })).data.map((n) => ({ id: n.id, date_created_gmt: n.date_created_gmt, note: n.note, customer_note: n.customer_note, author: n.author })); }
-      catch (e) { o.notes = []; out.errors.push(String(e.message)); }
+      catch (e) { o.notes = []; o.notes_error = true; out.errors.push(String(e.message)); }
       if ((o.refunds || []).length) {
         try { o.refund_details = (await get(`orders/${o.id}/refunds`)).data.map((r) => ({ id: r.id, date_created_gmt: r.date_created_gmt, amount: r.amount, reason: r.reason, refunded_payment: r.refunded_payment })); }
         catch (e) { out.errors.push(String(e.message)); }
       }
-      if (++done % 25 === 0) log(`Rendelések jegyzetei: ${done} / ${orders.length}…`);
+      if (++done % 25 === 0 || done === orders.length) log(`Rendelések jegyzetei: ${done} / ${orders.length}…`);
     });
+    const noteErrors = orders.filter((o) => o.notes_error).length;
+    if (noteErrors) log(`Rendelések jegyzetei: kész – ${noteErrors} rendelés jegyzeteit a régi bolt nem adta ki (a rendelés maga átjön).`);
     out.orders = orders;
 
     log('Kuponok, értékelések…');
@@ -109,8 +130,8 @@
     // minden adatukat kiadja – ugyanazzal a belépéssel, csak olvasva.
     log('Ajándékkártyák…');
     try {
-      const r = await fetch(`${adminBase}export.php?download=true&content=gift_card`, { credentials: 'same-origin' });
-      const xml = new DOMParser().parseFromString(await r.text(), 'text/xml');
+      const { body: wxr } = await fetchT(`${adminBase}export.php?download=true&content=gift_card`, { credentials: 'same-origin' }, Math.max(TIMEOUT, 120000), 'text');
+      const xml = new DOMParser().parseFromString(wxr || '', 'text/xml');
       const txt = (el, tag) => el.getElementsByTagName(tag)[0]?.textContent ?? '';
       const items = [...xml.getElementsByTagName('item')].filter((it) => txt(it, 'wp:post_type') === 'gift_card');
       out.gift_cards = items.map((it) => ({ id: Number(txt(it, 'wp:post_id')), code: txt(it, 'title'), status: txt(it, 'wp:status'), date_gmt: txt(it, 'wp:post_date_gmt'),
