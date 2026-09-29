@@ -1,12 +1,14 @@
-# Átállás: a dev (új bolt) költözik a mandala.hu-ra
+# Átállás: az új bolt költözik a mandala.hu-ra
 
-Döntés: az új bolt (dev.otletoldal.hu/Arih/Mandala) megy át a mandala.hu címre, a régi bolt adatait áthozzuk.
+Döntés: az új bolt (most: mandala.hu/new/) megy át a mandala.hu címre, a régi bolt adatait áthozzuk.
 A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a menüpontot írjuk.
 
 ## A) Előkészítés a devben (napokkal előtte)
 
-1. ☐ **Új téma és varázsló feltöltése** (mandala-tema.zip, mandala-telepito-varazslo.zip): Megjelenés → Témák →
-   Új hozzáadása → Feltöltés → Csere a feltöltöttre; a bővítménynél ugyanígy.
+1. ☐ **Új téma feltöltése** (mandala-tema.zip): Megjelenés → Témák → Új hozzáadása → Téma feltöltése →
+   **Csere a feltöltöttre** (a WordPress mutatja: telepítve 1.0.0 → feltöltött 1.1.…). Ellenőrzés: a WooCommerce
+   menüben megjelenik a „Régi bolt adatai”. (Vagy: az új varázsló-zip feltöltése bővítményként, cserével, és a
+   „Téma frissítése most” gomb.)
 2. ☐ **Régi bolt beállításai újra** (WooCommerce → Régi bolt beállításai): export a régi admin konzoljából, feltöltés,
    átvétel. Most már hozza az utánvét szállítási módjait (MPL-lel is), a 390 Ft utánvéti díjat (a téma számolja,
    a címből kikerül), a jogi oldalakat, és a Teya visszatérési címeit az új pénztárra (/penztar/) írja.
@@ -45,7 +47,7 @@ A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a
    hozza (új rendelések, állapotok, jegyzetek, kártyaegyenlegek), duplikáció nélkül.
 3. ☐ **Készlet:** friss készlet a JUTA-importtal (vagy a régi bolt termékexportjából).
 4. ☐ **Költöztetés a mandala.hu-ra** (tárhely / fejlesztő): fájlok + adatbázis másolása, a címek cseréje
-   (`wp search-replace 'https://dev.otletoldal.hu/Arih/Mandala' 'https://mandala.hu'` – sorosított adatokkal is),
+   (`wp search-replace 'https://mandala.hu/new' 'https://mandala.hu'` (vagy a dev címéről, ha onnan költözik) – sorosított adatokkal is),
    SSL, DNS. A régi bolt maradjon elérhető egy alcímen (pl. regi.mandala.hu) jelszóval, archívumnak.
 5. ☐ **Keresők engedélyezése** (Beállítások → Olvasás), Search Console: webhelytérkép beküldése.
 6. ☐ **Ellenőrzés élesben:**

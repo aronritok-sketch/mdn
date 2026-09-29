@@ -114,7 +114,8 @@ function mandala_oldset_plan(array $d): array
         }
         $here = array_map(fn($f) => dirname($f), array_keys(get_plugins()));
         foreach ((array) $d['plugins'] as $p) {
-            if (($p['status'] ?? '') === 'active' && !in_array(dirname((string) $p['plugin']), $here, true)) {
+            // A költöztető segéd csak a régi boltba kell – itt nem hiányzik
+            if (($p['status'] ?? '') === 'active' && !in_array(dirname((string) $p['plugin']), $here, true) && dirname((string) $p['plugin']) !== 'mandala-koltozes') {
                 $plan['plugins_missing'][] = (string) $p['name'];
             }
         }

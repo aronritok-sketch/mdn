@@ -46,6 +46,26 @@ function mandala_wiz_bundled_theme(): string
 {
     return __DIR__ . '/theme/mandala-tema.zip';
 }
+/** A varázslóba csomagolt téma verziója (a build írja). */
+function mandala_wiz_bundled_version(): string
+{
+    $f = __DIR__ . '/theme/version.txt';
+    return is_readable($f) ? trim((string) file_get_contents($f)) : '';
+}
+/** A varázslóban újabb téma van, mint a telepített – egy kattintással frissíthető. */
+function mandala_wiz_theme_outdated(): bool
+{
+    $t = wp_get_theme('mandala');
+    $b = mandala_wiz_bundled_version();
+    return $t->exists() && $b !== '' && is_readable(mandala_wiz_bundled_theme()) && version_compare($b, (string) $t->get('Version'), '>');
+}
+add_action('admin_notices', function () {
+    if (current_user_can('install_themes') && mandala_wiz_theme_outdated() && ($_GET['page'] ?? '') !== 'mandala-varazslo') {
+        echo '<div class="notice notice-warning"><p><strong>Újabb Mandala téma érhető el</strong> (telepítve: ' . esc_html((string) wp_get_theme('mandala')->get('Version'))
+            . ', a varázslóban: ' . esc_html(mandala_wiz_bundled_version()) . '). A frissítés a beállításokat és a tartalmat nem érinti.</p><p>'
+            . mandala_wiz_button('update_theme', 'Téma frissítése most') . '</p></div>';
+    }
+});
 
 /* ---------- Bővítmények ---------- */
 
@@ -389,6 +409,16 @@ add_action('admin_post_mandala_wizard', function () {
                 switch_theme('mandala');
                 $msg = ['success', 'A Mandala téma telepítve és bekapcsolva. A telepítő az első admin-betöltéskor elindul (élő boltban megerősítést kér – lásd „Mandala telepítő” lépés).'];
                 break;
+            case 'update_theme':
+                require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+                $ok = (new Theme_Upgrader(new Automatic_Upgrader_Skin()))->install(mandala_wiz_bundled_theme(), ['overwrite_package' => true]);
+                if (is_wp_error($ok) || !$ok) {
+                    throw new RuntimeException('A téma frissítése nem sikerült' . (is_wp_error($ok) ? ': ' . $ok->get_error_message() : '') . '. Megjelenés → Témák → Új hozzáadása → Feltöltés: mandala-tema.zip → Csere a feltöltöttre.');
+                }
+                wp_clean_themes_cache();
+                $msg = ['success', 'A Mandala téma frissítve (' . mandala_wiz_bundled_version() . ').'];
+                break;
             case 'keys':
                 if (!defined('MANDALA_ANTHROPIC_API_KEY') && trim((string) ($_POST['anthropic'] ?? '')) !== '') {
                     $ai = (array) get_option('mandala_ai', []);
@@ -671,7 +701,10 @@ function mandala_wiz_step_theme(): void
     echo '<ul class="wiz-rows">'
         . mandala_wiz_row($parent, 'iu_theme szülőtéma', 'Az iu_theme keretrendszert töltsd fel: Megjelenés → Témák → Új hozzáadása → Feltöltés (nem kell bekapcsolni).', mandala_wiz_link(admin_url('theme-install.php?upload'), 'Téma feltöltése'))
         . mandala_wiz_row(function_exists('iucb_add_block'), 'iu_custom_blocks (a keretrendszer blokkjai)', 'Az iu_theme csomagjában lévő mu-plugin – a tárhely wp-content/mu-plugins mappájába kell tenni. Nélküle a blokkok tartalék módban működnek.')
-        . mandala_wiz_row(mandala_wiz_theme(), 'Mandala téma', $child ? 'Telepítve, de nincs bekapcsolva.' : 'A varázslóba csomagolt téma telepítése és bekapcsolása.', $parent ? mandala_wiz_button('install_theme', $child ? 'Bekapcsolás' : 'Telepítés és bekapcsolás') : '')
+        . mandala_wiz_row(mandala_wiz_theme() && !mandala_wiz_theme_outdated(), 'Mandala téma',
+            mandala_wiz_theme_outdated() ? 'Újabb változat van a varázslóban (' . esc_html(mandala_wiz_bundled_version()) . ', telepítve: ' . esc_html((string) wp_get_theme('mandala')->get('Version')) . ').'
+                : ($child ? (mandala_wiz_theme() ? 'Telepítve és bekapcsolva (' . esc_html((string) wp_get_theme('mandala')->get('Version')) . ').' : 'Telepítve, de nincs bekapcsolva.') : 'A varázslóba csomagolt téma telepítése és bekapcsolása.'),
+            mandala_wiz_theme_outdated() ? mandala_wiz_button('update_theme', 'Téma frissítése') : ($parent && !mandala_wiz_theme() ? mandala_wiz_button('install_theme', $child ? 'Bekapcsolás' : 'Telepítés és bekapcsolás') : ''))
         . '</ul><p class="description">Élő boltban a téma bekapcsolásakor a telepítő nem fut le magától: a „Mandala telepítő” lépésben nézed át és indítod.</p>';
 }
 

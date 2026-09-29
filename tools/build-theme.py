@@ -751,6 +751,16 @@ def build_content():
 
 # ---------------------------------------------------------------------------
 
+# Minden build saját verziót kap (1.1.ÉÉÉÉHHNNÓÓPP): a WordPress így felismeri és felkínálja a cserét a feltöltéskor,
+# a varázsló pedig azt, hogy nála újabb téma van, mint a telepített.
+import datetime
+BUILD_VERSION = '1.1.' + datetime.datetime.now().strftime('%Y%m%d%H%M')
+
+
+def stamp_version(text: str) -> str:
+    return re.sub(r'(?m)^(\s*\*?\s*Version:\s*)[\w.\-]+', lambda m: m.group(1) + BUILD_VERSION, text, count=1)
+
+
 def build_zip():
     DIST.parent.mkdir(exist_ok=True)
     skip = {'src', 'node_modules', '.DS_Store'}
@@ -758,8 +768,11 @@ def build_zip():
         for f in sorted(THEME.rglob('*')):
             rel = f.relative_to(THEME)
             if f.is_file() and not (set(rel.parts) & skip):
-                z.write(f, Path('mandala') / rel)
-    print(f'{DIST.relative_to(ROOT)}  {DIST.stat().st_size / 1024:.0f} KB')
+                if rel.as_posix() == 'style.css':
+                    z.writestr(str(Path('mandala') / rel), stamp_version(f.read_text(encoding='utf-8')))
+                else:
+                    z.write(f, Path('mandala') / rel)
+    print(f'{DIST.relative_to(ROOT)}  {DIST.stat().st_size / 1024:.0f} KB  (verzió: {BUILD_VERSION})')
 
 
 PACKAGE = ROOT / 'dist' / 'mandala-telepito-csomag.zip'
@@ -772,8 +785,12 @@ def build_wizard():
     with zipfile.ZipFile(WIZARD, 'w', zipfile.ZIP_DEFLATED) as z:
         for f in sorted(src.rglob('*')):
             if f.is_file() and f.name != '.DS_Store' and 'theme' not in f.relative_to(src).parts:
-                z.write(f, Path('mandala-telepito') / f.relative_to(src))
+                if f.name == 'mandala-telepito.php':
+                    z.writestr(str(Path('mandala-telepito') / f.relative_to(src)), stamp_version(f.read_text(encoding='utf-8')))
+                else:
+                    z.write(f, Path('mandala-telepito') / f.relative_to(src))
         z.write(DIST, Path('mandala-telepito/theme/mandala-tema.zip'))
+        z.writestr('mandala-telepito/theme/version.txt', BUILD_VERSION)
     print(f'{WIZARD.relative_to(ROOT)}  {WIZARD.stat().st_size / 1024:.0f} KB')
 
 
