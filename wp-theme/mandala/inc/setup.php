@@ -443,8 +443,11 @@ final class Mandala_Setup
                 $ours = $manifest["page:{$slug}"] ?? null;
                 // Friss telepítés: a WordPress/WooCommerce angol alapoldalai (blokkos kosár és
                 // pénztár) helyett a mieink – a skill szerint klasszikus pénztár kell.
-                $defaults = ['Shop', 'Cart', 'Checkout', 'My account', 'Privacy Policy', 'Refund and Returns Policy'];
-                if (!$ours && (in_array($existing->post_title, $defaults, true) || str_contains($existing->post_content, '<!-- wp:woocommerce/'))) {
+                $defaults = ['Shop', 'Cart', 'Checkout', 'My account', 'Privacy Policy', 'Refund and Returns Policy',
+                    'Adatvédelmi irányelvek', 'Adatkezelési irányelvek', 'Visszatérítési és visszaküldési szabályzat'];
+                // A WordPress magyar alap-adatvédelmi oldala vázlatként jön létre: a menü linkje így 404-re vitt
+                if (!$ours && (in_array($existing->post_title, $defaults, true) || str_contains($existing->post_content, '<!-- wp:woocommerce/')
+                    || ($role === 'wp_page_for_privacy_policy' && $existing->post_status !== 'publish'))) {
                     wp_update_post(wp_slash(['ID' => $id, 'post_title' => $title, 'post_name' => $slug, 'post_content' => $content, 'post_status' => 'publish']));
                     $manifest["page:{$slug}"] = md5($content);
                     $existing = get_post($id);

@@ -22,6 +22,9 @@ const MANDALA_OLDSET_BACKUP = 'mandala_oldset_backup';
 function mandala_oldset_parse(string $json)
 {
     $d = json_decode($json, true);
+    if (is_array($d) && (int) ($d['v'] ?? 0) === 1 && !empty($d['legal']) && !isset($d['gateways'])) { // csak a jogi oldalak
+        return $d + ['wc' => [], 'gateways' => [], 'zones' => []];
+    }
     if (!is_array($d) || (int) ($d['v'] ?? 0) !== 1 || !isset($d['wc'], $d['gateways'], $d['zones'])) {
         return new WP_Error('mandala_oldset', 'Ez nem a régi bolt beállítás-exportja (mandala-regi-beallitasok.json).');
     }
@@ -236,7 +239,7 @@ function mandala_oldset_apply(array $d, array $parts): array
     }
     $map = [];
     // Szállítási zónák
-    if (in_array('zones', $parts, true)) {
+    if (in_array('zones', $parts, true) && !empty($d['zones'])) {
         $backup['zones'] = mandala_oldset_zones_export();
         $res = mandala_oldset_zones_import((array) $d['zones']);
         $map = $res['map'];
@@ -348,7 +351,12 @@ function mandala_oldset_apply(array $d, array $parts): array
             if ($t['id']) {
                 $post = get_post($t['id']);
                 $backup['posts'][$t['id']] = ['post_title' => $post->post_title, 'post_content' => $post->post_content, 'post_status' => $post->post_status];
-                wp_update_post(['ID' => $t['id'], 'post_title' => $t['title'], 'post_content' => $content, 'post_status' => 'publish']);
+                $upd = ['ID' => $t['id'], 'post_title' => $t['title'], 'post_content' => $content, 'post_status' => 'publish'];
+                if ($post->post_status !== 'publish' && $t['slug'] !== '' && !get_page_by_path($t['slug'])) {
+                    $upd['post_name'] = $t['slug']; // a vázlat (pl. a WordPress alap-adatvédelmi oldala) a régi címet kapja
+                    $backup['posts'][$t['id']]['post_name'] = $post->post_name;
+                }
+                wp_update_post($upd);
                 $id = $t['id'];
             } else {
                 $id = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => $t['title'], 'post_name' => $t['slug'], 'post_content' => $content]);
@@ -549,15 +557,20 @@ function mandala_oldset_page(): void
             }
             echo '</tbody></table>';
         }
-        echo '<h3><label><input type="checkbox" name="parts[]" value="gateways" checked> Fizetési módok</label></h3><ul style="list-style:disc;padding-left:20px">';
-        foreach ($plan['gateways'] as $g) {
-            echo '<li>' . esc_html($g['title']) . ' – ' . ($g['enabled'] ? 'bekapcsolva' : 'kikapcsolva') . ($g['available'] ? '' : ' · <strong style="color:#d63638">a bővítménye itt nincs telepítve</strong>') . '</li>';
+        if ($plan['gateways']) {
+            echo '<h3><label><input type="checkbox" name="parts[]" value="gateways" checked> Fizetési módok</label></h3><ul style="list-style:disc;padding-left:20px">';
+            foreach ($plan['gateways'] as $g) {
+                echo '<li>' . esc_html($g['title']) . ' – ' . ($g['enabled'] ? 'bekapcsolva' : 'kikapcsolva') . ($g['available'] ? '' : ' · <strong style="color:#d63638">a bővítménye itt nincs telepítve</strong>') . '</li>';
+            }
+            echo '</ul>';
         }
-        echo '</ul><h3><label><input type="checkbox" name="parts[]" value="zones" checked> Szállítási zónák (a mostaniak helyett)</label></h3><ul style="list-style:disc;padding-left:20px">';
-        foreach ($plan['zones'] as $z) {
-            echo '<li><strong>' . esc_html($z['name']) . '</strong>' . ($z['locations'] ? ' (' . (int) $z['locations'] . ' terület)' : '') . ': ' . esc_html(implode(', ', array_map(fn($m) => $m['title'] . ($m['enabled'] ? '' : ' [ki]') . ($m['available'] ? '' : ' [bővítmény hiányzik]'), $z['methods'])) ?: '–') . '</li>';
+        if ($plan['zones']) { // üres zónalista (pl. csak jogi oldalakat tartalmazó fájl) soha nem törli a mostani zónákat
+            echo '<h3><label><input type="checkbox" name="parts[]" value="zones" checked> Szállítási zónák (a mostaniak helyett)</label></h3><ul style="list-style:disc;padding-left:20px">';
+            foreach ($plan['zones'] as $z) {
+                echo '<li><strong>' . esc_html($z['name']) . '</strong>' . ($z['locations'] ? ' (' . (int) $z['locations'] . ' terület)' : '') . ': ' . esc_html(implode(', ', array_map(fn($m) => $m['title'] . ($m['enabled'] ? '' : ' [ki]') . ($m['available'] ? '' : ' [bővítmény hiányzik]'), $z['methods'])) ?: '–') . '</li>';
+            }
+            echo '</ul>';
         }
-        echo '</ul>';
         if ($plan['legal']) {
             echo '<h3><label><input type="checkbox" name="parts[]" value="legal" checked> Jogi oldalak a régi bolt szövegével</label></h3><ul style="list-style:disc;padding-left:20px">';
             foreach ($plan['legal'] as $l) {

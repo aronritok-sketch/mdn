@@ -146,6 +146,42 @@ function mandala_redirect_resolve(string $url): ?array
             $found = wc_get_page_permalink($pages[$slug]);
         }
     }
+    if (!$found && count($segments) === 1) {
+        // A régi bolt jogi és tájékoztató oldalainak címei → az itteni megfelelő oldal (ha közzé van téve)
+        $info = apply_filters('mandala_redirect_legacy_info', [
+            'altalanos-szerzodesi-feltetelek' => 'woocommerce_terms_page_id', 'aszf' => 'woocommerce_terms_page_id', 'terms' => 'woocommerce_terms_page_id',
+            'panaszkezeles' => 'woocommerce_terms_page_id',
+            'adatvedelmi-tajekoztato' => 'wp_page_for_privacy_policy', 'adatkezelesi-tajekoztato' => 'wp_page_for_privacy_policy', 'privacy-policy' => 'wp_page_for_privacy_policy',
+            'adatvedelem' => 'wp_page_for_privacy_policy', 'cookie-suti-szabalyzat' => 'wp_page_for_privacy_policy', 'cookie-szabalyzat' => 'wp_page_for_privacy_policy',
+            'contact-us' => 'mandala_page_kapcsolat', 'elerhetosegeink' => 'mandala_page_kapcsolat', 'elerhetoseg' => 'mandala_page_kapcsolat', 'contact' => 'mandala_page_kapcsolat',
+            'shipping-information' => 'mandala_page_informaciok', 'szallitas' => 'mandala_page_informaciok', 'szallitasi-informaciok' => 'mandala_page_informaciok', 'faq' => 'mandala_page_informaciok', 'gyik' => 'mandala_page_informaciok',
+            'hangtal-bemutato-idopontfoglalas' => 'mandala_page_hangtal-valaszto', 'rolunk' => 'mandala_page_rolunk', 'about-us' => 'mandala_page_rolunk',
+            'blog' => 'page_for_posts', 'hirek' => 'page_for_posts',
+        ]);
+        $pid = isset($info[$slug]) ? (int) get_option($info[$slug]) : 0;
+        if ($pid && get_post_status($pid) === 'publish') {
+            $found = get_permalink($pid);
+        }
+    }
+    if (!$found && count($segments) >= 2 && in_array($segments[0], ['product-category', 'kategoria', 'termekkategoria'], true) && taxonomy_exists('product_cat')) {
+        // Régi kategóriacím: a régi bolt a szülő nevét a slug végére tette (karkotok-ruhazat-es-kiegeszitok) –
+        // előbb ennek levágásával, aztán a legközelebbi létező szülőkategóriára
+        for ($i = count($segments) - 1; $i >= 1 && !$found; $i--) {
+            $try = sanitize_title($segments[$i]);
+            $cands = [$try];
+            if ($i > 1) {
+                $cands[] = preg_replace('/-' . preg_quote(sanitize_title($segments[$i - 1]), '/') . '(-\d+)?$/', '', $try);
+            }
+            $cands[] = preg_replace('/-(ruhazat-es-kiegeszitok|szakralis-targyak|lakberendezes|ajandektargyak)(-\d+)?$/', '', $try);
+            foreach (array_unique($cands) as $c) {
+                $term = get_term_by('slug', $c, 'product_cat');
+                if ($term && !is_wp_error($link = get_term_link($term))) {
+                    $found = $link;
+                    break;
+                }
+            }
+        }
+    }
     if (!$found && strlen($slug) >= 8) {
         // Egyetlen termék, amelynek a címe ezzel kezdődik (pl. rövidült vagy bővült slug).
         global $wpdb;
