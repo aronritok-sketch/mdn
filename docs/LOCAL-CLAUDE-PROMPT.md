@@ -2,7 +2,7 @@
 
 > Másold be az alábbi szöveget a böngészőt kezelő (helyi) Claude-nak. A mandala.hu adminjába előtte lépj be
 > a saját fiókoddal (a belépési cím a WPS Hide Login miatt egyedi), és tartsd megnyitva a böngészőben.
-> Mellé töltsd le a `mandala-jogi-oldalak.json` és a legújabb `mandala-tema.zip` fájlt (a Letöltések mappába).
+> Mellé töltsd le a `mandala-jogi-oldalak.json` fájlt (a Letöltések mappába).
 
 ---
 
@@ -20,9 +20,8 @@ oldaláról) be vagyok lépve, a böngésző nyitva van. Magyarul dolgozz, és e
 
 **Feladatok, sorrendben**
 
-1. **Téma frissítése.** Megjelenés → Témák → Új hozzáadása → Téma feltöltése → `mandala-tema.zip` (Letöltések) →
-   „Csere a feltöltöttre”. Utána a Megjelenés → Témák oldalon a Mandala téma verziója 1.1.2026… legyen, és újabb,
-   mint 1.1.202610021409. Írd le a verziót.
+1. **Téma ellenőrzése.** Megjelenés → Témák: a Mandala téma verziója legalább **1.1.202610021457** legyen
+   (ha régebbi, szólj – ne tölts fel semmit magadtól). Írd le a verziót.
 
 2. **Szállítási zónák.** WooCommerce → Beállítások → Szállítás.
    - „Magyarország” zóna: a „Zóna régiói” mezőbe add hozzá: **Magyarország**. (Most üres, ezért minden külföldi
