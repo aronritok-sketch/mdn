@@ -71,7 +71,9 @@ function mandala_free_shipping_for_customer(): bool
     return $country === '' || in_array($country, mandala_free_shipping_countries(), true);
 }
 
-add_filter('woocommerce_package_rates', function ($rates, $package = []) {
+/** A fizetős díjak nullázása a küszöb felett (belföldre); a személyes átvétel díja nem változik. */
+function mandala_free_shipping_zero(array $rates, array $package = []): array
+{
     // 0 = kikapcsolva (pl. ha az ingyenes szállítást a GLS bővítményben állítod be).
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
     if ($threshold <= 0) {
@@ -91,7 +93,43 @@ add_filter('woocommerce_package_rates', function ($rates, $package = []) {
         }
     }
     return $rates;
-}, 20, 2);
+}
+add_filter('woocommerce_package_rates', fn($rates, $package = []) => mandala_free_shipping_zero((array) $rates, (array) $package), 20, 2);
+
+/*
+ * Védelem a „rejtsd el a fizetős módokat, ha van ingyenes szállítás” típusú kódrészletek ellen (pl. egy mu-plugin
+ * vagy bővítmény woocommerce_package_rates szűrője). Ilyenkor 25 000 Ft felett eltűnne a GLS házhoz, az MPL és a
+ * GLS csomagpont, csak az „Ingyenes kiszállítás” és a személyes átvétel maradna. Legelöl elmentjük a módokat, a
+ * legvégén pedig – ha a megmaradtak csak ingyenes / átvételi módok – a kivett fizetős módokat visszatesszük
+ * (a küszöb felett 0 Ft-tal). Kikapcsolás: add_filter('mandala_keep_paid_rates_with_free', '__return_false').
+ */
+function mandala_rates_key(array $package): string
+{
+    return md5((string) wp_json_encode([$package['destination'] ?? [], array_keys((array) ($package['contents'] ?? []))]));
+}
+add_filter('woocommerce_package_rates', function ($rates, $package = []) {
+    $GLOBALS['mandala_rates_snapshot'][mandala_rates_key((array) $package)] = (array) $rates;
+    return $rates;
+}, PHP_INT_MIN, 2);
+add_filter('woocommerce_package_rates', function ($rates, $package = []) {
+    $rates = (array) $rates;
+    $snap = $GLOBALS['mandala_rates_snapshot'][mandala_rates_key((array) $package)] ?? [];
+    if (!$snap || !apply_filters('mandala_keep_paid_rates_with_free', true)) {
+        return $rates;
+    }
+    $removed = array_diff_key($snap, $rates);
+    $methods = array_map(fn($r) => $r->get_method_id(), $rates);
+    $only_free = $methods && !array_diff($methods, ['free_shipping', 'local_pickup', 'pickup_location']) && in_array('free_shipping', $methods, true);
+    if (!$removed || !$only_free) {
+        return $rates;
+    }
+    // Az eredeti sorrendben, a megmaradt példányokkal; a visszatettek is a küszöb szerinti díjjal.
+    $out = [];
+    foreach ($snap as $id => $rate) {
+        $out[$id] = $rates[$id] ?? $rate;
+    }
+    return mandala_free_shipping_zero($out, (array) $package);
+}, PHP_INT_MAX, 2);
 
 /**
  * A pénztár országa alapból Magyarország: ha a WooCommerce nem ad országot (pl. földrajzi helymeghatározás

@@ -428,6 +428,18 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     $allow = fn($c) => apply_filters("default_checkout_billing_country", $c, "billing_country");
     echo $mk("HU") . "|" . $mk("AT") . "|" . $allow("") . "|" . $allow("US") . "|" . $allow("HU"); WC()->cart->empty_cart();`);
   ok(rates === '0|5000|HU|HU|HU', 'ingyenes szállítás csak belföldre, pénztár országa alapból Magyarország (' + rates + ')');
+  // Egy „rejtsd el a fizetős módokat, ha van ingyenes” szűrő (mint egy mu-pluginban) ne vigye el a GLS-t / MPL-t / csomagpontot.
+  const hide = wp(`WC()->frontend_includes(); WC()->initialize_session(); WC()->initialize_cart(); WC()->cart->empty_cart();
+    $p = wc_get_products(["limit" => 20, "status" => "publish", "stock_status" => "instock", "type" => "simple"]); foreach ($p as $x) { if ($x->get_price() > 0) { WC()->cart->add_to_cart($x->get_id(), (int) ceil(40000 / $x->get_price())); break; } }
+    $hider = function ($rates) { $free = array_filter($rates, fn($r) => $r->get_method_id() === "free_shipping"); if (!$free) return $rates; return array_filter($rates, fn($r) => in_array($r->get_method_id(), ["free_shipping", "local_pickup"], true)); };
+    add_filter("woocommerce_package_rates", $hider, 100);
+    $mk = fn() => ["flat_rate:3" => new WC_Shipping_Rate("flat_rate:3", "GLS", 1116, [], "flat_rate", 3), "free_shipping:2" => new WC_Shipping_Rate("free_shipping:2", "Ingyenes", 0, [], "free_shipping", 2), "local_pickup:5" => new WC_Shipping_Rate("local_pickup:5", "Átvétel", 0, [], "local_pickup", 5), "wc_pont_shipping_method:9" => new WC_Shipping_Rate("wc_pont_shipping_method:9", "Csomagpont", 1116, [], "wc_pont_shipping_method", 9)];
+    $pkg = ["destination" => ["country" => "HU"], "contents" => WC()->cart->get_cart()];
+    $a = apply_filters("woocommerce_package_rates", $mk(), $pkg);
+    add_filter("mandala_keep_paid_rates_with_free", "__return_false");
+    $b = apply_filters("woocommerce_package_rates", $mk(), $pkg);
+    echo implode(",", array_keys($a)) . "|" . (int) $a["flat_rate:3"]->get_cost() . "|" . count($b); WC()->cart->empty_cart();`);
+  ok(hide === 'flat_rate:3,free_shipping:2,local_pickup:5,wc_pont_shipping_method:9|0|2', 'ingyenes szállítás mellett is látszik a GLS / csomagpont (0 Ft), ha egy szűrő elrejtené; kikapcsolható (' + hide + ')');
   // A régi bolt „Fizetés helyszínen” (csekkes) módja csak személyes átvételnél.
   const cheque = wp(`$o = get_option("woocommerce_cheque_settings", []); update_option("woocommerce_cheque_settings", array_merge((array) $o, ["enabled" => "yes", "title" => "Fizetés helyszínen készpénzzel, vagy bankkártyával"]));
     WC()->payment_gateways()->init(); WC()->frontend_includes(); WC()->initialize_session(); WC()->initialize_cart(); WC()->cart->empty_cart();
