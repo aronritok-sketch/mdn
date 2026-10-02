@@ -203,6 +203,7 @@ function mandala_od_customers(array $items): array
         for ($i = 2, $base = $login; username_exists($login); $i++) {
             $login = $base . $i;
         }
+        $GLOBALS['mandala_od_importing'] = true; // ne induljon regisztrációs (kuponos) levél
         $id = wp_insert_user(['user_login' => $login, 'user_email' => $email, 'user_pass' => wp_generate_password(32, true, true),
             'first_name' => (string) ($c['first_name'] ?? ''), 'last_name' => (string) ($c['last_name'] ?? ''),
             'display_name' => trim(($c['last_name'] ?? '') . ' ' . ($c['first_name'] ?? '')) ?: $login,

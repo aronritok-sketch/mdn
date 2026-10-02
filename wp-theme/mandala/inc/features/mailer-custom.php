@@ -189,7 +189,17 @@ add_action('woocommerce_order_status_on-hold_to_processing', fn($order_id) => ma
 add_action('woocommerce_order_status_changed', fn($order_id, $from, $to) => mandala_custom_fire('status_' . $to, 'order', (int) $order_id), 10, 3);
 add_action('mandala_order_shipped', fn($order) => mandala_custom_fire('shipped', 'order', $order->get_id()));
 add_action('mandala_order_pickup_ready', fn($order) => mandala_custom_fire('pickup_ready', 'order', $order->get_id()));
-add_action('woocommerce_created_customer', fn($customer_id) => mandala_custom_fire('account_created', 'customer', (int) $customer_id));
+// Minden vásárlói regisztráció (Fiókom űrlap, pénztárbeli fióknyitás, a WordPress saját regisztrációja, más
+// űrlapok) – egyszer. Kivétel: az admin által felvett felhasználó és a régi bolt átvétele (ott nincs levél).
+add_action('user_register', function ($user_id) {
+    if (!empty($GLOBALS['mandala_od_importing']) || (is_admin() && !wp_doing_ajax()) || (defined('WP_CLI') && WP_CLI)) {
+        return;
+    }
+    $user = get_userdata((int) $user_id);
+    if ($user && array_intersect((array) $user->roles, ['customer', 'subscriber'])) {
+        mandala_custom_fire('account_created', 'customer', (int) $user_id);
+    }
+}, 20);
 add_action('mandala_newsletter_subscribed', fn($email) => mandala_custom_fire('newsletter', 'email', strtolower((string) $email)));
 add_action('mandala_review_submitted', fn($review_id) => mandala_custom_fire('review_submitted', 'review', (int) $review_id));
 
