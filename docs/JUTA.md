@@ -7,7 +7,10 @@ A JUTA-Soft (raktár/készlet) és a webshop közti kapcsolat **nem a téma rés
 - `/juta/elad.php` – a webshop rendeléseinek beküldése a JUTA felé,
 - mindkettőt a tárhely **cronja** hívja megfelelő időközönként; a mappában további segédfájlok, -mappák is vannak.
 
-A téma ezekhez nem nyúl. Amit a téma a JUTA-ból érkező termékekkel csinál: [UJ-TERMEKEK.md](UJ-TERMEKEK.md) (az új termék
+A téma a szkriptekhez nem nyúl, de kapcsolódási pontokat ad (`inc/features/juta.php`): `define('MANDALA_JUTA_SYNC', true)`
+a `wp-load.php` előtt, `do_action('mandala_juta_sync_done')` a szinkron végén, `mandala_juta_orders_to_send()` a beküldendő
+rendelésekhez (az átköltöztetett régiek nélkül), `do_action('mandala_juta_orders_sent', $ids)` a beküldés után. Részletes
+beállítási útmutató Lacinak: a „JUTA beállítása az új mandala.hu-n” dokumentum. Amit a téma a JUTA-ból érkező termékekkel csinál: [UJ-TERMEKEK.md](UJ-TERMEKEK.md) (az új termék
 piszkozat lesz és a jóváhagyási sorba kerül – a közvetlenül adatbázisba írt termékeket is óránként megtalálja; az
 „Akciós ár” a nagyker ár).
 

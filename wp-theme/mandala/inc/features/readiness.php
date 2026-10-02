@@ -114,6 +114,8 @@ function mandala_readiness(bool $deep = false): array
         'raw_sync_modified' => is_file($juta_dir . '/raw_sync.php') ? wp_date('Y-m-d H:i', (int) filemtime($juta_dir . '/raw_sync.php')) : null,
         'orders_storage' => $hpos ? 'HPOS (wc_orders)' : 'posts (wp_posts)', 'hpos_sync_to_posts' => get_option('woocommerce_custom_orders_table_data_sync_enabled') === 'yes',
         'orders_visible_to_juta' => !$hpos || get_option('woocommerce_custom_orders_table_data_sync_enabled') === 'yes',
+        'last_sync' => ($js = get_option('mandala_juta_sync')) ? wp_date('Y-m-d H:i', (int) $js['time']) : null,
+        'last_orders_sent' => ($jo = get_option('mandala_juta_orders')) ? wp_date('Y-m-d H:i', (int) $jo['time']) . ' (' . (int) $jo['count'] . ')' : null,
         'last_product_from_import' => ($lp = $wpdb->get_var("SELECT MAX(p.post_modified) FROM {$wpdb->posts} p WHERE p.post_type IN ('product','product_variation')")) ? (string) $lp : null];
     $last = get_option('mandala_olddata_last');
     $out['migration'] = $last ? ['time' => wp_date('Y-m-d H:i', (int) $last['time']), 'counts' => $last['counts']] : null;
