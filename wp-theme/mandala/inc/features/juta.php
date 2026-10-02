@@ -50,6 +50,7 @@ function mandala_juta_orders_to_send(array $statuses = ['processing'], int $limi
         'meta_query' => [
             ['key' => MANDALA_JUTA_SENT, 'compare' => 'NOT EXISTS'],
             ['key' => '_mandala_imported', 'compare' => 'NOT EXISTS'],
+            ['key' => '_elad_exported_file', 'compare' => 'NOT EXISTS'],
         ],
     ]));
 }
@@ -74,7 +75,7 @@ add_action('mandala_juta_orders_sent', function ($ids = []) {
  * előzővel: a megváltozott termékek gyorsítótárát töröljük, a keresőindexben újraszámoltatjuk, az új termékek a
  * jóváhagyási sorba kerülnek, és az őrszem látja, mikor volt utoljára szinkron. A szkripteken nem kell változtatni.
  */
-const MANDALA_JUTA_WATCH_KEYS = ['_price', '_regular_price', '_sale_price', '_stock', '_stock_status', '_sku', '_manage_stock', '_backorders'];
+const MANDALA_JUTA_WATCH_KEYS = ['_price', '_regular_price', '_sale_price', '_stock', '_stock_status', '_sku', '_manage_stock', '_backorders', 'wholesale_customer_wholesale_price'];
 
 /** Termékenkénti lenyomat (azonosító => crc32) – egy lekérdezés, a gyorsítótárat megkerülve. */
 function mandala_juta_fingerprints(): array
@@ -157,6 +158,46 @@ add_action('mandala_juta_watch', function () {
     }
     mandala_juta_watch();
 });
+
+/*
+ * Az elad.php a „teljesített” rendelések közül azt küldi be, amelyiken nincs „_elad_exported_file” jelölő, és a
+ * kezdő időpontja után módosult. A régi boltból átvett rendelések az átvételkor módosultak (új adatbázis-sor) –
+ * ha a régi jelölőjük nem jött át, a szkript újra beküldené őket a JUTA-ba. Ezért minden átvett rendelés megkapja
+ * a jelölőt („regi-bolt”), ha még nincs rajta (a régi bolt már beküldte őket). Kötegekben, amíg van ilyen.
+ */
+const MANDALA_JUTA_ELAD_META = '_elad_exported_file';
+
+function mandala_juta_mark_imported(int $limit = 200): int
+{
+    if (!function_exists('wc_get_orders')) {
+        return 0;
+    }
+    $ids = wc_get_orders([
+        'type' => 'shop_order', 'status' => 'any', 'limit' => $limit, 'return' => 'ids',
+        'meta_query' => [
+            ['key' => '_mandala_imported', 'compare' => 'EXISTS'],
+            ['key' => MANDALA_JUTA_ELAD_META, 'compare' => 'NOT EXISTS'],
+        ],
+    ]);
+    foreach ($ids as $id) {
+        $order = wc_get_order($id);
+        if ($order) {
+            $order->update_meta_data(MANDALA_JUTA_ELAD_META, 'regi-bolt');
+            $order->save_meta_data();
+        }
+    }
+    return count($ids);
+}
+
+add_action('init', function () {
+    if (get_option('mandala_juta_marked') === 'done' || get_transient('mandala_juta_marking') || !function_exists('wc_get_orders')) {
+        return;
+    }
+    set_transient('mandala_juta_marking', 1, 2 * MINUTE_IN_SECONDS);
+    if (mandala_juta_mark_imported() === 0) {
+        update_option('mandala_juta_marked', 'done', false);
+    }
+}, 30);
 
 /** Őrszem: ha a szinkron egyszer már jelzett, és több mint 26 órája nem. */
 add_filter('mandala_health_checks', function ($out) {

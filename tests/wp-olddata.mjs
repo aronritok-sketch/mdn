@@ -146,6 +146,9 @@ ok(r1.prev.includes('Rendelések') && r1.prev.includes('munkatársak (') && r1.p
 ok(r1.status.includes('Kész'), 'átvétel lefutott', r1.status + ' | ' + r1.log);
 const s = state();
 ok(s.orders === exp.orders.length, 'rendelések: mind átjött', `${s.orders} / ${exp.orders.length}`);
+const elad = wp(`$q = fn($m) => count(wc_get_orders(["limit" => -1, "return" => "ids", "type" => "shop_order", "status" => "any", "meta_query" => $m]));
+  echo $q([["key" => "_mandala_imported", "compare" => "EXISTS"], ["key" => "_elad_exported_file", "compare" => "NOT EXISTS"]]) . "|" . $q([["key" => "_elad_exported_file", "value" => "regi-bolt"]]);`);
+ok(elad === `0|${exp.orders.length}`, 'JUTA: az átvett rendeléseken „_elad_exported_file” jelölő – az elad.php nem küldi újra őket', elad);
 ok(s.user && s.user.city === 'Pécs' && s.user.pw === 0 && s.user.role === 'customer' && !s.staff, 'vásárló: címadatokkal; a munkatárs nem jött át', JSON.stringify({ u: s.user, staff: s.staff }));
 const signon = (login, pass) => wp(`$r = wp_signon(["user_login" => "${login}", "user_password" => "${pass}"], false); echo is_wp_error($r) ? $r->get_error_message() : "ok";`);
 ok(signon('regi.vevo@example.com', 'regi-jelszo') === 'ok', 'vásárló: a RÉGI jelszavával be tud lépni az új boltba');

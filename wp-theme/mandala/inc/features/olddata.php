@@ -364,6 +364,10 @@ function mandala_od_orders(array $items): array
             $order->update_meta_data(MANDALA_OD_OLD, (int) $o['id']);
             $order->update_meta_data('_mandala_old_number', (string) ($o['number'] ?? $o['id']));
             $order->update_meta_data(MANDALA_OD_FLAG, 1);
+            // A régi bolt már beküldte a JUTA-nak – az elad.php ne küldje újra (lásd juta.php).
+            if (!$order->get_meta('_elad_exported_file')) {
+                $order->update_meta_data('_elad_exported_file', 'regi-bolt');
+            }
             if ($status !== preg_replace('/^wc-/', '', (string) ($o['status'] ?? ''))) {
                 $order->update_meta_data('_mandala_old_status', (string) $o['status']);
             }
