@@ -155,6 +155,20 @@ function mandala_sitefix_list(): array
                 ? 'a CIB-es szöveg helyett Teya' : 'nem kellett';
         },
 
+        // Az ÁSZF ne ígérjen előre utalást, ha a banki átutalás a boltban ki van kapcsolva (bekapcsolva marad a sor).
+        'aszf-utalas-2026-10' => function () {
+            $bacs = (array) get_option('woocommerce_bacs_settings', []);
+            if (($bacs['enabled'] ?? 'no') === 'yes') {
+                return 'az átutalás be van kapcsolva – a sor marad';
+            }
+            $id = mandala_sitefix_page(['aszf', 'altalanos-szerzodesi-feltetelek']);
+            return $id && mandala_sitefix_update($id, function ($c) {
+                $c = preg_replace('~\s*<li>\s*<strong>\s*Előre utalás\s*:?\s*</strong>[^<]*</li>~u', '', $c);
+                // A hozzá tartozó bekezdés (számlamásolat → átutalás → kiszállítás).
+                return preg_replace('~\s*<p>(?:(?!</p>).)*számlamásolatot küldünk(?:(?!</p>).)*átutalás(?:(?!</p>).)*</p>~su', '', $c);
+            }) ? 'az „Előre utalás” sor és bekezdése kivéve (az átutalás ki van kapcsolva)' : 'nem kellett';
+        },
+
         'mintaoldal-2026-10' => function () {
             $n = 0;
             foreach (['ez-egy-minta-oldal', 'sample-page', 'minta-oldal'] as $slug) {
