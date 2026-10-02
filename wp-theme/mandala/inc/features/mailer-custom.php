@@ -38,7 +38,8 @@ function mandala_custom_triggers(): array
 
 function mandala_custom_mails(): array
 {
-    return (array) get_option('mandala_custom_mails', []);
+    // Csak az érvényes (tömb) bejegyzések: egy sérült beállítás ne döntse le a levélközpontot
+    return array_filter((array) get_option('mandala_custom_mails', []), 'is_array');
 }
 
 function mandala_custom_mail_defaults(): array
