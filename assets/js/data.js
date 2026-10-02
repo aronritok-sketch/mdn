@@ -13,9 +13,9 @@ export const CONFIG = {
   // Helykitöltő cégadatok – élesítés előtt az ügyféltől (lásd docs/IU-BLOKKTERKEP.md).
   contact: {
     email: 'info@mandala.hu',
-    phone: '+36 1 234 5678',
-    address: 'Budapest – bemutatóterem és átvevőhely',
-    hours: 'H–P 10:00–18:00, Szo 10:00–14:00',
+    phone: '+36 30 892 8385',
+    address: '1093 Budapest, Bakáts u. 6.',
+    hours: 'H 09:00–17:00, K–P 09:00–15:00, Szo–V zárva',
     facebook: 'https://www.facebook.com/mandalawebaruhaz',
     instagram: '#',
   },
