@@ -485,12 +485,52 @@ function mandala_url(array $atts): string
     if ($slug === 'esemenyek' && post_type_exists('mandala_event')) {
         return (string) get_post_type_archive_link('mandala_event');
     }
+    if ($slug === 'privacy') {
+        return get_privacy_policy_url() ?: home_url('/'); // nem közzétett oldalra (vázlat → 404) nem linkelünk
+    }
     $id = mandala_translate_id(isset($roles[$slug]) ? (int) get_option($roles[$slug]) : (int) get_option('mandala_page_' . $slug));
     if (!$id && $slug && ($page = get_page_by_path($slug))) {
         $id = $page->ID;
     }
     return $id ? (string) get_permalink($id) : home_url('/');
 }
+
+/**
+ * Ha a beállított adatvédelmi oldal nincs közzétéve (pl. a WordPress vázlatként létrehozott alapoldala), a WordPress
+ * üres címet ad – ilyenkor a közzétett adatkezelési oldal a megszokott címek egyikén, végül az ÁSZF.
+ */
+add_filter('privacy_policy_url', function ($url) {
+    if ($url) {
+        return $url;
+    }
+    foreach (['adatkezelesi-tajekoztato', 'adatvedelmi-tajekoztato', 'adatvedelem', 'adatkezeles'] as $slug) {
+        $p = get_page_by_path($slug);
+        if ($p && $p->post_status === 'publish') {
+            return (string) get_permalink($p);
+        }
+    }
+    $terms = (int) get_option('woocommerce_terms_page_id');
+    return $terms && get_post_status($terms) === 'publish' ? (string) get_permalink($terms) : '';
+});
+
+/** A menükben nem közzétett oldalra mutató elem (vázlat → 404 a látogatónak): az adatvédelmi oldal helyett a fenti cím, más elem rejtve. */
+add_filter('wp_get_nav_menu_items', function ($items) {
+    if (is_admin() || !is_array($items)) {
+        return $items;
+    }
+    $privacy = (int) get_option('wp_page_for_privacy_policy');
+    foreach ($items as $i => $item) {
+        if (($item->type ?? '') !== 'post_type' || !in_array($item->object ?? '', ['page', 'post'], true) || get_post_status((int) $item->object_id) === 'publish') {
+            continue;
+        }
+        if ((int) $item->object_id === $privacy && ($url = get_privacy_policy_url())) {
+            $item->url = $url;
+        } else {
+            unset($items[$i]);
+        }
+    }
+    return array_values($items);
+}, 20);
 add_shortcode('mandala_url', fn($atts) => esc_url(mandala_url((array) $atts)));
 
 /**

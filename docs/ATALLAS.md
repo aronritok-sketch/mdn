@@ -40,6 +40,9 @@ A lépések sorrendben; a ☐ az, amit ki kell pipálni. Ahol eszköz van rá, a
     átutalás (ha bekapcsolod), Számlázz.hu számla, GLS csomagszám + „Feladtuk” levél, mobilos vásárlás, hírlevél-
     feliratkozás, AI tanácsadó. Pluszban: egy átvett régi YITH ajándékkártya kódjának beváltása a pénztárban.
 
+14. ☐ **JUTA** (/juta/raw_sync.php, /juta/elad.php + cron): az új web gyökerében is ott van-e, az új adatbázisra
+    mutat-e, és az `elad.php` nem küldi-e újra a régi rendeléseket; HPOS esetén kompatibilitási szinkron – [JUTA.md](JUTA.md).
+
 ## B) A váltás napja
 
 1. ☐ **Régi bolt lezárása:** karbantartás / „hamarosan” mód, hogy ne jöjjön új rendelés.

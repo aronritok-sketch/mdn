@@ -87,7 +87,7 @@ function mandala_readiness(bool $deep = false): array
         'queue_review' => function_exists('mandala_onboarding_count') ? mandala_onboarding_count('review') : null];
 
     // Jogi oldalak: kitöltendő részek
-    foreach (['woocommerce_terms_page_id' => 'ÁSZF', 'wp_page_for_privacy_policy' => 'Adatkezelési tájékoztató', 'mandala_page_impresszum' => 'Impresszum'] as $opt => $label) {
+    foreach (['woocommerce_terms_page_id' => 'ÁSZF', 'wp_page_for_privacy_policy' => 'Adatkezelési tájékoztató', 'mandala_page_impresszum' => 'Impresszum', 'mandala_page_akadalymentesseg' => 'Akadálymentességi nyilatkozat'] as $opt => $label) {
         $post = get_post((int) get_option($opt));
         $out['legal'][$label] = !$post || $post->post_status !== 'publish' ? 'nincs közzétett oldal'
             : (preg_match('/\[[^\]]*(kitöltendő|pontosítandó)[^\]]*\]|\[(e-mail|telefon)\]/u', $post->post_content) ? 'kitöltendő részek maradtak' : 'rendben');
@@ -105,6 +105,16 @@ function mandala_readiness(bool $deep = false): array
     $gtm = (array) get_option('gtm4wp-options', []);
     $out['keys'] = ['claude_api' => $set($ai), 'arukereso_trustedshop' => $set($ts['key'] ?? ''), 'gtm_container' => $set($gtm['gtm-code'] ?? ''),
         'meta_pixel' => $set($an['pixel_id'] ?? ''), 'meta_capi' => ($an['capi'] ?? 'no') === 'yes' && $set($an['capi_token'] ?? '')];
+    // JUTA (a web gyökerében: /juta/raw_sync.php = termékimport, /juta/elad.php = rendelések beküldése, cronból).
+    // A rendeléseket olvasó külső szkript csak akkor látja az új rendeléseket, ha azok a régi (posts) táblákba is
+    // bekerülnek: HPOS mellett a kompatibilitási szinkronnak be kell lennie kapcsolva.
+    $hpos = function_exists('mandala_owner_hpos') ? mandala_owner_hpos() : false;
+    $juta_dir = ABSPATH . 'juta';
+    $out['juta'] = ['folder' => is_dir($juta_dir), 'raw_sync' => is_file($juta_dir . '/raw_sync.php'), 'elad' => is_file($juta_dir . '/elad.php'),
+        'raw_sync_modified' => is_file($juta_dir . '/raw_sync.php') ? wp_date('Y-m-d H:i', (int) filemtime($juta_dir . '/raw_sync.php')) : null,
+        'orders_storage' => $hpos ? 'HPOS (wc_orders)' : 'posts (wp_posts)', 'hpos_sync_to_posts' => get_option('woocommerce_custom_orders_table_data_sync_enabled') === 'yes',
+        'orders_visible_to_juta' => !$hpos || get_option('woocommerce_custom_orders_table_data_sync_enabled') === 'yes',
+        'last_product_from_import' => ($lp = $wpdb->get_var("SELECT MAX(p.post_modified) FROM {$wpdb->posts} p WHERE p.post_type IN ('product','product_variation')")) ? (string) $lp : null];
     $last = get_option('mandala_olddata_last');
     $out['migration'] = $last ? ['time' => wp_date('Y-m-d H:i', (int) $last['time']), 'counts' => $last['counts']] : null;
     $out['showcase_on'] = function_exists('mandala_showcase_on') && mandala_showcase_on();

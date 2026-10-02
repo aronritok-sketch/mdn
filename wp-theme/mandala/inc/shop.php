@@ -112,6 +112,10 @@ add_filter('woocommerce_gateway_title', function ($title, $id) {
     if ($id === 'cod' && !is_admin() && WC()->session && mandala_is_pickup()) {
         return __('Fizetés átvételkor', 'mandala');
     }
+    if ($id === 'cod' && !is_admin()) {
+        // A díjat a téma mutatja („+390 Ft”, Mandala bolt adatai): a régi bolt címben hagyott díja („(390 Ft)”) ne látsszon kétszer, eltérő összeggel
+        $title = trim(preg_replace('/\s*\(\s*\d[\d\s.]*\s*Ft\s*\)/u', '', (string) $title)) ?: $title;
+    }
     return $title;
 }, 10, 2);
 add_filter('woocommerce_gateway_description', function ($description, $id) {
