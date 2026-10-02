@@ -159,8 +159,13 @@ a:hover { color: var(--c-ink); }
 .drawer.is-open .drawer-panel { transform: none; }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-5); border-bottom: var(--border); }
 .drawer-head h2 { font-size: 1.75rem; margin: 0; }
-.drawer-body { flex: 1; overflow-y: auto; padding: 0 var(--space-5); }
-.drawer-foot { padding: var(--space-5); border-top: var(--border); background: var(--c-white); display: grid; gap: var(--space-3); }
+.drawer-panel { height: 100%; max-height: 100dvh; }
+/* A WooCommerce a fiók tartalmát (görgethető lista + gombsáv) egy dobozba csomagolja: annak is a fiók magasságát
+   kell kitöltenie, különben mobilon a „Tovább a pénztárhoz” gomb a képernyő alá csúszik és nem érhető el. */
+.drawer-panel > .widget_shopping_cart_content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 var(--space-5); }
+.drawer-foot { flex: 0 0 auto; padding: var(--space-5); padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px)); border-top: var(--border); background: var(--c-white); display: grid; gap: var(--space-3); }
+@media (max-width: 599px) { .drawer-foot { padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); gap: var(--space-2); } }
 
 /* Ingyenes szállítás mérő */
 .ship-meter { padding: var(--space-4); border-radius: var(--radius-m); background: var(--c-accent-soft); font-size: var(--fs-small); margin: var(--space-4) 0; }
