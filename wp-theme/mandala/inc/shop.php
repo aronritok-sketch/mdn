@@ -58,10 +58,27 @@ function mandala_cart_goods_total(): float
     return (float) $cart->get_subtotal() + (float) $cart->get_subtotal_tax() - (float) $cart->get_discount_total() - (float) $cart->get_discount_tax();
 }
 
-add_filter('woocommerce_package_rates', function ($rates) {
+/** Ahová az ingyenes szállítás jár (alapból csak belföld – a külföldi díjakat nem nullázzuk). */
+function mandala_free_shipping_countries(): array
+{
+    return (array) apply_filters('mandala_free_shipping_countries', ['HU']);
+}
+
+/** A vásárló (eddig megadott) szállítási országára jár-e az ingyenes szállítás; ország nélkül igen. */
+function mandala_free_shipping_for_customer(): bool
+{
+    $country = function_exists('WC') && WC()->customer ? (string) WC()->customer->get_shipping_country() : '';
+    return $country === '' || in_array($country, mandala_free_shipping_countries(), true);
+}
+
+add_filter('woocommerce_package_rates', function ($rates, $package = []) {
     // 0 = kikapcsolva (pl. ha az ingyenes szállítást a GLS bővítményben állítod be).
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
     if ($threshold <= 0) {
+        return $rates;
+    }
+    $country = (string) ($package['destination']['country'] ?? '');
+    if ($country !== '' && !in_array($country, mandala_free_shipping_countries(), true)) {
         return $rates;
     }
     $free = mandala_cart_goods_total() >= $threshold;
@@ -74,7 +91,27 @@ add_filter('woocommerce_package_rates', function ($rates) {
         }
     }
     return $rates;
-}, 20);
+}, 20, 2);
+
+/**
+ * A pénztár országa alapból Magyarország: ha a WooCommerce nem ad országot (pl. földrajzi helymeghatározás
+ * külföldi / ismeretlen IP-ről, vagy nem engedélyezett országot), üres lenne a mező, és egyetlen szállítási mód
+ * sem jelenne meg, amíg a vevő ki nem választja.
+ */
+foreach (['billing', 'shipping'] as $mandala_type) {
+    add_filter('default_checkout_' . $mandala_type . '_country', function ($value) use ($mandala_type) {
+        if (!function_exists('WC') || !WC()->countries) {
+            return $value;
+        }
+        $allowed = $mandala_type === 'shipping' ? WC()->countries->get_shipping_countries() : WC()->countries->get_allowed_countries();
+        if ($value && isset($allowed[$value])) {
+            return $value;
+        }
+        $base = WC()->countries->get_base_country() ?: 'HU';
+        return isset($allowed[$base]) ? $base : $value;
+    }, 20);
+}
+unset($mandala_type);
 
 /** A szállítási címke ne tartalmazza az árat (külön oszlopban mutatjuk). */
 add_filter('woocommerce_cart_shipping_method_full_label', fn($label, $method) => $method->get_label(), 10, 2);
@@ -107,6 +144,23 @@ add_action('woocommerce_cart_calculate_fees', function (WC_Cart $cart) {
     // A díjat a WooCommerce nettóban várja: így a bruttó pontosan 490 Ft.
     $cart->add_fee(__('Utánvét díja', 'mandala'), $gross / (1 + $rate / 100), true);
 });
+
+/**
+ * A régi boltból átjött „Fizetés helyszínen készpénzzel, vagy bankkártyával” (a WooCommerce csekkes módja,
+ * átnevezve) csak személyes átvételnél választható – házhozszállításnál / csomagpontnál a vevő nem fizethet
+ * a bemutatóteremben. Csak a pénztárban szűrünk (a „Rendelés kifizetése” oldalon és az adminban nem).
+ */
+add_filter('woocommerce_available_payment_gateways', function ($gateways) {
+    if (is_admin() && !wp_doing_ajax() || !WC()->session || !WC()->cart || !WC()->cart->needs_shipping() || is_wc_endpoint_url('order-pay')) {
+        return $gateways;
+    }
+    foreach ((array) apply_filters('mandala_pickup_only_gateways', ['cheque']) as $id) {
+        if (isset($gateways[$id]) && !mandala_is_pickup() && preg_match('/helysz|átvételkor|személyes|bemutatóterem/iu', (string) $gateways[$id]->get_title())) {
+            unset($gateways[$id]);
+        }
+    }
+    return $gateways;
+}, 20);
 
 add_filter('woocommerce_gateway_title', function ($title, $id) {
     if ($id === 'cod' && !is_admin() && WC()->session && mandala_is_pickup()) {
@@ -391,7 +445,7 @@ function mandala_minicart_content(): void
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
     $goods = mandala_cart_goods_total();
     $pct = min(100, $threshold ? $goods / $threshold * 100 : 100);
-    $meter = $threshold > 0;
+    $meter = $threshold > 0 && mandala_free_shipping_for_customer();
     $done = $goods >= $threshold;
     echo '<div class="drawer-body">' . ($meter ? '' : '<!--') . '<div class="ship-meter' . ($done ? ' is-done' : '') . '"><p>'
         . ($done ? $icon('check', 'ico ico-s') . ' ' . esc_html__('A szállítás ingyenes.', 'mandala') : sprintf(esc_html__('Még %s, és ingyen szállítunk.', 'mandala'), '<strong>' . esc_html(mandala_fmt($threshold - $goods)) . '</strong>')) // phpcs:ignore
@@ -484,7 +538,8 @@ function mandala_checkout_shipping_html(): string
     foreach ($packages as $i => $package) {
         $rates = $package['rates'] ?? [];
         if (!$rates) {
-            echo '<p class="woocommerce-info">' . esc_html__('Ehhez a címhez jelenleg nincs elérhető szállítási mód. Írj nekünk, és megoldjuk.', 'mandala') . '</p>';
+            $no_country = WC()->customer && !WC()->customer->get_shipping_country();
+            echo '<p class="woocommerce-info">' . ($no_country ? esc_html__('Válaszd ki lent az országot – utána itt megjelennek a szállítási módok.', 'mandala') : esc_html__('Ehhez a címhez jelenleg nincs elérhető szállítási mód. Írj nekünk, és megoldjuk.', 'mandala')) . '</p>';
             continue;
         }
         $current = $chosen[$i] ?? array_key_first($rates);
@@ -535,7 +590,7 @@ add_filter('woocommerce_update_order_review_fragments', function ($fragments) {
 
 add_action('woocommerce_before_cart_table', function () {
     $threshold = (float) mandala_config('freeShippingFrom', 25000);
-    if ($threshold <= 0) {
+    if ($threshold <= 0 || !mandala_free_shipping_for_customer()) {
         return;
     }
     $goods = mandala_cart_goods_total();

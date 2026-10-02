@@ -421,6 +421,20 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await page.goto(`${BASE}/kapcsolat/`, { waitUntil: 'networkidle' });
   ok((await page.textContent('body')).includes('+36 1 999 8888') && wp('echo mandala_config("freeShippingFrom");') === '30000', 'Mandala bolt adatai: telefon és ingyenes szállítás határa adminból');
   wp('delete_option("mandala_contact"); delete_option("mandala_freeShippingFrom"); delete_option("mandala_payment");');
+  // Ingyenes szállítás csak belföldre; a pénztár országa üres / nem engedélyezett helyett Magyarország.
+  const rates = wp(`WC()->frontend_includes(); WC()->initialize_session(); WC()->initialize_cart(); WC()->cart->empty_cart();
+    $p = wc_get_products(["limit" => 20, "status" => "publish", "stock_status" => "instock", "type" => "simple"]); foreach ($p as $x) { if ($x->get_price() > 0) { WC()->cart->add_to_cart($x->get_id(), (int) ceil(40000 / $x->get_price())); break; } }
+    $mk = function ($c) { $r = new WC_Shipping_Rate("flat_rate:99", "Teszt", 5000, [], "flat_rate", 99); $out = apply_filters("woocommerce_package_rates", ["flat_rate:99" => $r], ["destination" => ["country" => $c]]); return (int) $out["flat_rate:99"]->get_cost(); };
+    $allow = fn($c) => apply_filters("default_checkout_billing_country", $c, "billing_country");
+    echo $mk("HU") . "|" . $mk("AT") . "|" . $allow("") . "|" . $allow("US") . "|" . $allow("HU"); WC()->cart->empty_cart();`);
+  ok(rates === '0|5000|HU|HU|HU', 'ingyenes szállítás csak belföldre, pénztár országa alapból Magyarország (' + rates + ')');
+  // A régi bolt „Fizetés helyszínen” (csekkes) módja csak személyes átvételnél.
+  const cheque = wp(`$o = get_option("woocommerce_cheque_settings", []); update_option("woocommerce_cheque_settings", array_merge((array) $o, ["enabled" => "yes", "title" => "Fizetés helyszínen készpénzzel, vagy bankkártyával"]));
+    WC()->payment_gateways()->init(); WC()->frontend_includes(); WC()->initialize_session(); WC()->initialize_cart(); WC()->cart->empty_cart();
+    $p = wc_get_products(["limit" => 20, "status" => "publish", "stock_status" => "instock", "type" => "simple", "virtual" => false]); foreach ($p as $x) { if ($x->get_price() > 0 && $x->needs_shipping()) { WC()->cart->add_to_cart($x->get_id()); break; } }
+    $has = function ($m) { WC()->session->set("chosen_shipping_methods", [$m]); return isset(WC()->payment_gateways()->get_available_payment_gateways()["cheque"]) ? "igen" : "nem"; };
+    echo $has("flat_rate:1") . "|" . $has("local_pickup:2"); WC()->cart->empty_cart(); update_option("woocommerce_cheque_settings", $o);`);
+  ok(cheque === 'nem|igen', '„Fizetés helyszínen” csak személyes átvételnél választható (' + cheque + ')');
   wp(`$s = json_decode('${saved}', true); update_option("mandala_setup_steps", $s[0]); update_option("mandala_setup_skipped", $s[1]); update_option("mandala_setup_confirmed", $s[2]);`);
   await page.context().close();
 }

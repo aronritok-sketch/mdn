@@ -7,12 +7,23 @@ A JUTA-Soft (raktár/készlet) és a webshop közti kapcsolat **nem a téma rés
 - `/juta/elad.php` – a webshop rendeléseinek beküldése a JUTA felé,
 - mindkettőt a tárhely **cronja** hívja megfelelő időközönként; a mappában további segédfájlok, -mappák is vannak.
 
-A téma a szkriptekhez nem nyúl, de kapcsolódási pontokat ad (`inc/features/juta.php`): `define('MANDALA_JUTA_SYNC', true)`
-a `wp-load.php` előtt, `do_action('mandala_juta_sync_done')` a szinkron végén, `mandala_juta_orders_to_send()` a beküldendő
-rendelésekhez (az átköltöztetett régiek nélkül), `do_action('mandala_juta_orders_sent', $ids)` a beküldés után. Részletes
-beállítási útmutató Lacinak: a „JUTA beállítása az új mandala.hu-n” dokumentum. Amit a téma a JUTA-ból érkező termékekkel csinál: [UJ-TERMEKEK.md](UJ-TERMEKEK.md) (az új termék
-piszkozat lesz és a jóváhagyási sorba kerül – a közvetlenül adatbázisba írt termékeket is óránként megtalálja; az
-„Akciós ár” a nagyker ár).
+**A szkripteken nem kell változtatni.** A JUTA-szkriptek a sebesség miatt nem töltik be a WordPresst, közvetlenül az
+adatbázisba írnak – ez így marad. A téma ezt magától kezeli (`inc/features/juta.php`, „figyelő”): 10 percenként
+összeveti a termékek ár-, készlet-, cikkszám- és állapotadatainak lenyomatát az előzővel (egy lekérdezés, ~3000
+terméknél kb. 0,2 mp), és a megváltozott termékeknél
+
+- törli az objektum-gyorsítótárat (**Redis**) – különben a közvetlenül átírt ár / készlet a boltban a régi maradhat,
+- újraszámoltatja a kereső- és szűrőindexet, az új termékeket a jóváhagyási sorba teszi ([UJ-TERMEKEK.md](UJ-TERMEKEK.md):
+  az új termék piszkozat lesz; az „Akciós ár” a nagyker ár),
+- feljegyzi a szinkron idejét – az őrszem szól, ha 26 óránál régebben volt változás.
+
+Nem kötelező, de ha valaha WordPress-betöltéssel futnak a szkriptek, azonnali jelzést is adhatnak: `define('MANDALA_JUTA_SYNC',
+true)` a `wp-load.php` előtt, `do_action('mandala_juta_sync_done')` a végén, `mandala_juta_orders_to_send()` /
+`do_action('mandala_juta_orders_sent', $ids)` a rendeléseknél. Részletes útmutató Lacinak: a „JUTA beállítása az új
+mandala.hu-n” dokumentum.
+
+**Ami a szkriptek oldalán számít** (ezek adatbázis-szinten is igazak): a rendelések helye (HPOS, 2. pont) és hogy a régi,
+átköltöztetett rendeléseket ne küldje újra (3. pont).
 
 ## Költözéskor / élesítéskor ellenőrizni
 

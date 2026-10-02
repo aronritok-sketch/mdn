@@ -182,6 +182,9 @@ form.checkout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap:
 .checkout-section > h3 .step-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--c-ink); color: var(--c-white); display: grid; place-items: center; font-size: .75rem; flex: none; }
 .checkout-section.is-complete > h3 .step-dot { background: var(--c-success); }
 .checkout-section .section-aside { margin-left: auto; font: 400 var(--fs-small) var(--font-text); display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--tap); }
+.checkout-section .point-picker { margin-top: var(--space-5); padding-top: var(--space-5); border-top: var(--border); }
+.checkout-section .point-picker h3 { font: 600 1rem/1.3 var(--font-text); letter-spacing: 0; margin: 0 0 var(--space-3); }
+.checkout-section .point-picker select { width: 100%; max-width: 100%; }
 .woocommerce-billing-fields__field-wrapper, .woocommerce-shipping-fields__field-wrapper, .field-wrapper { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-4); }
 .form-row { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); align-content: start; }
 :is(.woocommerce-billing-fields__field-wrapper, .woocommerce-shipping-fields__field-wrapper, .field-wrapper, .reveal-fields) > .form-row { grid-column: span 6; }

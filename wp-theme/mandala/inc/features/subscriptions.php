@@ -244,7 +244,8 @@ function mandala_sub_renew(int $id): ?WC_Order
         $new->set_instance_id($ship->get_instance_id());
         $new->set_method_title($ship->get_method_title());
         $free = (float) mandala_config('freeShippingFrom', 25000);
-        $new->set_total($free > 0 && $goods >= $free ? 0 : (float) $ship->get_total());
+        $free_here = in_array($order->get_shipping_country() ?: 'HU', function_exists('mandala_free_shipping_countries') ? mandala_free_shipping_countries() : ['HU'], true);
+        $new->set_total($free > 0 && $free_here && $goods >= $free ? 0 : (float) $ship->get_total());
         $order->add_item($new);
         break;
     }

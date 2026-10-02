@@ -123,8 +123,19 @@ if (form) {
   form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'checkout_coupon') { e.preventDefault(); applyCoupon(); } });
   form.addEventListener('toggle', (e) => { if (e.target.matches?.('[data-coupon-details]')) couponOpen = e.target.open; }, true);
 
+  // A csomagpont-választót (Pont / GLS bővítmény) a bővítmény a Fizetés blokk elejére teszi – áttesszük a
+  // Szállítási mód alá, hogy a vevő ott lássa, ahol a csomagpontot választotta. A bővítmény a saját elemét
+  // kezeli tovább (mutatás / rejtés, térkép), csak a helye változik; a pénztár űrlapján belül marad.
+  const movePoint = () => {
+    const box = $('#section-payment > .pont.woocommerce-shipping-fields, #section-payment > .pont');
+    const anchor = $('#section-shipping fieldset');
+    if (box && anchor) { anchor.after(box); box.classList.add('point-picker'); }
+  };
+  movePoint();
+
   // Frissítés után: állapotok visszaállítása
   $body?.on('updated_checkout', () => {
+    movePoint();
     syncShipping();
     placeNote();
     const details = $('[data-coupon-details]');

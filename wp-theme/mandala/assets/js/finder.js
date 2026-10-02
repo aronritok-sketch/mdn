@@ -9,6 +9,25 @@ const form = $('[data-finder]');
 const SOUND = { magas: 'Tiszta, csengő hang', kozep: 'Kiegyensúlyozott hangfekvés', mely: 'Mély, hosszan zengő hang' };
 const CHAKRA = { gyoker: 'Gyökér', szakralis: 'Szakrális', napfonat: 'Napfonat', sziv: 'Szív', torok: 'Torok', homlok: 'Homlok', korona: 'Korona' };
 
+/**
+ * A termékek csakra-értékei a bolt saját kifejezései (pl. „korona-csakra”, „harmadik-szem-csakra”,
+ * „szolar-plexus-csakra-napfonat-csakra”) – a kérdőív kulcsaira (korona, homlok, napfonat…) fordítjuk.
+ */
+const CHAKRA_ALIAS = { 'harmadik-szem': 'homlok', 'szolar-plexus': 'napfonat', 'solar-plexus': 'napfonat', 'szakral': 'szakralis' };
+function chakraKey(value) {
+  const v = String(value || '').toLowerCase();
+  const hit = Object.keys(CHAKRA).find((k) => v === k || v.startsWith(`${k}-`) || v.includes(`-${k}`));
+  if (hit) return hit;
+  const alias = Object.keys(CHAKRA_ALIAS).find((k) => v.includes(k));
+  if (alias) return CHAKRA_ALIAS[alias];
+  return /(^|-)(het|7)(-|$)|mind-a-het/.test(v) ? 'het' : v;
+}
+/** Egységes adatok a pontozáshoz: csakra-kulcsok, súly grammban (néhány terméknél kg-ban van megadva). */
+function normalize(p) {
+  const suly = p.attrs.suly && p.attrs.suly < 10 ? Math.round(p.attrs.suly * 1000) : p.attrs.suly;
+  return { ...p, attrs: { ...p.attrs, suly, csakraRaw: p.attrs.csakra || [], csakra: (p.attrs.csakra || []).map(chakraKey) } };
+}
+
 /** A tál hangfekvése a mért Hz és a súly alapján. */
 function soundOf(p) {
   const hz = p.attrs.hz; const g = p.attrs.suly;
@@ -62,7 +81,11 @@ function shopLink(products, a) {
   const sample = products[0];
   if (sample) { st.cat = sample.cat; st.sub = sample.sub; }
   if (a.keret) st.sel.ar = a.keret.split('-').map(Number).map((v, i) => (i ? Math.min(v, 999999) : v));
-  if (a.csakra) st.sel.csakra = [a.csakra];
+  if (a.csakra) {
+    // A kínálat szűrője a bolt saját csakra-kifejezéseit ismeri (pl. „korona-csakra”).
+    const raw = [...new Set(products.flatMap((p) => (p.attrs.csakraRaw || []).filter((v) => chakraKey(v) === a.csakra)))];
+    st.sel.csakra = raw.length ? raw : [a.csakra];
+  }
   const url = new URL(M.shop || '/', location.href);
   url.search = serialize(st);
   return url.toString();
@@ -93,17 +116,26 @@ if (form) {
   async function show() {
     const a = answers();
     const all = await loadProducts();
-    const bowls = all.filter((p) => (p.sub === form.dataset.category || p.cat === form.dataset.category) && p.stock !== 'out');
-    const ranked = bowls.map((p) => score(p, a)).sort((x, y) => y.s - x.s || x.p.price - y.p.price);
-    const top = ranked.filter((r) => r.s > 0).slice(0, 3);
+    const bowls = all.filter((p) => (p.sub === form.dataset.category || p.cat === form.dataset.category) && p.stock !== 'out').map(normalize);
+    // A keretnél 15%-kal drágább tálat nem ajánljuk (a pontozás csak rangsorol, ez kizár).
+    const fits = (p, ans) => !ans.keret || p.price <= Number(ans.keret.split('-')[1]) * 1.15;
+    const rank = (ans) => bowls.map((p) => score(p, ans)).filter((r) => r.s > 0 && fits(r.p, ans)).sort((x, y) => y.s - x.s || x.p.price - y.p.price);
+    let top = rank(a).slice(0, 3);
+    // Ha a keretbe nem fér tál (pl. 15 000 Ft alatt), a keret nélküli legjobbakat mutatjuk – a legolcsóbbak elöl.
+    let near = false;
+    if (!top.length && a.keret && bowls.length) {
+      top = rank({ ...a, keret: '' }).sort((x, y) => x.p.price - y.p.price).slice(0, 3);
+      near = top.length > 0;
+    }
     steps.forEach((f) => { f.hidden = true; });
     next.hidden = true;
     back.hidden = false;
     bar.style.width = '100%';
     result.hidden = false;
-    const link = shopLink(bowls, a);
+    const link = shopLink(bowls, near ? { ...a, keret: '' } : a);
     result.innerHTML = top.length
-      ? `<h2 class="finder-title" tabindex="-1">${icon('sparkle')} Neked ezeket ajánljuk</h2>
+      ? `<h2 class="finder-title" tabindex="-1">${icon('sparkle')} ${near ? 'Ezek állnak a legközelebb' : 'Neked ezeket ajánljuk'}</h2>
+         ${near ? '<p>A megadott keretbe most nem fér hangtál – ezek a legjobban illő, legkedvezőbb árú tálaink.</p>' : ''}
          <ul class="products columns-3 finder-picks">${top.map((r) => productCard(r.p)).join('')}</ul>
          <div class="finder-actions"><a class="iu-button iu-button-outline" href="${esc(link)}">Minden illő hangtál a kínálatban ${icon('arrow', 'ico ico-s')}</a>
            <button type="button" class="iu-button iu-button-link" data-finder-restart>Újrakezdem</button>
