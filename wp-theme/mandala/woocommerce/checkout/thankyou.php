@@ -5,6 +5,7 @@
  *
  * @see checkout/thankyou.php (WooCommerce 8.1)
  * @var WC_Order|false $order
+ * @version 8.1.0
  */
 
 defined('ABSPATH') || exit;

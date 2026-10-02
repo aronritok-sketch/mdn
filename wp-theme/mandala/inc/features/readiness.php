@@ -168,5 +168,21 @@ function mandala_shipping_zone_warnings(): array
             }
         }
     }
+    // Fizetési módok, amelyek csak bizonyos szállítási módoknál érhetők el (pl. utánvét): létező példányokra mutatnak-e
+    $live = [];
+    foreach (array_merge($zones, [new WC_Shipping_Zone(0)]) as $zone) {
+        foreach ($zone->get_shipping_methods() as $m) {
+            $live[] = $m->id . ':' . $m->instance_id;
+            $live[] = $m->id;
+        }
+    }
+    foreach (['cod' => 'Utánvét'] as $gid => $gname) {
+        $methods = (array) (get_option('woocommerce_' . $gid . '_settings')['enable_for_methods'] ?? []);
+        $dead = array_diff($methods, $live);
+        $uncovered = array_filter(array_unique(array_map(fn($x) => $x, array_filter($live, fn($x) => str_contains($x, ':') && !str_starts_with($x, 'local_pickup'))), SORT_REGULAR), fn($x) => $methods && !in_array($x, $methods, true) && !in_array(explode(':', $x)[0], $methods, true));
+        if ($dead) {
+            $warn[] = $gname . ': nem létező szállítási módokra van korlátozva (' . implode(', ', $dead) . ').' . ($uncovered ? ' Nem választható ezeknél: ' . implode(', ', $uncovered) . '.' : '') . ' Javítás: WooCommerce → Beállítások → Fizetés → ' . $gname . ' → „Engedélyezés szállítási módokhoz”.';
+        }
+    }
     return $warn;
 }

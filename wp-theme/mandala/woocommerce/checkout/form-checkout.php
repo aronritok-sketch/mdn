@@ -8,6 +8,7 @@
  *
  * @see https://woocommerce.com/document/template-structure/ (eredeti: checkout/form-checkout.php, 9.4)
  * @var WC_Checkout $checkout
+ * @version 9.4.0
  */
 
 defined('ABSPATH') || exit;

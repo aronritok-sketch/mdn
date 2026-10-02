@@ -4,6 +4,7 @@
  * A WooCommerce ezt a teljes elemet (.woocommerce-checkout-review-order-table) cseréli frissítéskor.
  *
  * @see checkout/review-order.php (WooCommerce 5.2)
+ * @version 11.0.0
  */
 
 defined('ABSPATH') || exit;

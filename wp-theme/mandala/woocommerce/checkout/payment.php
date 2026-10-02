@@ -5,6 +5,7 @@
  * A WooCommerce a „.woocommerce-checkout-payment” fragmentként cseréli.
  *
  * @see checkout/payment.php (WooCommerce 9.8)
+ * @version 10.9.0
  */
 
 defined('ABSPATH') || exit;

@@ -62,6 +62,10 @@ function mandala_od_legacy_url(string $uri): string
     if ($base !== '' && str_starts_with($path . '/', $base . '/')) {
         $path = ltrim(substr($path, strlen($base)), '/');
     }
+    // A régi (Yoast) oldaltérképek – a Search Console-ban még ezek lehetnek megadva
+    if (preg_match('#^(sitemap_index|[a-z0-9_]+-sitemap\d*)\.xml$#', $path)) {
+        return get_sitemap_url('index') ?: '';
+    }
     [$first, $rest] = array_pad(explode('/', $path, 2), 2, '');
     $page = ['checkout' => 'checkout', 'cart' => 'cart', 'my-account' => 'myaccount', 'shop' => 'shop'][$first] ?? '';
     $id = $page && function_exists('wc_get_page_id') ? wc_get_page_id($page) : 0;
