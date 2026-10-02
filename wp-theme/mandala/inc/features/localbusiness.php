@@ -14,7 +14,7 @@ function mandala_localbiz(): array
 {
     return wp_parse_args((array) get_option('mandala_localbiz', []), [
         'street' => '', 'zip' => '', 'city' => 'Budapest', 'lat' => '', 'lng' => '', 'maps' => '', 'gbp' => '',
-        'wk_open' => '10:00', 'wk_close' => '18:00', 'sa_open' => '10:00', 'sa_close' => '14:00', 'su_open' => '', 'su_close' => '',
+        'mo_open' => '', 'mo_close' => '', 'wk_open' => '10:00', 'wk_close' => '18:00', 'sa_open' => '10:00', 'sa_close' => '14:00', 'su_open' => '', 'su_close' => '',
     ]);
 }
 
@@ -27,7 +27,13 @@ function mandala_localbiz_schema(): array
     }
     $c = (array) mandala_config('contact', []);
     $hours = [];
-    foreach ([['wk', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']], ['sa', ['Saturday']], ['su', ['Sunday']]] as [$k, $days]) {
+    // Hétfő külön (pl. H 9–17, K–P 9–15), ha meg van adva; különben a H–P sor érvényes hétfőre is.
+    $monday = $b['mo_open'] !== '' && $b['mo_close'] !== '';
+    $groups = [['wk', $monday ? ['Tuesday', 'Wednesday', 'Thursday', 'Friday'] : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']], ['sa', ['Saturday']], ['su', ['Sunday']]];
+    if ($monday) {
+        array_unshift($groups, ['mo', ['Monday']]);
+    }
+    foreach ($groups as [$k, $days]) {
         if ($b[$k . '_open'] !== '' && $b[$k . '_close'] !== '') {
             $hours[] = ['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => $days, 'opens' => $b[$k . '_open'], 'closes' => $b[$k . '_close']];
         }
@@ -76,7 +82,7 @@ add_action('mandala_store_admin_after', function () {
     echo '<h2 id="bemutatoterem">Bemutatóterem (Google)</h2><p>A Google a keresésben és a térképen ebből köti össze a boltot a Cégprofillal. Az utca kitöltésével kapcsol be.</p><form method="post">';
     wp_nonce_field('mandala_localbiz');
     echo '<table class="form-table"><tr><th>Cím</th><td>' . $f('zip', '', 'irányítószám') . ' ' . $f('city', '', 'város') . '<br>' . $f('street', 'large-text', 'utca, házszám') . '</td></tr>'
-        . '<tr><th>Nyitvatartás</th><td>H–P ' . $t('wk_open') . '–' . $t('wk_close') . ' &nbsp; Szo ' . $t('sa_open') . '–' . $t('sa_close') . ' &nbsp; V ' . $t('su_open') . '–' . $t('su_close') . '<p class="description">Üresen = zárva.</p></td></tr>'
+        . '<tr><th>Nyitvatartás</th><td>H ' . $t('mo_open') . '–' . $t('mo_close') . ' &nbsp; K–P (ha a H üres: H–P) ' . $t('wk_open') . '–' . $t('wk_close') . ' &nbsp; Szo ' . $t('sa_open') . '–' . $t('sa_close') . ' &nbsp; V ' . $t('su_open') . '–' . $t('su_close') . '<p class="description">Üresen = zárva.</p></td></tr>'
         . '<tr><th>Koordináták</th><td>' . $f('lat', '', 'szélesség, pl. 47.4979') . ' ' . $f('lng', '', 'hosszúság, pl. 19.0402') . '<p class="description">Google Térkép → jobb klikk a helyre → a számokra kattintva másolható.</p></td></tr>'
         . '<tr><th>Térkép link</th><td>' . $f('maps', 'large-text', 'https://maps.google.com/…') . '</td></tr>'
         . '<tr><th>Google Cégprofil link</th><td>' . $f('gbp', 'large-text', 'https://g.page/…') . '<p class="description">A Cégprofil „Megosztás” linkje.</p></td></tr></table>';

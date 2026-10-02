@@ -119,6 +119,7 @@ function mandala_readiness(bool $deep = false): array
         'last_product_from_import' => ($lp = $wpdb->get_var("SELECT MAX(p.post_modified) FROM {$wpdb->posts} p WHERE p.post_type IN ('product','product_variation')")) ? (string) $lp : null];
     $last = get_option('mandala_olddata_last');
     $out['migration'] = $last ? ['time' => wp_date('Y-m-d H:i', (int) $last['time']), 'counts' => $last['counts']] : null;
+    $out['sitefix'] = array_map(fn($r) => (string) ($r['result'] ?? ''), (array) get_option('mandala_sitefix', []));
     $out['showcase_on'] = function_exists('mandala_showcase_on') && mandala_showcase_on();
 
     // Háttérfeladatok, átirányítások

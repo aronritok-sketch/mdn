@@ -4,7 +4,8 @@
 > **Csere a feltöltöttre**). A téma ezeket már magától javítja: a pénztár országa alapból Magyarország, az
 > ingyenes szállítás csak belföldre jár, a GLS csomagpont-választó a szállítási mód alá kerül, a „Fizetés
 > helyszínen” csak személyes átvételnél választható, és a hangtál-választó jól kezeli a csakrákat és a keretet.
-> Az alábbiak admin-beállítások, ezeket a téma nem tudja megcsinálni.
+> A jogi oldalakat, az Impresszumot, a mintaoldalt és a bemutatóterem címét is a téma javítja (5. pont). Az alábbiak
+> admin-beállítások, ezeket a téma nem tudja megcsinálni.
 
 ---
 
@@ -34,28 +35,15 @@ ne nyisd meg.
    Console → Maps JavaScript API, a kulcs a mandala.hu-ra korlátozva). Ha a bővítmény tud térkép nélküli módot
    (csak legördülő lista), írd le, hol kapcsolható.
 
-5. **Impresszum.** Oldalak → Impresszum: a „Hatályos: 2026. október 1-től.” utáni mondatot
-   („A szöveg helykitöltő – a végleges változat jogászi átnézés után kerül fel.”) töröld, ha az adatok rendben
-   vannak (cég, székhely, cégjegyzékszám, adószám, ELIN). Mentés.
+5. **A téma automatikus javításai – csak ellenőrizd.** Az új téma az első oldalbetöltéskor egyszer (revízióval) elvégzi:
+   Impresszum helykitöltő mondata törölve; Akadálymentességi nyilatkozat kitöltve (elérhetőség, hatóság, dátum);
+   ÁSZF: Teya az OTP / SimplePay helyett + a mai fizetési módok és szállítási díjak; „A bankkártyás fizetésről”: a CIB
+   helyett Teya; a WordPress mintaoldala a lomtárban; a bemutatóterem címe 1093 Budapest, Bakáts u. 6., nyitvatartás
+   H 9–17, K–P 9–15. Nyisd meg és nézd át: https://mandala.hu/impresszum/ , https://mandala.hu/akadalymentesseg/ ,
+   https://mandala.hu/aszf/ , https://mandala.hu/a-bankkartyas-fizetesrol/ , https://mandala.hu/kapcsolat/ (a térkép
+   gombra kattintva a Bakáts utca jelenik meg). Ha valamelyik nem változott, szólj (ne írd át kézzel).
 
-6. **Mintaoldal.** Oldalak → „Ez egy minta oldal” (a WordPress alapértelmezett mintaoldala, közzétéve,
-   https://mandala.hu/ez-egy-minta-oldal/): helyezd a lomtárba.
-
-7. **Bemutatóterem címe.** WooCommerce → Mandala bolt adatai: a bemutatóterem / átvevőhely pontos címe most
-   üres – a kapcsolat oldalon csak „Budapest” látszik, a térkép helyén „A térkép a pontos cím megadása után
-   jelenik meg”, és a személyes átvételnél is csak „Budapest” áll. **Kérdezd meg tőlem a pontos címet**
-   (a cég székhelye 1093 Budapest, Bakáts u. 6. – de ne írd be, amíg nem erősítem meg, hogy a bemutatóterem is ott
-   van), utána írd be, mentés, és nézd meg a https://mandala.hu/kapcsolat/ oldalt.
-
-8. **Jogi szövegek – csak jelezd, ne írd át.**
-   - ÁSZF: még az OTP Mobil Kft.-t / SimplePay-t említi adatfeldolgozóként.
-   - „A bankkártyás fizetésről”: végig a CIB Bankról szól.
-   - A kártyás fizetés ma **Teya** – ezeket jogásznak / a tulajdonosnak kell átírnia. Írd ki nekem pontosan,
-     melyik bekezdésekben szerepel az OTP / SimplePay / CIB.
-   - Akadálymentességi nyilatkozat: két „kitöltendő” rész van (a hatóság neve és elérhetősége; a legutóbbi
-     ellenőrzés dátuma) – listázd ki őket.
-
-9. **Ellenőrzés.** Nyisd meg privát ablakban a https://mandala.hu/ oldalt, tegyél egy terméket a kosárba, menj a
+6. **Ellenőrzés.** Nyisd meg privát ablakban a https://mandala.hu/ oldalt, tegyél egy terméket a kosárba, menj a
    pénztárig (NE rendelj):
    - az Ország mezőben magától **Magyarország** áll, és rögtön látszik a 4 szállítási mód (GLS házhoz, MPL,
      Személyes átvétel, GLS csomagpont);
@@ -66,4 +54,4 @@ ne nyisd meg.
    - Horvátországra állítva van szállítási mód.
 
 **Jelentés a végén** táblázatban: pontonként mi volt, mire állítottad, sikerült-e, és mire vársz tőlem választ
-(országlista, Google Maps kulcs, bemutatóterem címe, jogi szövegek).
+(országlista, Google Maps kulcs).

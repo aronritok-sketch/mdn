@@ -625,6 +625,8 @@ def page_info(config):
         direction='column', className='entry-content'))), className='pt-7')
 
 
+CONTACT_LINKS = 'E-mail: <a href="mailto:info@mandala.hu">info@mandala.hu</a> · Telefon: <a href="tel:+36308928385">+36 30 892 8385</a>'
+
 LEGAL = {
     'aszf': ('Általános Szerződési Feltételek', [
         ('Szolgáltató adatai', 'Cégnév, székhely, cégjegyzékszám, adószám, e-mail, telefon – [kitöltendő a cégadatokból].'),
@@ -646,15 +648,15 @@ LEGAL = {
     'akadalymentesseg': ('Akadálymentességi nyilatkozat', [
         ('Célunk', 'Azt szeretnénk, hogy a webáruházat mindenki használni tudja – képernyőolvasóval, csak billentyűzettel, nagyítással vagy mobilon is. A megfelelés célja a WCAG 2.1 AA szint (EN 301 549), az európai akadálymentesítési irányelv (EU) 2019/882 és a hazai végrehajtási szabályok szerint.'),
         ('Megfelelési állapot', 'Részben megfelel. A saját fejlesztésű oldalakat automatikus (axe-core) és kézi ellenőrzéssel vizsgáltuk: billentyűzettel bejárható menü, kereső, szűrő és pénztár; látható fókusz; címkézett űrlapmezők mezőnkénti hibaüzenettel és hibaösszesítővel; szöveges alternatívák; legalább 4.5:1 kontraszt; mozgáscsökkentési beállítás tiszteletben tartása; „Ugrás a tartalomra” link.'),
-        ('Ismert korlátok', 'Külső szolgáltatások felületei, amelyeket nem mi fejlesztünk: a GLS csomagpont-választó térképe, a Teya bankkártyás fizetőoldala és a beágyazott videók. A régebbi termékfotók egy részének leírása hiányos – folyamatosan pótoljuk. [A lista az éles ellenőrzés után pontosítandó.]'),
-        ('Visszajelzés és segítség', 'Ha valamit nem tudsz elérni vagy használni, írj nekünk vagy hívj – a rendelést telefonon vagy e-mailben is felvesszük, és 5 munkanapon belül válaszolunk az akadálymentességgel kapcsolatos jelzésekre. [e-mail] · [telefon]'),
-        ('Jogérvényesítés', 'Ha a válaszunkkal nem vagy elégedett, a piacfelügyeleti hatósághoz fordulhatsz. [A hatóság neve és elérhetősége – kitöltendő a hatályos szabályozás szerint.]'),
-        ('A nyilatkozat készítése', 'A nyilatkozat 2026 szeptemberében készült, a legutóbbi ellenőrzés dátuma: [kitöltendő]. Évente és minden jelentős fejlesztés után felülvizsgáljuk.'),
+        ('Ismert korlátok', 'Külső szolgáltatások felületei, amelyeket nem mi fejlesztünk: a GLS csomagpont-választó térképe, a Teya bankkártyás fizetőoldala és a beágyazott videók. A régebbi termékfotók egy részének leírása hiányos – folyamatosan pótoljuk.'),
+        ('Visszajelzés és segítség', 'Ha valamit nem tudsz elérni vagy használni, írj nekünk vagy hívj – a rendelést telefonon vagy e-mailben is felvesszük, és 5 munkanapon belül válaszolunk az akadálymentességgel kapcsolatos jelzésekre. ' + CONTACT_LINKS),
+        ('Jogérvényesítés', 'Ha a válaszunkkal nem vagy elégedett, a piacfelügyeleti hatósághoz fordulhatsz. Az akadálymentességi követelmények (2022. évi XVII. törvény) betartását a piacfelügyeleti hatóság ellenőrzi; webáruházzal kapcsolatos fogyasztói panasszal a lakóhelyed szerinti vármegyei kormányhivatal fogyasztóvédelmi hatóságához – Budapesten a Budapest Főváros Kormányhivatalához – fordulhatsz (elérhetőségek: <a href="https://kormanyhivatalok.hu">kormanyhivatalok.hu</a>).'),
+        ('A nyilatkozat készítése', 'A nyilatkozat 2026 szeptemberében készült, a legutóbbi ellenőrzés dátuma: 2026. október 2. Évente és minden jelentős fejlesztés után felülvizsgáljuk.'),
     ]),
     'impresszum': ('Impresszum', [
-        ('Üzemeltető', '[Cégnév, székhely, cégjegyzékszám, adószám – kitöltendő]'),
-        ('Kapcsolat', '[e-mail] · [telefon]'),
-        ('Tárhelyszolgáltató', '[Név, cím, elérhetőség – kitöltendő]'),
+        ('Üzemeltető', '<strong>Asita Cult Kft.</strong><br>Székhely: 1093 Budapest, Bakáts u. 6.<br>Cégjegyzékszám: 01-09-693769 (nyilvántartja: IM Cégnyilvántartási és Céginformációs Szolgálat)<br>Statisztikai számjel: 12587128-5147-113-01<br>Adószám: 12587128-2-43'),
+        ('Kapcsolat', CONTACT_LINKS),
+        ('Tárhelyszolgáltató', '<strong>ELIN.hu Informatikai Szolgáltató és Tanácsadó Kft.</strong><br>Székhely: 9024 Győr, Déry T. u. 11.<br>Cégjegyzékszám: 08-09-016359 · Adószám: 14315754-2-08<br>E-mail: <a href="mailto:info@elin.hu">info@elin.hu</a> · Telefon: +36 1 477 1000 · Web: <a href="https://www.elin.hu">www.elin.hu</a>'),
     ]),
 }
 
@@ -662,7 +664,9 @@ LEGAL = {
 def page_legal(key):
     title, sections = LEGAL[key]
     toc = html('<nav class="toc" aria-label="Tartalom"><ol>' + ''.join(f'<li><a href="#s{i + 1}">{i + 1}. {t}</a></li>' for i, (t, _) in enumerate(sections)) + '</ol></nav>')
-    body = [p('Hatályos: 2026. október 1-től. <span class="text-muted">A szöveg helykitöltő – a végleges változat jogászi átnézés után kerül fel.</span>')]
+    # A „helykitöltő” jelzés csak ott, ahol még van kitöltendő rész.
+    todo = any('[' in b for _, b in sections)
+    body = [p('Hatályos: 2026. október 1-től.' + (' <span class="text-muted">A szöveg helykitöltő – a végleges változat jogászi átnézés után kerül fel.</span>' if todo else ''))]
     for i, (t, b) in enumerate(sections):
         body += [h(f'{i + 1}. {t}', anchor=f's{i + 1}'), p(b)]
     return section(row('1-4|3-4', col('1-4', toc), col('3-4', group(*body, direction='column', className='entry-content'))), className='pt-7')
