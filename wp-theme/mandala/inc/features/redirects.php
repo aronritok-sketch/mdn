@@ -164,6 +164,18 @@ function mandala_redirect_resolve(string $url): ?array
         }
     }
     if (!$found && count($segments) >= 2 && in_array($segments[0], ['product-category', 'kategoria', 'termekkategoria'], true) && taxonomy_exists('product_cat')) {
+        // Összevont / átnevezett kategória (pl. „kapucnis-felsok” → „kapucnis-puloverek”): a régi név első szava
+        // szerint, ha pontosan egy mostani kategória kezdődik vele; különben a régi cím legközelebbi létező szülője.
+        global $wpdb;
+        $first = explode('-', $slug)[0];
+        if (strlen($first) >= 5 && !get_term_by('slug', $slug, 'product_cat') && !get_term_by('slug', preg_replace('/-(ruhazat-es-kiegeszitok|szakralis-targyak|lakberendezes|ajandektargyak)(-\\d+)?$/', '', $slug), 'product_cat')) {
+            $ids = $wpdb->get_col($wpdb->prepare("SELECT t.term_id FROM {$wpdb->terms} t INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = t.term_id AND tt.taxonomy = 'product_cat' WHERE t.slug LIKE %s LIMIT 2", $wpdb->esc_like($first) . '%'));
+            if (count($ids) === 1 && !is_wp_error($link = get_term_link((int) $ids[0], 'product_cat'))) {
+                $found = $link;
+            }
+        }
+    }
+    if (!$found && count($segments) >= 2 && in_array($segments[0], ['product-category', 'kategoria', 'termekkategoria'], true) && taxonomy_exists('product_cat')) {
         // Régi kategóriacím: a régi bolt a szülő nevét a slug végére tette (karkotok-ruhazat-es-kiegeszitok) –
         // előbb ennek levágásával, aztán a legközelebbi létező szülőkategóriára
         for ($i = count($segments) - 1; $i >= 1 && !$found; $i--) {
@@ -194,7 +206,7 @@ function mandala_redirect_resolve(string $url): ?array
         return [$found, 301];
     }
     // Termékre utaló régi cím: a keresés a régi név szavaival (ideiglenes, 302) – jobb, mint egy üres 404.
-    $product_bases = apply_filters('mandala_redirect_product_bases', ['termek', 'product', 'products', 'termekek', 'shop', 'aruhaz']);
+    $product_bases = apply_filters('mandala_redirect_product_bases', ['termek', 'product', 'products', 'termekek', 'shop', 'aruhaz', 'product-category', 'kategoria', 'termekkategoria']);
     if (count($segments) >= 2 && array_intersect($segments, $product_bases)) {
         $words = trim(preg_replace('/\b\d+\b/', '', str_replace('-', ' ', $slug)));
         if (mb_strlen($words) >= 4) {

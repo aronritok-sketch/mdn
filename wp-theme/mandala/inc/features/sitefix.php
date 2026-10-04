@@ -169,6 +169,25 @@ function mandala_sitefix_list(): array
             }) ? 'az „Előre utalás” sor és bekezdése kivéve (az átutalás ki van kapcsolva)' : 'nem kellett';
         },
 
+        // Régi viszonteladók: ha az átvételkor nem volt meg a „wholesale_customer” szerep, sima vásárlóként jöttek át
+        // (a régi szerep a _mandala_old_role mezőben van) – így nem látják a nagyker árat. Visszaállítjuk.
+        'viszontelado-szerep-2026-10' => function () {
+            if (!get_role('wholesale_customer') && ($customer = get_role('customer'))) {
+                add_role('wholesale_customer', 'Wholesale Customer', $customer->capabilities);
+            }
+            $n = 0;
+            foreach (get_users(['meta_key' => '_mandala_old_role', 'fields' => 'all']) as $user) {
+                $old = (string) get_user_meta($user->ID, '_mandala_old_role', true);
+                if (!str_contains($old, 'wholesale') || array_diff((array) $user->roles, ['customer', 'subscriber'])) {
+                    continue;
+                }
+                $user->set_role(get_role($old) ? $old : 'wholesale_customer');
+                delete_user_meta($user->ID, '_mandala_old_role');
+                $n++;
+            }
+            return $n ? $n . ' régi viszonteladó szerepe visszaállítva' : 'nem kellett';
+        },
+
         'mintaoldal-2026-10' => function () {
             $n = 0;
             foreach (['ez-egy-minta-oldal', 'sample-page', 'minta-oldal'] as $slug) {

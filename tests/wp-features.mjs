@@ -439,7 +439,16 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     add_filter("mandala_keep_paid_rates_with_free", "__return_false");
     $b = apply_filters("woocommerce_package_rates", $mk(), $pkg);
     echo implode(",", array_keys($a)) . "|" . (int) $a["flat_rate:3"]->get_cost() . "|" . count($b); WC()->cart->empty_cart();`);
-  ok(hide === 'flat_rate:3,free_shipping:2,local_pickup:5,wc_pont_shipping_method:9|0|2', 'ingyenes szállítás mellett is látszik a GLS / csomagpont (0 Ft), ha egy szűrő elrejtené; kikapcsolható (' + hide + ')');
+  // Összevont kategória régi címe (Facebook-poszt): a hasonló nevű mostani kategóriára, nem 404 / nem a túl tág szülőre.
+  const catr = wp(`$p = wp_insert_term("Felsők T", "product_cat", ["slug" => "felsok-t"]); $c = wp_insert_term("Kapucnis pulóverek T", "product_cat", ["slug" => "kapucnis-puloverek-t", "parent" => $p["term_id"]]);
+    $o = []; foreach (["/product-category/ruhazat/kapucnis-felsok/", "/kategoria/ruhazat-es-kiegeszitok/kapucnis-felsok/"] as $u) { $r = mandala_redirect_resolve($u); $o[] = $r ? wp_parse_url($r[0], PHP_URL_PATH) : "404"; }
+    wp_delete_term($c["term_id"], "product_cat"); wp_delete_term($p["term_id"], "product_cat"); echo implode("|", $o);`);
+  ok(catr === '/kategoria/felsok-t/kapucnis-puloverek-t/|/kategoria/felsok-t/kapucnis-puloverek-t/', 'átirányítás: összevont kategória régi címe (kapucnis-felsok) → a hasonló nevű mostani kategória (' + catr + ')');
+  // Régi viszonteladó, aki szerep nélkül jött át: visszakapja a viszonteladói szerepet.
+  const role = wp(`$u = wp_insert_user(["user_login" => "regi-nagyker-t", "user_email" => "regi.nagyker.t@example.com", "user_pass" => wp_generate_password(), "role" => "customer"]); update_user_meta($u, "_mandala_old_role", "wholesale_customer");
+    $r = mandala_sitefix_list()["viszontelado-szerep-2026-10"](); $ok = mandala_is_wholesale_user($u) ? "igen" : "nem"; wp_delete_user($u); echo $ok;`);
+  ok(role === 'igen', 'régi viszonteladó: a szerep visszaáll, nagyker árat lát');
+  ok(hide ==='flat_rate:3,free_shipping:2,local_pickup:5,wc_pont_shipping_method:9|0|2', 'ingyenes szállítás mellett is látszik a GLS / csomagpont (0 Ft), ha egy szűrő elrejtené; kikapcsolható (' + hide + ')');
   // A régi bolt „Fizetés helyszínen” (csekkes) módja csak személyes átvételnél.
   const cheque = wp(`$o = get_option("woocommerce_cheque_settings", []); update_option("woocommerce_cheque_settings", array_merge((array) $o, ["enabled" => "yes", "title" => "Fizetés helyszínen készpénzzel, vagy bankkártyával"]));
     WC()->payment_gateways()->init(); WC()->frontend_includes(); WC()->initialize_session(); WC()->initialize_cart(); WC()->cart->empty_cart();
