@@ -133,7 +133,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Mandala bolt adatai** | e-mail, telefon, cím, nyitvatartás, Facebook / Instagram, ingyenes szállítás határa, utánvét díja |
 | WooCommerce → Beállítások → Fizetés → **Előre utalás** | bankszámlaszám (a köszönőoldal és a levél innen veszi) |
 | WooCommerce → Beállítások → **Szállítás** | a GLS bővítmény módjai a „Magyarország” zónában (a személyes átvétel a lista végén) |
-| **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószám a rendelésben `_billing_tax_number` |
+| **Teya**, **Számlázz.hu** bővítmény | a saját beállításaik; Számlázz.hu: az adószámot a téma a bővítmény kulcsába (`_billing_wc_szamlazz_adoszam`) is beírja, a bővítmény saját adószám mezőjét nem kell bekapcsolni |
 | Eszközök → **Átirányítások** | a régi címek magától az új helyükre visznek; ide csak a meg nem talált régi címek kerülnek (találatszámmal) – a gyakoriaknak adj célt; tömeges betöltés „régi;új” sorokkal |
 | Vezérlőpult → **Mandala őrszem** | óránkénti állapot (háttérfeladatok, hibák, rendelések, fizetések, levélküldés, feedek, tárhely, SSL); baj esetén levél megy |
 | WooCommerce → **Mandala feedek** | Árukereső, Árgép, Google Merchant, Meta és Pinterest katalógus feed címei (egyszer bemásolni a szolgáltatónál); óránként frissülnek |

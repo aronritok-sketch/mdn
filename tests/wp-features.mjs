@@ -224,6 +224,25 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   execSync(`${WP} mandala eu-shipping --off`, { encoding: 'utf8' });
 }
 
+// ======================= Számlázz.hu: adószám a bővítmény kulcsában =======================
+{
+  const page = await newPage();
+  const mala = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  await page.goto(`${BASE}/?add-to-cart=${mala}`, { waitUntil: 'networkidle' });
+  const id = await checkout(page, { email: 'ceg@example.com', before: async () => {
+    await page.check('#is_company');
+    await page.fill('#billing_company', 'Számlás Kft.');
+    await page.fill('#billing_tax_number', '12345676241');
+    await page.locator('#billing_tax_number').blur();
+  } });
+  const meta = wp(`$o = wc_get_order(${id}); echo wp_json_encode([$o->get_meta("_billing_tax_number"), $o->get_meta("_billing_wc_szamlazz_adoszam"), (string) get_user_meta($o->get_customer_id(), "wc_szamlazz_adoszam", true), apply_filters("wc_szamlazz_xml_adoszam", "", $o)]);`);
+  ok(meta === '["12345676-2-41","12345676-2-41","","12345676-2-41"]' || meta === '["12345676-2-41","12345676-2-41","12345676-2-41","12345676-2-41"]', 'Számlázz.hu: az adószám a bővítmény kulcsában is (rendelés, XML-szűrő)', meta);
+  wp(`$o = wc_get_order(${id}); $o->delete_meta_data("_billing_wc_szamlazz_adoszam"); $o->save_meta_data();`);
+  ok(wp(`echo mandala_sitefix_list()["szamlazz-adoszam-2026-10"]();`).includes('1 rendelés'), 'Számlázz.hu: egyszeri javítás pótolja a régi rendelés kulcsát');
+  ok(wp(`echo wc_get_order(${id})->get_meta("_billing_wc_szamlazz_adoszam");`) === '12345676-2-41', 'Számlázz.hu: a pótolt kulcs a rendelésben');
+  await page.context().close();
+}
+
 // ======================= Viszonteladói felület =======================
 {
   const page = await newPage();

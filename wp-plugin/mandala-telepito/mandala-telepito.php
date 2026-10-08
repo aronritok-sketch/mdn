@@ -808,7 +808,7 @@ function mandala_wiz_step_shipping(): void
         . mandala_wiz_row($st['gls']['active'], 'GLS: futár, CsomagPont, automata', 'A GLS bővítményben add meg a szerződéses adatokat, és a „Magyarország” (és ha kell, „Európai Unió”) zónában add hozzá a GLS módokat.', mandala_wiz_link(admin_url('admin.php?page=wc-settings&tab=shipping'), 'Szállítási zónák'))
         . mandala_wiz_row($st['teya']['active'], 'Teya kártyás fizetés', 'A Teya bővítményében add meg a kulcsokat; először teszt módban próbáld.', mandala_wiz_link(admin_url('admin.php?page=wc-settings&tab=checkout'), 'Fizetési módok'))
         . mandala_wiz_row(($cod['enabled'] ?? 'no') === 'yes', 'Utánvét', 'Kapcsold be az utánvétet (a díját a téma számolja a Mandala bolt adatai szerint).', mandala_wiz_link(admin_url('admin.php?page=wc-settings&tab=checkout&section=cod'), 'Utánvét'))
-        . mandala_wiz_row($st['szamlazz']['active'], 'Számlázz.hu', 'Az Agent kulcs és a számla beállítások a bővítményben; az adószám a rendelésben: _billing_tax_number.')
+        . mandala_wiz_row($st['szamlazz']['active'], 'Számlázz.hu', 'Az Agent kulcs és a számla beállítások a bővítményben; az adószámot a téma a bővítmény kulcsába (_billing_wc_szamlazz_adoszam) is beírja, a bővítmény saját adószám mezője maradhat kikapcsolva.')
         . mandala_wiz_row(true, 'Csomagkövetés', '')
         . '</ul><p>A GLS csomagszámot a téma a GLS bővítmény mezőjéből olvassa. Ha az első éles csomagnál nem jelenik meg a rendelés „Csomagkövetés és levelek” dobozában, a mező nevét add meg: ' . mandala_wiz_link(admin_url('admin.php?page=mandala-automations&tab=beallitasok'), 'Csomagszám mezők') . '</p>';
 }

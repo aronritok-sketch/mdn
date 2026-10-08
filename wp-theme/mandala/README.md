@@ -173,9 +173,14 @@ könyvelővel egyeztetve a tesztszerveren ellenőrizni kell. Lemondáskor az egy
   bővítményben állítjátok be).
 - **Teya:** a fizetési módot a Teya bővítmény adja; a téma a kártya ikont és a köszönő oldali „Sikeres fizetés”
   üzenetet teszi hozzá.
-- **Számlázz.hu:** a pénztár adószám mezője a rendelésben `_billing_tax_number`. Ha a Számlázz.hu bővítmény
-  más meta kulcsból olvassa: `add_filter('mandala_tax_number_meta_keys', fn() => ['<kulcs>']);` – a tesztszerveren
-  ellenőrizendő.
+- **Számlázz.hu:** a pénztár adószám mezője a rendelésben `_billing_tax_number`, és a téma ugyanazt beírja a
+  Számlázz.hu bővítmény (Integration for Szamlazz.hu & WooCommerce) által olvasott `_billing_wc_szamlazz_adoszam`
+  kulcsba is (minden mentéskor, admin-szerkesztésnél is), a vásárló fiókjában pedig a `wc_szamlazz_adoszam` mezőbe –
+  különben a számlára nem kerül adószám. A régi rendeléseknél a számla XML-jébe a `wc_szamlazz_xml_adoszam` szűrő
+  pótolja, és a téma egyszeri javítása (`sitefix.php`, `szamlazz-adoszam-2026-10`) a meglévő céges rendelésekbe is
+  bemásolja. Ha a bővítmény saját adószám mezője be van kapcsolva, a pénztárban csak a téma mezője látszik, az
+  értéket a bővítmény is megkapja (NAV-ellenőrzés, saját mentés). Más számlázóhoz:
+  `add_filter('mandala_tax_number_meta_keys', fn() => ['<kulcs>']);`.
 - **Viszonteladói ár:** a Wholesale Prices bővítmény „Wholesale Price” mezője, szerep: `wholesale_customer`. A JUTA
   „Akciós ár”-a ide kerül: az importból (REST API, nem a termékszerkesztőből) érkező `sale_price`-t a `b2b.php`
   a nagyker árba teszi, a bolti akciós árat nem írja felül (Új termékek → Beállítások; más import-csatornához:

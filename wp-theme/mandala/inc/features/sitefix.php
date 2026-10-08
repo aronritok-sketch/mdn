@@ -10,7 +10,8 @@
  * - Impresszum / Akadálymentességi nyilatkozat: a helykitöltő mondat és a kitöltendő részek,
  * - ÁSZF: Teya (az OTP / SimplePay helyett), mai fizetési és szállítási díjak,
  * - „A bankkártyás fizetésről”: a CIB Bank helyett Teya,
- * - a WordPress mintaoldala („Ez egy minta oldal”) a lomtárba.
+ * - a WordPress mintaoldala („Ez egy minta oldal”) a lomtárba,
+ * - Számlázz.hu: a meglévő céges rendelések adószáma a bővítmény által olvasott kulcsba is.
  */
 
 defined('ABSPATH') || exit;
@@ -186,6 +187,35 @@ function mandala_sitefix_list(): array
                 $n++;
             }
             return $n ? $n . ' régi viszonteladó szerepe visszaállítva' : 'nem kellett';
+        },
+
+        // Számlázz.hu: az adószámot a bővítmény a `_billing_wc_szamlazz_adoszam` kulcsból olvassa, a pénztár eddig
+        // csak a `_billing_tax_number` alá mentette – a számlákra nem került adószám. A meglévő céges rendeléseket
+        // (és a vásárlók fiókját) pótoljuk, hogy a még ki nem állított számlák jók legyenek.
+        'szamlazz-adoszam-2026-10' => function () {
+            global $wpdb;
+            $n = 0;
+            // Az érintett rendelések azonosítói (HPOS-táblából vagy a postmeta-ból – a meta_query nem mindkettőn megy).
+            $hpos = class_exists(\Automattic\WooCommerce\Utilities\OrderUtil::class) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+            $ids = $hpos
+                ? $wpdb->get_col("SELECT order_id FROM {$wpdb->prefix}wc_orders_meta WHERE meta_key = '_billing_tax_number' AND meta_value <> '' ORDER BY order_id DESC LIMIT 2000")
+                : $wpdb->get_col("SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_billing_tax_number' AND meta_value <> '' ORDER BY post_id DESC LIMIT 2000");
+            foreach (array_map('intval', $ids) as $id) {
+                $order = wc_get_order($id);
+                if ($order instanceof WC_Order && mandala_sync_tax_number($order)) {
+                    $order->save_meta_data(); // csak a meta – nem indít rendelés-eseményt (levél, JUTA)
+                    $n++;
+                }
+            }
+            $u = 0;
+            foreach (get_users(['meta_key' => 'billing_tax_number', 'meta_compare' => '!=', 'meta_value' => '', 'fields' => 'ID']) as $uid) { // phpcs:ignore
+                $tax = sanitize_text_field((string) get_user_meta($uid, 'billing_tax_number', true));
+                if ($tax !== '' && (string) get_user_meta($uid, 'wc_szamlazz_adoszam', true) !== $tax) {
+                    update_user_meta($uid, 'wc_szamlazz_adoszam', $tax);
+                    $u++;
+                }
+            }
+            return ($n || $u) ? "$n rendelés, $u vásárló adószáma bemásolva a Számlázz.hu kulcsába" : 'nem kellett';
         },
 
         'mintaoldal-2026-10' => function () {

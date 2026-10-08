@@ -60,6 +60,11 @@ kiadott verziója: 1.1.202610041800 – kérdezd meg, fent van-e már.
 5. **Facebook-poszt (kapucnis pulóver)** – a régi kategóriacímek most a Felsők → Kapucnis pulóverek kategóriára
    irányítanak; a poszt pontos linkjét még ellenőrizni kell.
 6. **Nyitvatartás** – a helyes időpontokat várjuk; módosítás: WooCommerce → Mandala bolt adatai (+ Bemutatóterem).
+8. **Adószám a Számlázz.hu számlán – javítva (2026-10-08, téma 1.1.202610081138):** a téma az adószámot eddig csak a
+   `_billing_tax_number` kulcsba mentette, a Számlázz.hu bővítmény a `_billing_wc_szamlazz_adoszam`-ot olvassa, ezért a
+   számlákra nem került adószám. Most mindkét kulcsba ír (és a vásárló fiókjába is), a régi céges rendeléseket az
+   egyszeri javítás (`szamlazz-adoszam-2026-10`) pótolja a téma feltöltése után. Élesben ellenőrizni: egy céges
+   rendelés számláján ott az adószám; WooCommerce → Számlázz.hu → Adószám mező maradhat kikapcsolva.
 7. Korábbról: Google Maps API-kulcs a csomagpont-térképhez (Pont bővítmény), Horvátország a zónába, eladási országlista,
    SSL-megújítás (ELIN), Search Console sitemap.
 

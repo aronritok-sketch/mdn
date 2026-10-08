@@ -411,14 +411,68 @@ add_action('woocommerce_after_checkout_validation', function ($data, WP_Error $e
     }
 }, 10, 2);
 
-add_action('woocommerce_checkout_create_order', function (WC_Order $order) {
-    // Adószám a számlázónak: a Számlázz.hu bővítmény által olvasott meta kulcs(ok) itt adhatók meg.
-    $tax = $order->get_meta('_billing_tax_number');
-    foreach ((array) apply_filters('mandala_tax_number_meta_keys', []) as $key) {
-        if ($tax && is_string($key) && $key !== '_billing_tax_number') {
+/* ---------- Adószám a Számlázz.hu bővítménynek ----------
+ * A pénztár mezője a rendelésben `_billing_tax_number`; a Számlázz.hu bővítmény (Integration for Szamlazz.hu &
+ * WooCommerce) viszont a számla kiállításakor a `_billing_wc_szamlazz_adoszam` (régebben `wc_szamlazz_adoszam`)
+ * kulcsot olvassa – ezért ide is beírjuk, különben a számlára nem kerül adószám. Más számlázóhoz a
+ * `mandala_tax_number_meta_keys` szűrővel adható meg a kulcs. */
+
+const MANDALA_SZAMLAZZ_META = '_billing_wc_szamlazz_adoszam';
+
+/** Azok a rendelés-meta kulcsok, amelyekbe az adószámot a számlázó kedvéért bemásoljuk. */
+function mandala_tax_number_meta_keys(): array
+{
+    $keys = (array) apply_filters('mandala_tax_number_meta_keys', [MANDALA_SZAMLAZZ_META]);
+    return array_values(array_unique(array_filter($keys, fn($k) => is_string($k) && $k !== '' && $k !== '_billing_tax_number')));
+}
+
+/** A rendelés adószámának bemásolása a számlázó kulcsaiba (nem ment); visszaadja, változott-e valami. */
+function mandala_sync_tax_number(WC_Order $order): bool
+{
+    $tax = trim((string) $order->get_meta('_billing_tax_number'));
+    if ($tax === '') {
+        return false;
+    }
+    $changed = false;
+    foreach (mandala_tax_number_meta_keys() as $key) {
+        if ((string) $order->get_meta($key) !== $tax) {
             $order->update_meta_data($key, $tax);
+            $changed = true;
         }
     }
+    return $changed;
+}
+
+/* Ha a Számlázz.hu bővítmény saját adószám mezője is be van kapcsolva, a pénztárban csak a miénk legyen (nem kell
+ * kétszer beírni); az értéket a bővítmény mezőjeként is átadjuk, így a saját ellenőrzése és mentése is lefut. */
+add_filter('woocommerce_billing_fields', function ($fields) {
+    unset($fields['wc_szamlazz_adoszam']);
+    return $fields;
+}, 30);
+add_filter('woocommerce_checkout_posted_data', function ($data) {
+    $tax = (string) ($data['billing_tax_number'] ?? '');
+    $data['wc_szamlazz_adoszam'] = $tax;
+    $_POST['wc_szamlazz_adoszam'] = $tax; // a bővítmény innen menti (`_billing_wc_szamlazz_adoszam`, NAV-adatok, vásárló)
+    return $data;
+}, 30);
+
+// A számlázó kulcsai minden mentéskor kövessék az adószámot (pénztár és admin-szerkesztés is).
+add_action('woocommerce_before_order_object_save', 'mandala_sync_tax_number');
+
+// A vásárló fiókjában is legyen meg a bővítmény kulcsa alatt (fiók címei, kézi rendelés „vásárló betöltése”).
+add_action('woocommerce_checkout_update_user_meta', function ($customer_id, $data) {
+    if (!empty($data['billing_tax_number'])) {
+        update_user_meta($customer_id, 'wc_szamlazz_adoszam', sanitize_text_field($data['billing_tax_number']));
+    }
+}, 10, 2);
+
+// Ha egy (régi) rendelésben a bővítmény kulcsa hiányzik, a számla XML-jébe a pénztár mezőjét adjuk.
+add_filter('wc_szamlazz_xml_adoszam', function ($taxcode, $order) {
+    return $taxcode ?: ($order instanceof WC_Order ? (string) $order->get_meta('_billing_tax_number') : $taxcode);
+}, 10, 2);
+
+add_action('woocommerce_checkout_create_order', function (WC_Order $order) {
+    mandala_sync_tax_number($order);
     $order->update_meta_data('_mandala_newsletter', empty($_POST['mandala_newsletter']) ? 'no' : 'yes'); // phpcs:ignore
     // A pénztárban bejelölt hírlevél is a feliratkozók közé kerül (és indíthat saját levelet).
     $email = strtolower($order->get_billing_email());
