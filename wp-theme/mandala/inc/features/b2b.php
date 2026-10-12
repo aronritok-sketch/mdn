@@ -93,6 +93,9 @@ add_action('woocommerce_account_' . MANDALA_B2B_ENDPOINT . '_endpoint', function
 add_action('template_redirect', function () {
     if (isset($_POST['_b2bnonce']) && is_user_logged_in() && wp_verify_nonce(sanitize_key($_POST['_b2bnonce']), 'mandala_b2b_arrivals') && mandala_is_wholesale_user()) {
         update_user_meta(get_current_user_id(), '_mandala_b2b_arrivals', empty($_POST['mandala_b2b_arrivals']) ? 'no' : 'yes');
+        if (!empty($_POST['mandala_b2b_arrivals'])) {
+            do_action('mandala_b2b_activity', 'arrivals', []); // Partner CRM (crm-connect.php)
+        }
         wc_add_notice(empty($_POST['mandala_b2b_arrivals']) ? __('Leiratkoztál az új érkezések leveléről.', 'mandala') : __('Feliratkoztál: hetente írunk az új érkezésekről.', 'mandala'));
         wp_safe_redirect(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT));
         exit;
@@ -121,6 +124,9 @@ add_action('wc_ajax_mandala_bulk_add', function () {
         }
     }
     wc_clear_notices();
+    if ($added) {
+        do_action('mandala_b2b_activity', 'quickorder', ['items' => $added]);
+    }
     wp_send_json(['ok' => $added > 0, 'added' => $added, 'failed' => $failed, 'cart' => wc_get_cart_url(), 'count' => WC()->cart->get_cart_contents_count()]);
 });
 
@@ -131,6 +137,7 @@ add_action('admin_post_mandala_b2b_pricelist', function () {
         wp_die(esc_html__('Nincs jogosultság.', 'mandala'), '', ['response' => 403]);
     }
     check_admin_referer('mandala_b2b');
+    do_action('mandala_b2b_activity', 'pricelist', []);
     nocache_headers();
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=mandala-arlista-' . wp_date('Y-m-d') . '.csv');
@@ -176,6 +183,7 @@ add_action('admin_post_mandala_b2b_images', function () {
     if (!$files) {
         wp_die(esc_html__('Ebben a kategóriában még nincs feltöltött termékfotó.', 'mandala') . ' <a href="' . esc_url(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT)) . '">' . esc_html__('Vissza', 'mandala') . '</a>', '', ['response' => 404]);
     }
+    do_action('mandala_b2b_activity', 'images', ['category' => $cat]);
     $tmp = wp_tempnam('mandala-fotok');
     $zip = new ZipArchive();
     $zip->open($tmp, ZipArchive::OVERWRITE);

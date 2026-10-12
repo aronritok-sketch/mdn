@@ -20,13 +20,19 @@ PR-t ne nyiss). Commit-üzenet magyarul, a végén a szokásos Co-Authored-By / 
 - Build: `python3 tools/build-theme.py --content` → `dist/mandala-tema.zip` (verzió: 1.1.ÉÉÉÉHHNNÓÓPP), varázsló,
   telepítő csomag. A `dist/laci/` nincs a repóban (adatbázis-jelszós JUTA-szkriptek).
 - Tesztek (helyi WordPress + Playwright): `tests/wp-e2e.mjs`, `wp-features.mjs`, `wp-marketing.mjs`,
-  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 291/0, mkt 68/0, olds 24/0, oldd 34/0.
+  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 306/0 (2026-10-12), mkt 68/0, olds 24/0, oldd 34/0.
+  A tesztkörnyezet előfeltételei (friss `wp mandala setup --demo` után): a GLS-helyettesítő módok a magyar zónában,
+  `viszontelado` / `b2b` felhasználó `b2b@example.com` címmel és 29000-es nagyker árral a MND-HT-0490-en,
+  `WP_ENVIRONMENT_TYPE=local` (alkalmazásjelszó http-n), a `wp-plugin/*` belinkelve, a WooCommerce bevezető kihagyva.
   Új konténerben a tesztkörnyezetet újra kell építeni (PHP + WordPress + WooCommerce + iu_theme stub:
   `wp-theme/dev/`), lásd `docs/TELEPITES.md` és a tesztek fejlécét.
-- Dokumentáció: `docs/` (ATALLAS, JUTA, ATADAS, TELEPITES, LOCAL-CLAUDE-PROMPT-1/2/3).
+- Dokumentáció: `docs/` (ATALLAS, JUTA, ATADAS, TELEPITES, PARTNER-CRM, LOCAL-CLAUDE-PROMPT-1/2/3).
+- **Mandala Partner CRM** (2026-10-12): a viszonteladókat a csapat egy külön CRM-példányon kezeli (a HelloProVision CRM-je
+  + `helloprovision-partner` bővítmény a `aronritok-sketch/hlprv` repóban, leírás: hlprv `docs/partner/README.md`). A
+  webshop oldala: `inc/features/crm-connect.php` (WooCommerce → Partner CRM, összekötő kód) – `docs/PARTNER-CRM.md`.
 
 **Az élő oldal:** https://mandala.hu (ELIN.hu tárhely, nginx, Redis, HPOS, `md_` táblaelőtag). A téma utolsó
-kiadott verziója: 1.1.202610041800 – kérdezd meg, fent van-e már.
+kiadott verziója: 1.1.202610121823 (Partner CRM összekötő) – kérdezd meg, fent van-e már (előtte 1.1.202610081138 fut).
 - Az adminhoz **nincs hozzáférésed** (a `claude` alkalmazásjelszót visszavonták). Az ELIN a mi IP-nkről érkező
   POST-kéréseket sokszor 403-mal tiltja; GET működik (REST: `https://mandala.hu/?rest_route=/…`, Store API is).
   Admin-teendőt a tulajdonos vagy a „helyi Claude” (böngészős) végez – nekik promptot írunk (`docs/LOCAL-CLAUDE-PROMPT-*.md`).
@@ -68,5 +74,9 @@ kiadott verziója: 1.1.202610041800 – kérdezd meg, fent van-e már.
 7. Korábbról: Google Maps API-kulcs a csomagpont-térképhez (Pont bővítmény), Horvátország a zónába, eladási országlista,
    SSL-megújítás (ELIN), Search Console sitemap.
 
-Kezdd azzal, hogy megkérdezed: fent van-e az 1.1.202610041800-es téma, megjött-e a helyi Claude 3. körös jelentése
-(levelek), és mit mondott Hanni / Laci a fenti pontokra.
+9. **Mandala Partner CRM – 1. szakasz kész (2026-10-12)**: telepítésre vár (új WordPress, javasolt cím partner.mandala.hu,
+   hlprv `docs/partner/README.md` → Telepítés), utána az összekötő kód a mandala.hu-ra (WooCommerce → Partner CRM).
+   A jóváhagyott viszonteladó fiók-levele csak működő levélküldéssel jut el (1. pont).
+
+Kezdd azzal, hogy megkérdezed: fent van-e az 1.1.202610121823-as téma, megjött-e a helyi Claude 3. körös jelentése
+(levelek), áll-e már a Partner CRM példánya, és mit mondott Hanni / Laci a fenti pontokra.

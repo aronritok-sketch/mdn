@@ -1384,6 +1384,70 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(wp('$d = mandala_report_data(); echo is_int($d["new_customers"]) && is_array($d["runout"]) ? "ok" : "hiba";') === 'ok', 'heti riport: új vásárlók és kifogyás közvetlen lekérdezéssel');
 }
 
+// ======================= Partner CRM összekötő (crm-connect.php) =======================
+{
+  // Közös tesztvektor – a CRM oldala (hlprv tests/partner.php) ugyanerre ellenőriz.
+  ok(wp('echo mandala_crm_sign(str_repeat("k", 32), "1790000000", str_repeat("ab", 16), json_encode(["events" => []]));') === 'ebac29b0efba0c5f64d7374931c3035cbc653cfb999dc49387d32db7d157959e', 'CRM: aláírás – a közös tesztvektor (hpv-partner-v1)');
+  const secret = 'teszt-titok-0123456789abcdefghij';
+  const code = (url) => Buffer.from(JSON.stringify({ v: 1, url, secret })).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  ok(wp(`echo mandala_crm_decode_code(${JSON.stringify(code('http://crm.test/x'))}) === null ? "ok" : "hiba";`) === 'ok', 'CRM: összekötő kód csak https címmel');
+  ok(wp('delete_option("mandala_crm"); delete_option("mandala_crm_queue"); mandala_crm_enqueue("hello", []); echo count((array) get_option("mandala_crm_queue", []));') === '0', 'CRM: összekötés nélkül nem gyűjt');
+  // Egy PHP-folyamatban: összekötés, a CRM helyettesítője (pre_http_request), teljes küldés, parancs, nyugta.
+  const php = `
+    $d = mandala_crm_decode_code(${JSON.stringify(code('https://crm.test/wp-json/hpv/v1/partner/connect'))});
+    update_option("mandala_crm", $d, false);
+    delete_option("mandala_crm_queue"); delete_option("mandala_crm_acks"); delete_option("mandala_crm_stock_fp"); delete_option("mandala_crm_state");
+    $GLOBALS["crm_req"] = [];
+    add_filter("pre_http_request", function ($pre, $args, $url) {
+      if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
+      $GLOBALS["crm_req"][] = ["headers" => $args["headers"], "body" => $args["body"]];
+      $cmds = count($GLOBALS["crm_req"]) === 1 ? [["id" => 41, "type" => "approve", "data" => ["email" => "uj-partner@example.com", "first_name" => "Eszter", "last_name" => "Nagy", "company" => "Om Jógastúdió", "city" => "Szeged"]], ["id" => 42, "type" => "ismeretlen", "data" => []]] : [];
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "accepted" => 1, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+    }, 10, 3);
+    $vid = get_user_by("login", "viszontelado")->ID;
+    // Viszonteladó rendelése (a téma jelöli és sorba teszi).
+    $o = wc_create_order(["customer_id" => $vid]);
+    $o->add_product(wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")), 2);
+    $o->calculate_totals(); $o->save();
+    $o->update_status("processing");
+    do_action("wp_login", "viszontelado", get_userdata($vid));
+    wp_set_current_user($vid); do_action("mandala_b2b_activity", "pricelist", []); wp_set_current_user(0);
+    $_POST = ["email" => "jelentkezo@example.com", "nev" => "Kiss Réka", "ceg" => "Lótusz Bolt", "adoszam" => "12345676-2-41", "telefon" => "+36 30 111 2222", "telepules" => "Pécs", "tevekenyseg" => "Jógastúdió", "forgalom" => "50 000 – 200 000 Ft", "message" => "Hangtálak érdekelnek", "adatkezeles" => "1"];
+    apply_filters("iu_form_submit_viszontelado", ["success" => 1]);
+    $_POST = ["email" => "spam@example.com", "website" => "x", "adatkezeles" => "1"];
+    apply_filters("iu_form_submit_viszontelado", ["success" => 1]);
+    mandala_crm_backfill_start("all");
+    do_action("mandala_crm_sync");
+    do_action("mandala_crm_sync");
+    $u = get_user_by("email", "uj-partner@example.com");
+    ob_start(); mandala_crm_admin_page(); $page = ob_get_clean();
+    echo wp_json_encode(["req" => $GLOBALS["crm_req"], "user" => $u ? ["roles" => $u->roles, "company" => get_user_meta($u->ID, "billing_company", true), "approved" => (bool) get_user_meta($u->ID, "_mandala_crm_approved", true)] : null,
+      "queue" => count((array) get_option("mandala_crm_queue", [])), "flag" => wc_get_order($o->get_id())->get_meta("_mandala_wholesale"), "page" => str_contains($page, "összekötve"),
+      "health" => apply_filters("mandala_health_checks", [])["crm"]["ok"] ?? null, "orderId" => $o->get_id(), "vid" => $vid]);
+    wp_delete_user($u ? $u->ID : 0); $o->delete(true);
+    delete_option("mandala_crm"); delete_option("mandala_crm_queue"); delete_option("mandala_crm_acks"); delete_option("mandala_crm_state"); delete_option("mandala_crm_backfill"); delete_option("mandala_crm_stock_fp");`;
+  const r = JSON.parse(wp(php));
+  const first = r.req[0] || { headers: {}, body: '{}' };
+  const h = first.headers;
+  const expect = createHmac('sha256', secret).update(`hpv-partner-v1\n${h['X-HPV-Partner-Ts']}\n${h['X-HPV-Partner-Nonce']}\n${createHash('sha256').update(first.body).digest('hex')}`).digest('hex');
+  ok(r.req.length >= 2 && h['X-HPV-Partner-Sig'] === expect && /^[a-f0-9]{32}$/.test(h['X-HPV-Partner-Nonce']), 'CRM: aláírt kérés (a JS-ben újraszámolt HMAC egyezik), egyszeri nonce');
+  const events = r.req.flatMap((q) => JSON.parse(q.body).events);
+  const of = (type) => events.filter((e) => e.type === type);
+  const order = of('order').find((e) => e.data.id === r.orderId && !e.data.backfill);
+  ok(order && order.data.items[0].sku === 'MND-HT-0490' && order.data.items[0].qty === 2 && order.data.net > 0 && order.data.wholesale && r.flag === 'yes', 'CRM: viszonteladó rendelése tételekkel, nettóval; a rendelés jelölve');
+  ok(of('activity').some((e) => e.data.kind === 'login') && of('activity').some((e) => e.data.kind === 'pricelist'), 'CRM: belépés és árlista-letöltés');
+  const app = of('application');
+  ok(app.length === 1 && app[0].data.company === 'Lótusz Bolt' && app[0].data.tax_number === '12345676-2-41' && app[0].data.type === 'Jógastúdió' && /havi rendelés/.test(app[0].data.message), 'CRM: viszonteladói jelentkezés (a spam-csapdás nem)');
+  ok(of('customer').some((e) => e.data.user_id === r.vid && e.data.wholesale && e.data.email), 'CRM: teljes küldés – a viszonteladói fiókok');
+  const stock = of('stock');
+  const ht = stock.flatMap((e) => e.data.items).find((i) => i.sku === 'MND-HT-0490');
+  ok(stock.length >= 1 && stock[0].data.full_start && stock[stock.length - 1].data.full_end && ht && ht.wholesale === 29000 && typeof ht.in_stock === 'boolean', 'CRM: teljes készletlista (eleje / vége jelölve), nagyker árral');
+  ok(r.user && r.user.roles.includes('wholesale_customer') && r.user.company === 'Om Jógastúdió' && r.user.approved, 'CRM: jóváhagyás → új viszonteladói fiók a cégadatokkal');
+  const acks = r.req.flatMap((q) => JSON.parse(q.body).acks || []);
+  ok(acks.some((a) => a.id === 41 && a.ok && a.result.created) && acks.some((a) => a.id === 42 && !a.ok), 'CRM: nyugta a következő kérésben (az ismeretlen parancs hibával)');
+  ok(r.queue === 0 && r.page && r.health === true, 'CRM: a sor kiürült, admin oldal és őrszem: összekötve');
+}
+
 {
   const [manage, qty] = JSON.parse(origStock);
   wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(${manage ? 'true' : 'false'}); $p->set_stock_quantity(${Number(qty) || 0}); $p->set_stock_status("instock"); $p->save();`);
