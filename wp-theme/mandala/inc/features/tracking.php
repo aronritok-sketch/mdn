@@ -18,7 +18,7 @@ function mandala_tracking_settings(): array
 {
     return wp_parse_args((array) get_option('mandala_tracking', []), [
         // Ismert GLS / szállítási bővítmények csomagszám mezői (soronként egy; a legelső létező nyer).
-        'meta_keys' => "_mandala_tracking\n_gls_parcel_number\n_gls_parcel_numbers\n_gls_tracking_number\ngls_parcel_number\n_vp_woo_pont_parcel_number\n_tracking_number",
+        'meta_keys' => "_mandala_tracking\n_gls_tracking_codes\n_gls_tracking_code\n_gls_parcel_number\n_gls_parcel_numbers\n_gls_tracking_number\ngls_parcel_number\n_vp_woo_pont_parcel_number\n_tracking_number",
         'url' => 'https://gls-group.com/HU/hu/csomagkovetes?match={szam}',
         'carrier' => 'GLS',
     ]);

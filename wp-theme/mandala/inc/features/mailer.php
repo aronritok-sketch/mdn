@@ -185,6 +185,12 @@ function mandala_send_mail(string $to, string $subject, string $heading, string 
     if (!is_email($to)) {
         return false;
     }
+    // Rendeléshez kötött levél tiltható (pl. a Dropship partnerrendelései: a vevő a partner nagyker fiókja, ne kapjon
+    // értékelés-kérést, „Feladtuk” levelet stb.).
+    if ($order_id && !apply_filters('mandala_order_mail_allowed', true, $order_id, $type)) {
+        mandala_mail_log($type, $to, $subject, 'skipped', $order_id);
+        return false;
+    }
     if ($marketing && mandala_is_unsubscribed($to)) {
         mandala_mail_log($type, $to, $subject, 'unsubscribed', $order_id);
         return false;
@@ -723,7 +729,7 @@ function mandala_mail_admin_log(string $base): void
     if (!$rows) {
         echo '<tr><td colspan="6">Nincs találat. (A napló 180 napig őrzi a leveleket.)</td></tr>';
     }
-    $states = ['sent' => '<span style="color:#008a20">elküldve</span>', 'failed' => '<span style="color:#d63638">hiba</span>', 'unsubscribed' => '<span style="color:#8c8f94">leiratkozott – nem ment</span>'];
+    $states = ['sent' => '<span style="color:#008a20">elküldve</span>', 'failed' => '<span style="color:#d63638">hiba</span>', 'unsubscribed' => '<span style="color:#8c8f94">leiratkozott – nem ment</span>', 'skipped' => '<span style="color:#8c8f94">partnerrendelés – nem ment</span>'];
     foreach ($rows as $r) {
         echo '<tr><td>' . esc_html(get_date_from_gmt($r->created, 'Y. m. d. H:i')) . '</td><td>' . esc_html($label($r->type)) . '</td><td>' . esc_html($r->recipient) . '</td><td>' . esc_html($r->subject) . '</td>'
             . '<td>' . ($r->order_id ? '<a href="' . esc_url(admin_url('post.php?post=' . (int) $r->order_id . '&action=edit')) . '">#' . (int) $r->order_id . '</a>' : '–') . '</td><td>' . ($states[$r->status] ?? esc_html($r->status)) . '</td></tr>'; // phpcs:ignore

@@ -32,7 +32,9 @@ PR-t ne nyiss). Commit-üzenet magyarul, a végén a szokásos Co-Authored-By / 
   webshop oldala: `inc/features/crm-connect.php` (WooCommerce → Partner CRM, összekötő kód) – `docs/PARTNER-CRM.md`.
 
 **Az élő oldal:** https://mandala.hu (ELIN.hu tárhely, nginx, Redis, HPOS, `md_` táblaelőtag). A téma utolsó
-kiadott verziója: 1.1.202610121823 (Partner CRM összekötő) – kérdezd meg, fent van-e már (előtte 1.1.202610081138 fut).
+kiadott verziója: 1.1.202610151525 (a rendeléses levelek tilthatók a `mandala_order_mail_allowed` szűrővel – a Dropship
+partnerrendeléseihez; a hivatalos GLS bővítmény csomagszám-mezői a követőben) – kérdezd meg, fent van-e már (előtte
+1.1.202610121823 Partner CRM összekötő, 1.1.202610081138).
 - Az adminhoz **nincs hozzáférésed** (a `claude` alkalmazásjelszót visszavonták). Az ELIN a mi IP-nkről érkező
   POST-kéréseket sokszor 403-mal tiltja; GET működik (REST: `https://mandala.hu/?rest_route=/…`, Store API is).
   Admin-teendőt a tulajdonos vagy a „helyi Claude” (böngészős) végez – nekik promptot írunk (`docs/LOCAL-CLAUDE-PROMPT-*.md`).
@@ -73,6 +75,12 @@ kiadott verziója: 1.1.202610121823 (Partner CRM összekötő) – kérdezd meg,
    rendelés számláján ott az adószám; WooCommerce → Számlázz.hu → Adószám mező maradhat kikapcsolva.
 7. Korábbról: Google Maps API-kulcs a csomagpont-térképhez (Pont bővítmény), Horvátország a zónába, eladási országlista,
    SSL-megújítás (ELIN), Search Console sitemap.
+
+10. **Dropship – Ananda (anandashop.hu) rendelései a Mandalából (2026-10-15)**: az Ananda (ugyanez a téma fut rajta)
+   rendelését a Mandala csomagolja és adja fel az Ananda GLS-címkéjével. Bővítmény mindkét bolton: hlprv
+   `plugins/helloprovision-dropship/` (leírás: hlprv `docs/dropship/README.md`); a Mandalán WooCommerce → Partnerrendelések
+   (raktár mód, felvételi cím, Ananda partner + nagyker fiók → összekötő kód), az Anandán WooCommerce → Dropship (kód,
+   MyGLS-belépés). A partnerrendelés a Mandalában az Ananda nagyker fiókjára kerül, „Feladva” után teljesített → JUTA.
 
 9. **Mandala Partner CRM – 1. szakasz kész (2026-10-12)**: telepítésre vár (új WordPress, javasolt cím partner.mandala.hu,
    hlprv `docs/partner/README.md` → Telepítés), utána az összekötő kód a mandala.hu-ra (WooCommerce → Partner CRM).
