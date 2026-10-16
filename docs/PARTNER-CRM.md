@@ -10,13 +10,82 @@ telepítés: `aronritok-sketch/hlprv` → `docs/partner/README.md`. Ez a fájl a
 |---|---|---|
 | Viszonteladói jelentkezés | a „Viszonteladóknak” oldal űrlapja (cégnév, adószám, tevékenység, település, weboldal, kapcsolattartó, várható rendelés, érdeklődés) | `iu_form_submit_viszontelado` – azonnal (háttérfeladat) |
 | Viszonteladói fiók | regisztráció, szerepváltás (`wholesale_customer`), cím- és adatváltozás | `user_register`, `set_user_role`, `add_user_role`, `profile_update` |
-| Rendelés | viszonteladó rendelése: létrejötte és minden állapotváltozása, tételekkel (cikkszám, név, db, nettó, kategória) | `woocommerce_checkout_order_processed`, `woocommerce_order_status_changed`; a rendelés `_mandala_wholesale` jelölőt kap |
+| Rendelés | viszonteladó rendelése: létrejötte és minden állapotváltozása, tételekkel (cikkszám, név, db, nettó, kategória); `offer_token` (ha ajánlat-linkből jött), `payment_method`, `payment_days`, `payment_due` (halasztott átutalásnál) | `woocommerce_checkout_order_processed`, `woocommerce_order_status_changed`; a rendelés `_mandala_wholesale` jelölőt kap |
 | Aktivitás | belépés, árlista CSV, termékfotók ZIP, gyorsrendelő, új érkezések feliratkozás | `wp_login`, `mandala_b2b_activity` (b2b.php) |
+| Ajánlat (`offer_open`, `offer_order`) | `offer_open { token, at, user_id, email }` – az ajánlat-link első érvényes megnyitásakor (tokenenként egyszer, belépés előtt is); `offer_order { token, order_id, number, user_id, email, status, net, gross, at }` – az ajánlatból lett rendelés (az `order` esemény `offer_token` mezője mellett) | `crm-partner.php` |
 | Készlet | változás 10 percenként (ujjlenyomat; a JUTA közvetlen DB-írása után is), teljes lista naponta | `wc_product_meta_lookup`, nagyker ár, `_mandala_incoming`, 90 napos eladás |
+| Üzenet (`message`) | Fiókom → **Üzenet a Mandalának** (csak viszonteladónak): `{ user_id, email, name, company, subject, body, at }` – a CRM-ben teendő a felelősnek, a válasz e-mailben megy. Ráta-korlát: óránként 5, egymás után 20 mp. Összekötés nélkül levél a bolt címére. | `crm-partner.php` – azonnal (háttérfeladat) |
+| Webes forgalom (`web_stats`) | naponta (03:20) az aktuális és az előző hónap, csatornánként: `{ month: 'YYYY-MM', channel: 'egyeni' \| 'kereskedo', orders, net, gross, items, shipping_net, computed_at }` – minden rendelés (teljesített, feldolgozás alatti; a lemondott / visszatérített / függő nem, a visszatérített részösszeg levonva); csatorna: a vásárló viszonteladói szerepe vagy a rendelés jelölője; `net` = termékek + díjak nettója (szállítás és ÁFA nélkül). Az első teljes küldés 13 hónapot küld. | `wc_get_orders` (HPOS), 200-as oldalak, 10 percenként legfeljebb 2 hónap |
+
+A **fiók-esemény** (`customer`) a partnerlevél-hozzájárulást is viszi: `marketing_consent` (bool) és `marketing_consent_at`
+(a módosítás ideje), valamint a webshopban érvényes feltételeket (`terms`: `discount_level`, `discount_pct`,
+`payment_days`, `blocked`, `block_reason`). A hozzájárulás a „Viszonteladóknak” oldal jelentkezésében egy pipa
+(„Kérek partnerleveleket (új érkezések, akciók)” – a téma az űrlapba teszi, az oldal tartalmához nem kell nyúlni; a
+jelentkezés-esemény is viszi), a viszonteladói felületen kapcsoló. Ha a jelentkezőnek még nincs fiókja, a fiók
+létrejöttekor (jóváhagyás) kerül rá.
+
+Az óránkénti `hello` esemény `features` mezője megmondja, mit tud a téma (`approve,resync,terms,message,web_stats,consent,offer`)
+– a CRM ebből láthatja, hogy a webshopban fent van-e már a 2. hullámos téma (a régi a `terms` parancsra „ismeretlen parancs” nyugtát ad).
 
 A CRM válaszában jöhet parancs: **approve** (a CRM-ben jóváhagyott jelentkező viszonteladói szerepet kap; ha nincs
 fiókja, a WooCommerce nyit egyet, és elküldi a fiók-levelet – **ehhez a levélküldésnek működnie kell**, lásd a nyitott
-levél-hibát) és **resync** (teljes újraküldés). Az eredményt a következő kérésben nyugtázza.
+levél-hibát), **terms** (lent) és **resync** (teljes újraküldés; `what: 'web_stats'` → csak a webes forgalom, 13 hónap).
+Az eredményt a következő kérésben nyugtázza.
+
+### `terms` – partner-feltételek
+
+`{ email, user_id?, discount_level?, discount_pct?, payment_days?, block?: { on: bool, reason?: string } }` – csak a
+megadott kulcsok változnak (üres szint / 0 nap = törlés). A fiók: `user_id`, ha az e-mail egyezik, különben az e-mail
+szerint; ha nincs ilyen fiók, a nyugta `ok: false` („nincs ilyen fiók a webshopban”). Nyugta (`result`): `{ user_id,
+discount_level, discount_pct, payment_days, blocked, block_reason }`.
+
+- **Kedvezményszint** (`_mandala_discount_level`): a viszonteladói felületen látszik. Ha jár hozzá százalék (a parancs
+  `discount_pct`-je, vagy WooCommerce → Partner CRM → **Kedvezményszintek**: `Kiemelt = 5`, vagy „5%” a szint nevében),
+  a kosárban a nagyker árból ennyivel kevesebb (a tétel ára csökken – a JUTA is így kapja), a rendelés tételén
+  „Kedvezmény: −5%”.
+- **Fizetési határidő** (`_mandala_payment_days`): a pénztárban megjelenik az **Átutalás számla alapján** fizetési mód
+  (WooCommerce → Fizetés; csak a határidős, nem tiltott viszonteladónak). A rendelés azonnal feldolgozás alá kerül,
+  `_mandala_payment_days` / `_mandala_payment_due` meta; a **Számlázz.hu-számla** fizetési határideje a számla kelte + N
+  nap (a bővítmény `wc_szamlazz_xml` szűrőjén; kézi, egyedi határidős kiállításnál az marad). A JUTA `elad.php` az
+  ismeretlen fizetési módot átutalásként adja át – ez itt helyes.
+- **Rendelés-tiltás** (`_mandala_order_block`): a pénztárban csak **előre utalás** (ha az ki van kapcsolva: ami előre
+  fizetés, pl. kártya; utánvét, helyszíni és halasztott fizetés nem), a fiókban és a pénztárban rövid tájékoztató:
+  „Most előre utalással tudsz rendelni.” + a `reason` (a partnernek szóló rövid szöveg a CRM beállításából; ha üres,
+  egy alapmondat). Az adminban is látszik (Felhasználók → a partner adatlapja → Partner CRM).
+- Hibás parancsnál (pl. nincs ilyen fiók) a nyugta `{ id, ok: false, result: { error } }`.
+
+### Egy kattintásos rendelés ajánlatból
+
+`https://mandala.hu/?mandala_offer=<base64url(json)>.<hex HMAC-SHA256(json, az összekötő titka)>`, ahol
+`json = { "t": token, "e": partner e-mail, "i": [[cikkszám, db], …], "x": lejárat, "p"?: [[cikkszám, kedvezményes nettó
+egységár Ft], …] }`. Az `x` az érvényesség utolsó napja 23:59:59 helyi idő (unix). Az aláírás a base64url-dekódolt JSON
+bájtsoráé (kitöltés nélküli base64url); a webshop előbb az aláírást (`hash_equals`), utána a lejáratot ellenőrzi. A token:
+`A–Z a–z 0–9 _ . : -`, legfeljebb 64 karakter; legfeljebb 200 tétel.
+
+Ha egy tételnek van `p` ára, a kosárban azon az áron megy (nettó + a termék ÁFÁ-ja, a bolt bruttó áraihoz igazítva) –
+de csak ha nem drágább a partner szokott nagyker áránál (ha az kisebb, az marad); a rendelés tételén
+`_mandala_offer_price` (a nettó ajánlati ár). `p` nélkül a tétel nagyker áron (és a partner kedvezményszintjével) megy.
+
+- Nincs belépve → a belépő oldalra visz (süti, legfeljebb 1 nap), belépés után folytatja; a belépett fiók e-mailje
+  (vagy számlázási e-mailje) egyezzen az `e`-vel, és viszonteladói fiók legyen – különben barátságos hiba.
+- A tételek a kosárba (nagyker áron, a Wholesale Prices bővítmény szerint; készlet fölött annyi, amennyi van; ami nem
+  rendelhető, azt felsorolja). Ugyanaz az ajánlat másodszor nem kerül be (kosárban van / már megrendelte).
+- A rendelés `_mandala_offer_token` metát kap (a tétel `_mandala_offer`-t és – ha volt – `_mandala_offer_price`-t), az
+  `order` esemény `offer_token` mezőt; ezen felül `offer_open` és `offer_order` esemény (lásd fent). Lejárt vagy hamis
+  link: barátságos hibaüzenet a kosár oldalon.
+
+**Közös tesztvektor** (a CRM tesztje is ezt ellenőrzi):
+
+| | |
+|---|---|
+| titok | `kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk` (32 × `k`) |
+| json | `{"t":"a1b2c3d4e5f60718293a4b5c6d7e8f90","e":"bolt@example.hu","i":[["MA-1001",3],["HT-0420",1]],"x":1790000000}` |
+| paraméter | `eyJ0IjoiYTFiMmMzZDRlNWY2MDcxODI5M2E0YjVjNmQ3ZThmOTAiLCJlIjoiYm9sdEBleGFtcGxlLmh1IiwiaSI6W1siTUEtMTAwMSIsM10sWyJIVC0wNDIwIiwxXV0sIngiOjE3OTAwMDAwMDB9.e37e65a73aba7cfe2ca6efe453bc7b36c6446c5ec64193c77081d48fcc548b4b` |
+| `p`-vel: json | ugyanez + `,"p":[["MA-1001",1791]]` a végén (`…,"x":1790000000,"p":[["MA-1001",1791]]}`) |
+| `p`-vel: aláírás | `e4d135b8d2b9c23f2077e7362084fa4144210f184b2655840eb0ab64a75cce03` |
+
+PHP: `hash_hmac('sha256', $json, $secret)`; a link: `rtrim(strtr(base64_encode($json), '+/', '-_'), '=') . '.' . $sig`
+(a téma `mandala_offer_param()` függvénye).
 
 ## Beállítás
 
@@ -27,7 +96,8 @@ levél-hibát) és **resync** (teljes újraküldés). Az eredményt a következ�
    a végén a teljes készletet. Az állapot (utolsó kapcsolat, sor, hiba) ugyanott, és az őrszemben („Partner CRM
    összekötő”).
 
-A téma 1.1.202610121823-tól van benne. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
+A téma 1.1.202610121823-tól van benne; a terms parancs, az üzenet, a webes forgalom, a hozzájárulás és az ajánlat-link
+a 2026. októberi 2. hullámtól (1.1.202610160024). Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
 repóban soha.
 
 ## Teszt
@@ -35,4 +105,9 @@ repóban soha.
 `tests/wp-features.mjs` → „Partner CRM összekötő”: közös aláírási tesztvektor (a CRM tesztjében is), https-kötelező kód,
 összekötés nélkül nincs gyűjtés, aláírt kérés (a JS-ben újraszámolt HMAC), viszonteladói rendelés tételekkel, belépés,
 árlista, jelentkezés (spam-csapda nélkül), teljes küldés (fiókok, készlet eleje / vége, nagyker ár), jóváhagyás → új
-fiók a cégadatokkal, nyugta, admin oldal, őrszem.
+fiók a cégadatokkal, nyugta, admin oldal, őrszem. „Partner CRM: feltételek, üzenet, …”: az ajánlat-link tesztvektora
+és ellenőrzése, terms → nyugta, tiltásnál csak előre utalás, halasztott átutalás, üzenet (ráta-korlát), hozzájárulás,
+web_stats csatornánként, offer_token, Számlázz.hu határidő, a `p` ár (csak olcsóbb); böngészőben: ajánlat-link
+belépéssel → kosár (ajánlati ár, hiányzó tétel, másodszor nem, megrendelt, lejárt, offer_open / offer_order), Üzenet a
+Mandalának, tiltás a fiókban (a CRM szövegével) és a pénztárban, rendelés halasztott átutalással, hozzájárulás a fiókban
+és a jelentkezésben.

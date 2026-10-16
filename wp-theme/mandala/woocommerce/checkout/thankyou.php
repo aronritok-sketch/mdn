@@ -69,6 +69,8 @@ $icon = 'mandala_icon';
   </section>
   <?php elseif ($method === 'cod') : ?>
   <div class="woocommerce-info" role="status"><?php echo $icon('cash'); // phpcs:ignore ?><span><strong><?php echo esc_html($pickup ? __('Fizetés átvételkor', 'mandala') : __('Utánvét', 'mandala')); ?>:</strong> <?php echo esc_html($total); ?> – <?php echo esc_html($pickup ? __('a bemutatóteremben készpénzzel vagy bankkártyával.', 'mandala') : ($point ? __('a GLS ponton kártyával vagy készpénzzel.', 'mandala') : __('a futárnál készpénzzel vagy bankkártyával.', 'mandala'))); ?></span></div>
+  <?php elseif ($method === 'mandala_deferred') : // halasztott átutalás (Partner CRM: fizetési határidős viszonteladó) ?>
+  <div class="woocommerce-info" role="status"><?php echo $icon('bank'); // phpcs:ignore ?><span><strong><?php esc_html_e('Átutalás számla alapján:', 'mandala'); ?></strong> <?php echo esc_html(sprintf(__('a számlát e-mailben küldjük, fizetési határidő: %s. Közleménynek a számla számát írd.', 'mandala'), wp_date('Y. m. d.', strtotime((string) $order->get_meta('_mandala_payment_due') ?: 'now')))); ?></span></div>
   <?php elseif ($order->is_paid()) : ?>
   <div class="woocommerce-message" role="status"><?php echo $icon('check-circle'); // phpcs:ignore ?><span><strong><?php esc_html_e('Sikeres fizetés.', 'mandala'); ?></strong> <?php esc_html_e('A rendelésed feldolgozás alatt van.', 'mandala'); ?></span></div>
   <?php endif; ?>

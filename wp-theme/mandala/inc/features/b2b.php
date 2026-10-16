@@ -44,6 +44,7 @@ add_action('woocommerce_account_' . MANDALA_B2B_ENDPOINT . '_endpoint', function
     $cats = mandala_category_tree();
     $csv = wp_nonce_url(admin_url('admin-post.php?action=mandala_b2b_pricelist'), 'mandala_b2b');
     $subscribed = get_user_meta($user, '_mandala_b2b_arrivals', true) === 'yes';
+    do_action('mandala_b2b_before', $user); // partner-feltételek, rendelési tájékoztató (crm-partner.php)
     ?>
 <div class="b2b-tools">
   <a class="iu-button iu-button-outline" href="<?php echo esc_url($csv); ?>"><?php echo mandala_icon('download', 'ico ico-s'); // phpcs:ignore ?> <?php esc_html_e('Árlista (CSV)', 'mandala'); ?></a>
@@ -63,6 +64,7 @@ add_action('woocommerce_account_' . MANDALA_B2B_ENDPOINT . '_endpoint', function
     <label class="check"><input type="checkbox" name="mandala_b2b_arrivals" value="1"<?php checked($subscribed); ?> onchange="this.form.submit()"> <span><?php esc_html_e('Heti levél az új érkezésekről', 'mandala'); ?></span></label>
     <noscript><button class="iu-button iu-button-link" type="submit"><?php esc_html_e('Mentés', 'mandala'); ?></button></noscript>
   </form>
+  <?php do_action('mandala_b2b_tools', $user); // partnerlevél-hozzájárulás (crm-partner.php) ?>
 </div>
 
 <div class="b2b-order" data-b2b>

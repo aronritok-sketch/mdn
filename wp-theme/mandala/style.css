@@ -1403,6 +1403,18 @@ tr.voucher th a { font-weight: 400; margin-left: var(--space-2); }
 .b2b-bar .form-message { flex-basis: 100%; margin: 0; display: flex; gap: var(--space-2); align-items: center; }
 .b2b-bar .form-message:empty { display: none; }
 .b2b-welcome { display: grid; gap: var(--space-3); justify-items: start; }
+/* Partner CRM (crm-partner.php): feltételek, tájékoztató, üzenet, partnerlevél-pipa */
+.b2b-terms { margin: 0 0 var(--space-4); font-size: var(--fs-small); color: var(--c-muted); }
+.b2b-terms strong { color: var(--c-ink); font-weight: 600; }
+.crm-block-notice a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.crm-message { display: grid; gap: var(--space-5); max-width: 720px; }
+.crm-message > p { margin: 0; }
+.crm-message-form { display: grid; gap: var(--space-4); }
+.crm-message-form textarea { min-height: 160px; resize: vertical; }
+.crm-message-sent h2 { font-size: var(--fs-small); font-weight: 600; margin: 0 0 var(--space-2); }
+.crm-message-sent ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--fs-small); }
+.crm-message-sent li .text-muted { font-variant-numeric: tabular-nums; margin-right: var(--space-2); }
+.form-optin { margin: 0 0 var(--space-3); }
 @media (max-width: 767.8px) {
   .b2b-filters { grid-template-columns: minmax(0, 1fr); }
   .b2b-arrivals { margin-left: 0; }

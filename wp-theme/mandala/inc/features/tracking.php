@@ -103,15 +103,18 @@ function mandala_order_timeline(WC_Order $order): array
     $cod = $order->get_payment_method() === 'cod';
     $steps = [['label' => __('Megrendelve', 'mandala'), 'text' => sprintf(__('Rendelésszám: %s', 'mandala'), $order->get_order_number()), 'state' => 'done', 'date' => $fmt($order->get_date_created())]];
 
+    $deferred = $order->get_payment_method() === 'mandala_deferred'; // halasztott átutalás (crm-partner.php)
     if ($cod) {
         $steps[] = ['label' => __('Fizetés átvételkor', 'mandala'), 'text' => $kind === 'pickup' ? __('Készpénzzel vagy kártyával a bemutatóteremben', 'mandala') : __('Utánvét: a futárnál vagy a GLS ponton', 'mandala'), 'state' => 'done', 'date' => ''];
+    } elseif ($deferred) {
+        $steps[] = ['label' => __('Átutalás számla alapján', 'mandala'), 'text' => sprintf(__('Fizetési határidő: %s', 'mandala'), wp_date('Y. m. d.', strtotime((string) $order->get_meta('_mandala_payment_due') ?: 'now'))), 'state' => 'done', 'date' => ''];
     } else {
         $steps[] = $paid
             ? ['label' => __('Fizetve', 'mandala'), 'text' => $order->get_payment_method_title(), 'state' => 'done', 'date' => $fmt($order->get_date_paid())]
             : ['label' => $order->get_payment_method() === 'bacs' ? __('Várjuk az utalást', 'mandala') : __('Fizetésre vár', 'mandala'), 'text' => $order->get_payment_method() === 'bacs' ? __('A jóváírás után azonnal csomagolunk', 'mandala') : '', 'state' => 'current', 'date' => ''];
     }
     $moving = $shipped || $ready || $status === 'completed';
-    $packing = ['label' => __('Csomagoljuk', 'mandala'), 'text' => __('Általában 1 munkanapon belül', 'mandala'), 'state' => $moving ? 'done' : (($paid || $cod) && in_array($status, ['processing', 'on-hold'], true) ? 'current' : 'todo'), 'date' => ''];
+    $packing = ['label' => __('Csomagoljuk', 'mandala'), 'text' => __('Általában 1 munkanapon belül', 'mandala'), 'state' => $moving ? 'done' : (($paid || $cod || $deferred) && in_array($status, ['processing', 'on-hold'], true) ? 'current' : 'todo'), 'date' => ''];
     // Előrendelt termék: a szállítmány érkezése után indul.
     if (!$moving && function_exists('mandala_incoming_date')) {
         foreach ($order->get_items() as $item) {
@@ -385,7 +388,7 @@ function mandala_pickup_ready(WC_Order $order): void
     $order->save_meta_data();
     do_action('mandala_before_order_mail', $order);
     $c = (array) mandala_config('contact', []);
-    $sent = mandala_mail('pickup_ready', $order->get_billing_email(), mandala_mail_order_vars($order) + ['cim' => (string) ($c['address'] ?? ''), 'fizetendo' => $order->get_payment_method() === 'cod' ? wp_strip_all_tags(wc_price($order->get_total())) : __('nincs – már kifizetted', 'mandala')],
+    $sent = mandala_mail('pickup_ready', $order->get_billing_email(), mandala_mail_order_vars($order) + ['cim' => (string) ($c['address'] ?? ''), 'fizetendo' => $order->get_payment_method() === 'cod' ? wp_strip_all_tags(wc_price($order->get_total())) : ($order->get_payment_method() === 'mandala_deferred' ? __('nincs – átutalással fizetsz, a számla alapján', 'mandala') : __('nincs – már kifizetted', 'mandala'))],
         ['termekek' => mandala_tracking_items_html($order), 'gomb' => mandala_mail_button(mandala_tracking_url($order), __('A rendelésem', 'mandala'))], $order->get_id());
     $order->add_order_note($sent ? 'Átvehető – a vásárlót e-mailben értesítettük.' : 'Átvehető – a levél ki van kapcsolva vagy nem ment el (Mandala levelek).');
     do_action('mandala_order_pickup_ready', $order);

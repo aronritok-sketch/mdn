@@ -6,15 +6,20 @@
  * bejövő POST-okat tiltja, nem számít.
  *
  * Mit küld (sorban, egy kérésben több esemény):
- *  - application  a „Viszonteladóknak” oldal jelentkezése (iu/form „viszontelado”);
- *  - customer     viszonteladói fiók: regisztráció, szerepváltás, adatváltozás;
- *  - order        viszonteladó rendelése (létrejötte és minden állapotváltozása, tételekkel, kategóriával);
+ *  - application  a „Viszonteladóknak” oldal jelentkezése (iu/form „viszontelado”), a partnerlevél-hozzájárulással;
+ *  - customer     viszonteladói fiók: regisztráció, szerepváltás, adatváltozás; marketing_consent (+ _at), terms;
+ *  - order        viszonteladó rendelése (létrejötte és minden állapotváltozása, tételekkel, kategóriával; ajánlatból
+ *                 jött rendelésnél offer_token, halasztott fizetésnél payment_days / payment_due);
  *  - activity     viszonteladó belépése, árlista- és fotóletöltés, gyorsrendelő, új érkezések feliratkozás;
+ *  - message      „Üzenet a Mandalának” a viszonteladói fiókból (crm-partner.php);
+ *  - offer_open / offer_order  az ajánlat-link megnyitása, az ajánlatból lett rendelés (crm-partner.php);
+ *  - web_stats    a webes forgalom havonta és csatornánként (egyéni / kereskedő) – naponta az aktuális és az előző hónap;
  *  - stock        készlet (cikkszám, név, kategória, darab, nagyker ár, 90 napos eladás, várható érkezés) – a változás
  *                 10 percenként (a JUTA közvetlen adatbázis-írása után is), a teljes lista naponta;
  *  - hello        a webshop állapota (verzió, viszonteladók száma, szinkron).
  * Mit kap: approve (viszonteladói szerep; ha nincs fiók, nyit egyet, és a WooCommerce elküldi a belépési levelet),
- * resync (teljes újraküldés). Az eredményt a következő kérésben nyugtázza.
+ * terms (kedvezményszint, fizetési határidő, rendelés-tiltás – crm-partner.php), resync (teljes újraküldés). Az
+ * eredményt a következő kérésben nyugtázza. Az ajánlat-link (?mandala_offer=…) a közös titokkal aláírt: crm-partner.php.
  *
  * Beállítás: WooCommerce → Partner CRM → az összekötő kód a CRM-ből (Partnerek → Beállítások), vagy a wp-config.php-ban
  * MANDALA_CRM_URL + MANDALA_CRM_SECRET. Protokoll: hpv-partner-v1 (a CRM oldala: helloprovision-partner/includes/core.php).
@@ -164,8 +169,14 @@ function mandala_crm_run_command(array $cmd): array
         switch ((string) ($cmd['type'] ?? '')) {
             case 'approve':
                 return ['id' => $id, 'ok' => true, 'result' => mandala_crm_approve($d)];
+            case 'terms':
+                return ['id' => $id, 'ok' => true, 'result' => mandala_crm_terms($d)];
             case 'resync':
-                mandala_crm_backfill_start((string) ($d['what'] ?? 'all'));
+                if ((string) ($d['what'] ?? '') === 'web_stats') {
+                    mandala_crm_web_stats_add(mandala_crm_last_months(13));
+                } else {
+                    mandala_crm_backfill_start((string) ($d['what'] ?? 'all'));
+                }
                 return ['id' => $id, 'ok' => true, 'result' => ['started' => true]];
         }
         return ['id' => $id, 'ok' => false, 'result' => ['error' => 'ismeretlen parancs']];
@@ -181,10 +192,7 @@ function mandala_crm_run_command(array $cmd): array
 function mandala_crm_approve(array $d): array
 {
     $email = sanitize_email((string) ($d['email'] ?? ''));
-    $user = !empty($d['user_id']) ? get_userdata((int) $d['user_id']) : false;
-    if ((!$user || strtolower($user->user_email) !== strtolower($email)) && $email) {
-        $user = get_user_by('email', $email) ?: false;
-    }
+    $user = mandala_crm_find_user($d) ?: false;
     $role = (string) (((array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']))[0] ?? 'wholesale_customer');
     $created = false;
     if (!$user) {
@@ -224,6 +232,17 @@ function mandala_crm_approve(array $d): array
     return ['user_id' => (int) $user->ID, 'created' => $created];
 }
 
+/** A parancs fiókja: a webshop-azonosító, ha az e-mail egyezik (vagy nincs e-mail); különben az e-mail-cím szerint. */
+function mandala_crm_find_user(array $d): ?WP_User
+{
+    $email = sanitize_email((string) ($d['email'] ?? ''));
+    $user = !empty($d['user_id']) ? get_userdata((int) $d['user_id']) : false;
+    if ((!$user || strtolower($user->user_email) !== strtolower($email)) && $email) {
+        $user = get_user_by('email', $email) ?: false;
+    }
+    return $user instanceof WP_User ? $user : null;
+}
+
 /* ---------- Adatok ---------- */
 
 function mandala_crm_customer_data(int $uid): array
@@ -248,6 +267,10 @@ function mandala_crm_customer_data(int $uid): array
         'wholesale' => mandala_is_wholesale_user($uid),
         'registered' => $u->user_registered ? get_date_from_gmt($u->user_registered) : '',
         'last_active' => ($la = (int) $m('wc_last_active')) ? wp_date('Y-m-d H:i:s', $la) : '',
+        // Partnerlevél-hozzájárulás (a jelentkezés pipája, a fiókban módosítható) és a CRM-től kapott feltételek.
+        'marketing_consent' => $m('_mandala_partner_mail') === 'yes',
+        'marketing_consent_at' => $m('_mandala_partner_mail_at'),
+        'terms' => mandala_crm_terms_of($uid),
     ];
 }
 
@@ -284,6 +307,10 @@ function mandala_crm_order_data(WC_Order $order, bool $backfill = false): array
         'gross' => (float) $order->get_total(),
         'currency' => $order->get_currency(),
         'payment' => $order->get_payment_method_title(),
+        'payment_method' => $order->get_payment_method(),
+        'payment_days' => (int) $order->get_meta('_mandala_payment_days'),
+        'payment_due' => (string) $order->get_meta('_mandala_payment_due'),
+        'offer_token' => (string) $order->get_meta('_mandala_offer_token'),
         'items' => $items,
         'wholesale' => mandala_is_wholesale_user((int) $order->get_customer_id()),
         'backfill' => $backfill,
@@ -386,6 +413,99 @@ function mandala_crm_queue_stock(bool $full = false): int
     return count($changed);
 }
 
+/* ---------- Webes forgalom havonta (web_stats) ---------- */
+
+/** Az utolsó $n hónap ('YYYY-MM'), a legrégebbitől az aktuálisig. */
+function mandala_crm_last_months(int $n): array
+{
+    $first = new DateTimeImmutable(wp_date('Y-m-01'), wp_timezone());
+    $out = [];
+    for ($i = $n - 1; $i >= 0; $i--) {
+        $out[] = $first->modify("-$i month")->format('Y-m');
+    }
+    return $out;
+}
+
+/**
+ * Egy hónap webes forgalma csatornánként: minden rendelés (a teljesített és a feldolgozás alatti; a lemondott,
+ * visszatérített, függő nem), a csatorna a vásárló viszonteladói szerepe / a rendelés jelölője szerint. A visszatérített
+ * részösszegek levonva. net = a termékek és díjak nettója (szállítás és ÁFA nélkül), shipping_net = a szállítás nettója.
+ * HPOS-kompatibilis (wc_get_orders), oldalanként 200 rendelés.
+ *
+ * @return array{egyeni: array, kereskedo: array}
+ */
+function mandala_crm_web_stats(string $month): array
+{
+    $tz = wp_timezone();
+    $from = new DateTimeImmutable($month . '-01 00:00:00', $tz);
+    $to = $from->modify('+1 month');
+    $zero = ['orders' => 0, 'net' => 0.0, 'gross' => 0.0, 'items' => 0, 'shipping_net' => 0.0];
+    $out = ['egyeni' => $zero, 'kereskedo' => $zero];
+    $statuses = (array) apply_filters('mandala_crm_web_stats_statuses', ['completed', 'processing']);
+    for ($page = 1; $page <= 500; $page++) {
+        $orders = wc_get_orders(['type' => 'shop_order', 'status' => $statuses, 'date_created' => $from->getTimestamp() . '...' . ($to->getTimestamp() - 1), 'limit' => 200, 'page' => $page, 'orderby' => 'ID', 'order' => 'ASC']);
+        foreach ($orders as $order) {
+            if (!$order instanceof WC_Order || !apply_filters('mandala_crm_web_stats_include', true, $order)) {
+                continue;
+            }
+            $ch = mandala_crm_is_wholesale_order($order) ? 'kereskedo' : 'egyeni';
+            $gross = (float) $order->get_total() - (float) $order->get_total_refunded();
+            $tax = (float) $order->get_total_tax() - (float) $order->get_total_tax_refunded();
+            $ship = (float) $order->get_shipping_total() - (float) $order->get_total_shipping_refunded();
+            $out[$ch]['orders']++;
+            $out[$ch]['gross'] += $gross;
+            $out[$ch]['shipping_net'] += $ship;
+            $out[$ch]['net'] += $gross - $tax - $ship;
+            $out[$ch]['items'] += (int) $order->get_item_count() - (int) $order->get_item_count_refunded();
+        }
+        if (count($orders) < 200) {
+            break;
+        }
+    }
+    foreach ($out as $ch => $row) {
+        foreach (['net', 'gross', 'shipping_net'] as $k) {
+            $out[$ch][$k] = round($row[$k], 2);
+        }
+    }
+    return $out;
+}
+
+/** Hónapok a számolandók közé (a 10 perces szinkron adagonként számolja és küldi). */
+function mandala_crm_web_stats_add(array $months): void
+{
+    $todo = (array) get_option('mandala_crm_web_stats_todo', []);
+    $todo = array_values(array_unique(array_merge($todo, array_filter($months, fn($m) => preg_match('/^\d{4}-\d{2}$/', (string) $m)))));
+    update_option('mandala_crm_web_stats_todo', array_slice($todo, -24), false);
+}
+
+/** Legfeljebb $max hónap kiszámolása és sorba tétele (csatornánként egy web_stats esemény). */
+function mandala_crm_web_stats_step(int $max = 2): int
+{
+    $todo = (array) get_option('mandala_crm_web_stats_todo', []);
+    if (!$todo || !mandala_crm_config() || !function_exists('wc_get_orders')) {
+        return 0;
+    }
+    $done = 0;
+    while ($todo && $done < $max) {
+        $month = (string) array_shift($todo);
+        foreach (mandala_crm_web_stats($month) as $channel => $row) {
+            mandala_crm_enqueue('web_stats', ['month' => $month, 'channel' => $channel] + $row + ['computed_at' => current_time('mysql')]);
+        }
+        $done++;
+        update_option('mandala_crm_web_stats_todo', $todo, false);
+    }
+    return $done;
+}
+
+// Naponta hajnalban: az előző és az aktuális hónap (a késve teljesülő / visszatérített rendelések miatt az előző is).
+mandala_recurring('mandala_crm_web_stats_daily', DAY_IN_SECONDS, fn() => (new DateTimeImmutable('tomorrow 03:20', wp_timezone()))->getTimestamp());
+add_action('mandala_crm_web_stats_daily', function () {
+    if (mandala_crm_config()) {
+        mandala_crm_web_stats_add(mandala_crm_last_months(2));
+        mandala_crm_web_stats_step();
+    }
+});
+
 /* ---------- Teljes (újra)küldés ---------- */
 
 function mandala_crm_backfill_start(string $what = 'all'): void
@@ -421,6 +541,9 @@ function mandala_crm_backfill_step(int $users_per_step = 40): void
     if (in_array($b['what'], ['stock', 'all'], true)) {
         mandala_crm_queue_stock(true);
     }
+    if ($b['what'] === 'all') {
+        mandala_crm_web_stats_add(mandala_crm_last_months(13)); // a webes forgalom egy évre visszamenőleg
+    }
     delete_option('mandala_crm_backfill');
     mandala_crm_state(['backfill_done' => time()]);
 }
@@ -438,6 +561,7 @@ add_action('mandala_crm_sync', function ($soon = false) {
         $full = (int) get_option('mandala_crm_stock_full_at', 0) < time() - DAY_IN_SECONDS;
         if (!get_option('mandala_crm_backfill')) {
             mandala_crm_queue_stock($full);
+            mandala_crm_web_stats_step();
         }
         $st = mandala_crm_state();
         if ((int) ($st['hello_at'] ?? 0) < time() - HOUR_IN_SECONDS) {
@@ -458,6 +582,7 @@ function mandala_crm_hello(): array
         'wholesale_users' => array_sum(array_map(fn($r) => (int) ($count['avail_roles'][$r] ?? 0), $roles)),
         'queue' => count((array) get_option(MANDALA_CRM_QUEUE, [])),
         'backfill' => get_option('mandala_crm_backfill') ? 'fut' : 'kész',
+        'features' => 'approve,resync,terms,message,web_stats,consent,offer', // amit ez a témaverzió tud (a CRM ebből láthatja)
     ];
 }
 
@@ -486,6 +611,8 @@ add_filter('iu_form_submit_viszontelado', function ($response) {
         'type' => $f('tevekenyseg'),
         'message' => implode("\n", $msg),
         'user_id' => get_current_user_id(),
+        'marketing_consent' => !empty($post['partnerlevelek']), // „Kérek partnerleveleket” (crm-partner.php)
+        'marketing_consent_at' => current_time('mysql'),
     ]);
     mandala_crm_soon();
     return $response;
@@ -586,6 +713,9 @@ add_action('admin_post_mandala_crm_save', function () {
         mandala_crm_enqueue('hello', mandala_crm_hello());
         $r = mandala_crm_post(50);
         $msg = is_wp_error($r) ? 'error' : 'tested';
+    } elseif (isset($_POST['levels'])) {
+        update_option('mandala_crm_levels', mandala_crm_parse_levels((string) wp_unslash($_POST['levels'])), false);
+        $msg = 'levels';
     }
     wp_safe_redirect(add_query_arg(['page' => 'mandala-crm', 'msg' => $msg], admin_url('admin.php')));
     exit;
@@ -602,6 +732,7 @@ function mandala_crm_admin_page(): void
         'tested' => ['success', 'A CRM válaszolt – a kapcsolat rendben.'],
         'resync' => ['info', 'A teljes újraküldés elindult (10 percenként egy adag).'],
         'disconnected' => ['warning', 'Szétkapcsolva. A webshop nem küld többet a CRM-nek.'],
+        'levels' => ['success', 'A kedvezményszintek mentve.'],
         'badcode' => ['error', 'Ez nem érvényes összekötő kód. Másold ki újra a CRM-ből (Partnerek → Beállítások → Összekötő kód).'],
         'error' => ['error', 'A CRM most nem válaszolt: ' . ($st['error'] ?? '') . '. A webshop 10 percenként újrapróbálja.'],
     ];
@@ -629,7 +760,23 @@ function mandala_crm_admin_page(): void
     if ($cfg) {
         echo $form('<p><button class="button" name="test" value="1">Kapcsolat próbája most</button> <button class="button" name="resync" value="1">Teljes újraküldés</button> ' . (!defined('MANDALA_CRM_URL') ? '<button class="button button-link-delete" name="disconnect" value="1" onclick="return confirm(\'Biztosan szétkapcsolod?\')">Szétkapcsolás</button>' : '') . '</p>'); // phpcs:ignore
     }
+    // Kedvezményszintek: a CRM a szint nevét küldi (pl. „Kiemelt”); itt adható meg, hány % jár a nagyker árból.
+    $levels = (array) get_option('mandala_crm_levels', []);
+    $text = implode("\n", array_map(fn($k, $v) => $k . ' = ' . rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.'), array_keys($levels), $levels));
+    echo $form('<h2>Kedvezményszintek</h2><p>A CRM a partner kartonján beállított szint nevét küldi. Ha egy szinthez százalék is jár, írd ide soronként (pl. <code>Kiemelt = 5</code>): a viszonteladó a kosárban ennyivel olcsóbban kapja a nagyker árat. Üresen a szint csak a fiókjában látszik.</p><textarea name="levels" rows="4" style="width:100%;max-width:420px" placeholder="Alap nagyker = 0' . "\n" . 'Kiemelt = 5">' . esc_textarea($text) . '</textarea><p><button class="button">Mentés</button></p>'); // phpcs:ignore
     echo '</div>';
+}
+
+/** „Kiemelt = 5” soronként → ['Kiemelt' => 5.0] (0–50 %). */
+function mandala_crm_parse_levels(string $text): array
+{
+    $out = [];
+    foreach (preg_split('/\R/', $text) as $line) {
+        if (preg_match('/^\s*(.+?)\s*[=:]\s*(\d+(?:[.,]\d+)?)\s*%?\s*$/u', $line, $m)) {
+            $out[sanitize_text_field($m[1])] = max(0.0, min(50.0, (float) str_replace(',', '.', $m[2])));
+        }
+    }
+    return $out;
 }
 
 /* ---------- Őrszem ---------- */

@@ -1448,6 +1448,195 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(r.queue === 0 && r.page && r.health === true, 'CRM: a sor kiürült, admin oldal és őrszem: összekötve');
 }
 
+// ============ Partner CRM: feltételek, üzenet, hozzájárulás, webes forgalom, ajánlat-link (crm-partner.php) ============
+{
+  // Közös tesztvektor – az ajánlat-link (a CRM ajánlat-modulja ugyanerre ellenőriz; docs/PARTNER-CRM.md).
+  const vjson = '{"t":"a1b2c3d4e5f60718293a4b5c6d7e8f90","e":"bolt@example.hu","i":[["MA-1001",3],["HT-0420",1]],"x":1790000000}';
+  const vparam = 'eyJ0IjoiYTFiMmMzZDRlNWY2MDcxODI5M2E0YjVjNmQ3ZThmOTAiLCJlIjoiYm9sdEBleGFtcGxlLmh1IiwiaSI6W1siTUEtMTAwMSIsM10sWyJIVC0wNDIwIiwxXV0sIngiOjE3OTAwMDAwMDB9.e37e65a73aba7cfe2ca6efe453bc7b36c6446c5ec64193c77081d48fcc548b4b';
+  const vjsonP = '{"t":"a1b2c3d4e5f60718293a4b5c6d7e8f90","e":"bolt@example.hu","i":[["MA-1001",3],["HT-0420",1]],"x":1790000000,"p":[["MA-1001",1791]]}';
+  const vsigP = 'e4d135b8d2b9c23f2077e7362084fa4144210f184b2655840eb0ab64a75cce03';
+  ok(`${Buffer.from(vjson).toString('base64url')}.${createHmac('sha256', 'k'.repeat(32)).update(vjson).digest('hex')}` === vparam && createHmac('sha256', 'k'.repeat(32)).update(vjsonP).digest('hex') === vsigP, 'CRM ajánlat-link: a tesztvektor a JS-ben is ugyanaz');
+  const vparamP = `${Buffer.from(vjsonP).toString('base64url')}.${vsigP}`;
+  const v = JSON.parse(wp(`$s = str_repeat("k", 32); $j = '${vjson}'; $jp = '${vjsonP}';
+    $ok = mandala_offer_parse("${vparam}", $s, 1789999000); $okp = mandala_offer_parse("${vparamP}", $s, 1789999000); $exp = mandala_offer_parse("${vparam}", $s, 1790000001);
+    $bad = mandala_offer_parse("${vparam.slice(0, -1)}0", $s, 1789999000); $other = mandala_offer_parse("${vparam}", str_repeat("x", 32), 1789999000);
+    $prod = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490"));
+    echo wp_json_encode(["param" => mandala_offer_param($s, $j), "sigp" => mandala_offer_sign($s, $jp), "ok" => $ok, "okp" => $okp, "exp" => $exp["error"], "bad" => $bad["error"], "other" => $other["error"],
+      "cheaper" => mandala_offer_unit_price($prod, 25000, 37340), "dearer" => mandala_offer_unit_price($prod, 40000, 37340)]);`));
+  ok(v.param === vparam && v.sigp === vsigP, 'CRM ajánlat-link: a közös tesztvektor (HMAC-SHA256 a JSON bájtsorán, base64url.hex; p-vel is)');
+  ok(v.ok.ok && v.ok.t === 'a1b2c3d4e5f60718293a4b5c6d7e8f90' && v.ok.e === 'bolt@example.hu' && v.ok.i.length === 2 && v.ok.i[0][1] === 3 && v.ok.i[0][2] === null
+    && v.okp.ok && v.okp.i[0][2] === 1791 && v.okp.i[1][2] === null && v.exp === 'lejart' && v.bad === 'hibas' && v.other === 'hibas', 'CRM ajánlat-link: ellenőrzés (aláírás, lejárat, más titok, p ára)');
+  ok(v.cheaper === 31750 && v.dearer === 37340, 'CRM ajánlat-link: a p nettó ára + ÁFA, de csak olcsóbbá teheti a tételt', `${v.cheaper} / ${v.dearer}`);
+
+  // Egy PHP-folyamatban: terms parancs → nyugta, pénztár-szűrés, halasztott átutalás, üzenet, hozzájárulás, webes forgalom,
+  // ajánlat-azonosító a rendelés-eseményben, Számlázz.hu határidő.
+  const secret = 'teszt-titok-0123456789abcdefghij';
+  const php = `
+    update_option("mandala_crm", ["url" => "https://crm.test/wp-json/hpv/v1/partner/connect", "secret" => "${secret}"], false);
+    foreach (["mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_web_stats_todo", "mandala_crm_backfill"] as $k) delete_option($k);
+    $vid = get_user_by("login", "viszontelado")->ID;
+    foreach (["_mandala_crm_messages", "_mandala_partner_mail", "_mandala_partner_mail_at", "_mandala_order_block", "_mandala_payment_days", "_mandala_discount_level", "_mandala_discount_pct"] as $k) delete_user_meta($vid, $k);
+    $GLOBALS["crm_req"] = [];
+    add_filter("pre_http_request", function ($pre, $args, $url) {
+      if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
+      $GLOBALS["crm_req"][] = $args["body"];
+      $cmds = count($GLOBALS["crm_req"]) === 1 ? [
+        ["id" => 51, "type" => "terms", "data" => ["email" => "b2b@example.com", "discount_level" => "Kiemelt", "payment_days" => 15, "block" => ["on" => true, "reason" => "Lejárt tartozás"]]],
+        ["id" => 52, "type" => "terms", "data" => ["email" => "nincs-ilyen@example.com", "payment_days" => 8]],
+      ] : [];
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+    }, 10, 3);
+    update_option("mandala_crm_levels", mandala_crm_parse_levels("Alap nagyker = 0\\nKiemelt = 5 %"), false);
+    mandala_crm_enqueue("hello", mandala_crm_hello());
+    mandala_crm_flush(1);
+    $terms = mandala_crm_terms_of($vid);
+    $all = array_filter(WC()->payment_gateways()->payment_gateways(), fn($g) => $g->enabled === "yes");
+    wp_set_current_user($vid);
+    $blocked = array_keys(apply_filters("woocommerce_available_payment_gateways", $all));
+    ob_start(); do_action("woocommerce_account_content"); $acc = ob_get_clean();
+    mandala_crm_terms(["user_id" => $vid, "email" => "b2b@example.com", "block" => ["on" => false]]);
+    $open = array_keys(apply_filters("woocommerce_available_payment_gateways", $all));
+    $def = $all["mandala_deferred"] ?? null;
+    $deferred = [$def ? $def->is_available() : null, $def ? $def->get_description() : ""];
+    $m1 = mandala_crm_send_message($vid, "Utánrendelés", "Szeretnék még 10 db hangtálat.");
+    $m2 = mandala_crm_send_message($vid, "Még egy", "Gyors második üzenet");
+    $m3 = mandala_crm_send_message($vid, "", " ");
+    mandala_crm_set_consent($vid, true);
+    wp_set_current_user(0);
+    // Webes forgalom: viszonteladói (feldolgozás alatt), egyéni (teljesített), lemondott – a különbség számít.
+    $month = wp_date("Y-m");
+    $before = mandala_crm_web_stats($month);
+    $mk = function ($uid, $status) { $o = wc_create_order(["customer_id" => $uid]); $o->add_product(wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")), 1); $s = new WC_Order_Item_Shipping(); $s->set_method_id("gls_test_courier"); $s->set_method_title("GLS"); $s->set_total(1000); $o->add_item($s); $o->calculate_totals(); $o->save(); $o->update_status($status); return wc_get_order($o->get_id()); };
+    $w = $mk($vid, "processing"); $rt = $mk(0, "completed"); $c = $mk(0, "cancelled");
+    $after = mandala_crm_web_stats($month);
+    mandala_crm_web_stats_add([$month]); mandala_crm_web_stats_step();
+    $w->update_meta_data("_mandala_offer_token", "ofr-x1"); $w->set_payment_method("mandala_deferred"); $w->update_meta_data("_mandala_payment_days", 15); $w->update_meta_data("_mandala_payment_due", "2026-10-30"); $w->save();
+    $od = mandala_crm_order_data($w);
+    $x = new SimpleXMLElement("<xmlszamla><fejlec><keltDatum>2026-10-15</keltDatum><fizetesiHataridoDatum>2026-10-15</fizetesiHataridoDatum><fizmod>x</fizmod></fejlec></xmlszamla>");
+    $x = apply_filters("wc_szamlazz_xml", $x, $w, "invoice", []);
+    $y = new SimpleXMLElement("<xmlszamla><fejlec><keltDatum>2026-10-15</keltDatum><fizetesiHataridoDatum>2026-10-15</fizetesiHataridoDatum></fejlec></xmlszamla>");
+    $y = apply_filters("wc_szamlazz_xml", $y, $rt, "invoice", []);
+    mandala_crm_flush(3);
+    echo wp_json_encode(["req" => $GLOBALS["crm_req"], "terms" => $terms, "blocked" => $blocked, "acc" => str_contains($acc, "crm-block-notice"), "open" => $open, "deferred" => $deferred,
+      "m" => [$m1 === true, is_wp_error($m2) ? $m2->get_error_message() : "", is_wp_error($m3)], "msgs" => count(mandala_crm_messages($vid)),
+      "before" => $before, "after" => $after, "rt" => [(float) $rt->get_total(), (float) $rt->get_total_tax()], "w" => [(float) $w->get_total(), (float) $w->get_total_tax()], "month" => $month,
+      "od" => $od, "due" => (string) $x->fejlec->fizetesiHataridoDatum, "due2" => (string) $y->fejlec->fizetesiHataridoDatum, "queue" => count((array) get_option("mandala_crm_queue", []))]);
+    foreach ([$w, $rt, $c] as $o) $o->delete(true);
+    foreach (["_mandala_crm_messages", "_mandala_partner_mail", "_mandala_partner_mail_at", "_mandala_order_block", "_mandala_payment_days", "_mandala_discount_level", "_mandala_discount_pct", "_mandala_crm_terms_at"] as $k) delete_user_meta($vid, $k);
+    foreach (["mandala_crm", "mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_web_stats_todo", "mandala_crm_levels"] as $k) delete_option($k);`;
+  const r = JSON.parse(wp(php));
+  const events = r.req.flatMap((b) => JSON.parse(b).events);
+  const acks = r.req.flatMap((b) => JSON.parse(b).acks || []);
+  const of = (type) => events.filter((e) => e.type === type);
+  const a51 = acks.find((a) => a.id === 51);
+  ok(a51 && a51.ok && a51.result.payment_days === 15 && a51.result.blocked === true && a51.result.discount_level === 'Kiemelt' && a51.result.discount_pct === 5
+    && acks.some((a) => a.id === 52 && !a.ok), 'CRM terms: kedvezményszint (5% a beállításból), 15 nap, tiltás → nyugta; ismeretlen fiók: hibás nyugta');
+  ok(r.blocked.length === 1 && r.blocked[0] === 'bacs' && r.acc, 'CRM terms: tiltott fióknál a pénztárban csak az előre utalás, a fiókban tájékoztató', r.blocked.join(','));
+  ok(r.open.includes('cod') && r.open.includes('mandala_deferred') && r.deferred[0] === true && /15 napos/.test(r.deferred[1]), 'CRM terms: feloldás után halasztott átutalás 15 napos határidővel', r.open.join(','));
+  const msg = of('message')[0];
+  ok(r.m[0] && /próbáld újra/.test(r.m[1]) && r.m[2] && r.msgs === 1 && msg && msg.data.subject === 'Utánrendelés' && /10 db/.test(msg.data.body) && msg.data.email === 'b2b@example.com' && msg.data.user_id > 0 && msg.data.at,
+    'CRM üzenet: message esemény (tárgy, szöveg, e-mail); ráta-korlát, üres üzenet nem megy');
+  ok(of('customer').some((e) => e.data.marketing_consent === true && e.data.marketing_consent_at && e.data.terms && e.data.terms.payment_days === 15), 'CRM hozzájárulás: a customer eseményben marketing_consent (+ időpont) és a feltételek');
+  const d = (ch, k) => r.after[ch][k] - r.before[ch][k];
+  const near = (a, b) => Math.abs(a - b) < 0.02;
+  ok(d('kereskedo', 'orders') === 1 && d('egyeni', 'orders') === 1 && d('egyeni', 'items') === 1 && near(d('egyeni', 'gross'), r.rt[0]) && near(d('egyeni', 'shipping_net'), 1000) && near(d('egyeni', 'net'), r.rt[0] - r.rt[1] - 1000) && near(d('kereskedo', 'gross'), r.w[0]),
+    'CRM web_stats: csatornánként (egyéni / kereskedő), a lemondott nélkül; nettó = bruttó − ÁFA − szállítás');
+  const ws = of('web_stats').filter((e) => e.data.month === r.month);
+  ok(ws.length === 2 && ws.some((e) => e.data.channel === 'egyeni') && ws.some((e) => e.data.channel === 'kereskedo') && ['orders', 'net', 'gross', 'items', 'shipping_net'].every((k) => k in ws[0].data), 'CRM web_stats: esemény havonta, csatornánként');
+  ok(r.od.offer_token === 'ofr-x1' && r.od.payment_days === 15 && r.od.payment_due === '2026-10-30' && r.od.payment_method === 'mandala_deferred', 'CRM rendelés-esemény: offer_token, fizetési határidő');
+  ok(r.due === '2026-10-30' && r.due2 === '2026-10-15', 'Számlázz.hu: a halasztott átutalás számláján a partner határideje (a többin marad)');
+  ok(r.queue === 0, 'CRM: az új események is kimentek');
+
+  // Böngészőben: az ajánlat-link (belépés után folytatódik), üzenet a fiókból, tiltás a pénztárban, halasztott átutalás, pipa.
+  wp(`update_option("mandala_crm", ["url" => "https://127.0.0.1:9/x", "secret" => "${secret}"], false); delete_option("mandala_crm_queue");`);
+  const pid = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  const retail = Number(wp(`echo wc_get_product(${pid})->get_price();`));
+  const token = `ofr-e2e-${Date.now()}`;
+  const mkParam = (o) => wp(`echo mandala_offer_param("${secret}", '${JSON.stringify(o)}');`);
+  const param = mkParam({ t: token, e: 'b2b@example.com', i: [['MND-HT-0490', 2], ['NINCS-ILYEN-1', 1]], x: Math.floor(Date.now() / 1000) + 3600, p: [['MND-HT-0490', 25000]] });
+  const expired = mkParam({ t: 'ofr-lejart', e: 'b2b@example.com', i: [['MND-HT-0490', 1]], x: 1700000000 });
+  const queued = (type) => JSON.parse(wp('echo wp_json_encode(get_option("mandala_crm_queue", []));')).filter((e) => e.type === type);
+  const page = await newPage();
+  await page.goto(`${BASE}/?mandala_offer=${param}`, { waitUntil: 'networkidle' });
+  ok(/fiokom\/\?ajanlat=1/.test(page.url()) && (await page.textContent('.woocommerce')).includes('az ajánlat tételeit'), 'ajánlat-link: belépés nélkül a belépő oldalra visz, magyarázattal', page.url());
+  await page.fill('#username', 'viszontelado');
+  await page.fill('#password', 'b2b');
+  await Promise.all([page.waitForURL(/kosar/, { timeout: 15000 }).catch(() => {}), page.click('button[name="login"]')]);
+  await page.waitForLoadState('networkidle');
+  const cartText = (await page.textContent('main').catch(() => '')) || '';
+  const unit = Number(wp(`echo mandala_offer_unit_price(wc_get_product(${pid}), 25000, ${retail});`));
+  const priceCell = await page.locator('.cart_item', { hasText: 'Ajánlatból' }).first().locator('.product-price').textContent().catch(() => ''); // a korábbi (nem ajánlati) sor mellett
+  ok(/kosar/.test(page.url()) && cartText.includes('Az ajánlatból 2 db termék') && cartText.includes('Ajánlatból') && num(priceCell) === unit, 'ajánlat-link: belépés után a tételek a kosárban, az ajánlati áron', `${page.url()} – ${num(priceCell)} Ft (várt: ${unit} Ft)`);
+  ok(cartText.includes('NINCS-ILYEN-1') && cartText.includes('nem rendelhetők'), 'ajánlat-link: a nem rendelhető tétel barátságos jelzéssel');
+  await page.goto(`${BASE}/?mandala_offer=${param}`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('main')).includes('már a kosaradban'), 'ajánlat-link: másodszor nem teszi be újra');
+  const offerOrder = await checkout(page);
+  const om = JSON.parse(wp(`$o = wc_get_order(${offerOrder}); $p = []; foreach ($o->get_items() as $it) { if ($it->get_meta("_mandala_offer")) $p[] = (float) $it->get_meta("_mandala_offer_price"); } echo wp_json_encode([$o->get_meta("_mandala_offer_token"), mandala_crm_order_data($o)["offer_token"], $p]);`));
+  ok(om[0] === token && om[1] === token && om[2].includes(25000) && queued('order').some((e) => e.data.id === offerOrder && e.data.offer_token === token)
+    && queued('offer_order').some((e) => e.data.token === token && e.data.order_id === offerOrder), 'ajánlat-link: a rendelésben (tétel: _mandala_offer_price), az order és az offer_order eseményben az ajánlat azonosítója');
+  await page.goto(`${BASE}/?mandala_offer=${param}`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('main')).includes('már megrendelted'), 'ajánlat-link: a megrendelt ajánlatnál köszönet, nem kerül újra a kosárba');
+  await page.goto(`${BASE}/?mandala_offer=${expired}`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('main')).includes('volt érvényes'), 'ajánlat-link: lejárt link – barátságos hibaüzenet');
+  ok(queued('offer_open').filter((e) => e.data.token === token).length === 1, 'ajánlat-link: a megnyitás egyszer megy a CRM-be (offer_open)');
+
+  // Üzenet a Mandalának.
+  wp('$u = get_user_by("login", "viszontelado"); delete_user_meta($u->ID, "_mandala_crm_messages");');
+  await page.goto(`${BASE}/fiokom/uzenet/`, { waitUntil: 'networkidle' });
+  ok((await page.textContent('.woocommerce-MyAccount-navigation')).includes('Üzenet a Mandalának'), 'üzenet: menüpont a viszonteladói fiókban');
+  await page.fill('#crm-msg-subject', 'Számla kérdés');
+  await page.fill('#crm-msg-body', 'A múlt heti rendelés számláját kérném újra.');
+  await Promise.all([page.waitForNavigation(), page.click('.crm-message-form button[type="submit"]')]);
+  ok((await page.textContent('main')).includes('megkaptuk az üzenetedet') && (await page.textContent('.crm-message-sent')).includes('Számla kérdés'), 'üzenet: köszönő visszajelzés, a legutóbbi üzenetek között');
+  ok(queued('message').some((e) => e.data.subject === 'Számla kérdés' && /számláját/.test(e.data.body)), 'üzenet: message esemény a CRM sorában');
+
+  // Tiltás: a fiókban és a pénztárban tájékoztató, csak előre utalás; feloldás után halasztott átutalás.
+  const vid = wp('echo get_user_by("login", "viszontelado")->ID;');
+  wp(`mandala_crm_terms(["user_id" => ${vid}, "email" => "b2b@example.com", "payment_days" => 15, "discount_level" => "Kiemelt", "block" => ["on" => true, "reason" => "Kérjük, rendezd a lejárt számlát."]]);`);
+  await page.goto(`${BASE}/fiokom/nagyker/`, { waitUntil: 'networkidle' });
+  ok(await page.isVisible('.crm-block-notice') && (await page.textContent('.crm-block-notice')).includes('rendezd a lejárt számlát') && (await page.textContent('.b2b-terms')).includes('Kiemelt'), 'tiltás: a fiókban rövid tájékoztató a CRM szövegével; a feltételek a viszonteladói felületen');
+  await page.goto(`${BASE}/?add-to-cart=${pid}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  const methods = () => page.$$eval('input[name="payment_method"]', (l) => l.map((i) => i.value));
+  ok(await page.isVisible('.crm-block-notice') && JSON.stringify(await methods()) === '["bacs"]', 'tiltás: a pénztárban csak előre utalás, tájékoztatóval', JSON.stringify(await methods()));
+  wp(`mandala_crm_terms(["user_id" => ${vid}, "block" => ["on" => false]]);`);
+  await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+  ok((await methods()).includes('mandala_deferred') && !(await page.isVisible('.crm-block-notice')), 'feloldás után: halasztott átutalás a fizetési módok között');
+  if (await page.$('#shipping_method li[data-kind="pickup"] label')) { await page.click('#shipping_method li[data-kind="pickup"] label'); await waitUpdate(page); }
+  await page.check('#payment_method_mandala_deferred');
+  await waitUpdate(page);
+  await page.check('#terms');
+  await Promise.all([page.waitForURL(/order-received|rendeles-fogadva/, { timeout: 20000 }).catch(() => {}), page.click('#place_order')]);
+  const did = Number((page.url().match(/(?:order-received|rendeles-fogadva)\/(\d+)/) || [])[1]);
+  const placeErr = did ? '' : (await page.textContent('.woocommerce-NoticeGroup, .woocommerce-error').catch(() => '') || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const dm = did ? JSON.parse(wp(`$o = wc_get_order(${did}); echo wp_json_encode([$o->get_status(), (int) $o->get_meta("_mandala_payment_days"), $o->get_meta("_mandala_payment_due"), array_column(mandala_order_timeline($o), "label")]);`)) : [];
+  ok(did && dm[0] === 'processing' && dm[1] === 15 && /^\d{4}-\d{2}-\d{2}$/.test(dm[2]) && dm[3].includes('Átutalás számla alapján') && !dm[3].includes('Fizetve') && (await page.textContent('main')).includes('Átutalás számla alapján'),
+    'halasztott átutalás: a rendelés feldolgozás alatt, 15 napos határidővel (köszönőoldal, követő)', placeErr || JSON.stringify(dm));
+
+  // Partnerlevél-hozzájárulás a viszonteladói felületen.
+  await page.goto(`${BASE}/fiokom/nagyker/`, { waitUntil: 'networkidle' });
+  await Promise.all([page.waitForNavigation(), page.check('.b2b-consent input[type="checkbox"]')]);
+  ok(wp(`echo get_user_meta(${vid}, "_mandala_partner_mail", true);`) === 'yes' && queued('customer').some((e) => e.data.user_id === Number(vid) && e.data.marketing_consent === true), 'hozzájárulás: a fiókban bekapcsolható, a CRM megkapja');
+  await page.context().close();
+
+  // A jelentkezés pipája (vendégként): még nincs fiók → a fiók létrejöttekor rákerül.
+  const guest = await newPage();
+  await guest.goto(`${BASE}/viszonteladoknak/`, { waitUntil: 'networkidle' });
+  const form = guest.locator('form[data-form-id="viszontelado"]');
+  for (const [k, val] of Object.entries({ ceg: 'Kristály Bolt', adoszam: '12345676-2-41', telepules: 'Győr', nev: 'Szabó Éva', telefon: '+36 30 222 3333', email: 'pipa-teszt@example.com' })) await form.locator(`[name="${k}"]`).fill(val);
+  await form.locator('[name="partnerlevelek"]').check();
+  await form.locator('[name="adatkezeles"]').check();
+  await form.locator('button[type="submit"]').click();
+  await guest.waitForFunction(() => document.querySelector('form[data-form-id="viszontelado"] .form-message')?.textContent.trim(), null, { timeout: 10000 }).catch(() => {});
+  const pend = JSON.parse(wp('echo wp_json_encode(get_option("mandala_crm_pending_consent", [])["pipa-teszt@example.com"] ?? null);'));
+  const app = queued('application').find((e) => e.data.email === 'pipa-teszt@example.com');
+  const created = wp('$id = wc_create_new_customer("pipa-teszt@example.com", "", wp_generate_password()); echo get_user_meta($id, "_mandala_partner_mail", true); wp_delete_user($id);');
+  ok(pend && pend.on === true && app && app.data.marketing_consent === true && created === 'yes', 'hozzájárulás: pipa a jelentkezésben → CRM-esemény, és a később nyíló fiókra is rákerül');
+  await guest.context().close();
+  wp(`foreach (["_mandala_crm_messages", "_mandala_partner_mail", "_mandala_partner_mail_at", "_mandala_order_block", "_mandala_payment_days", "_mandala_discount_level", "_mandala_crm_terms_at"] as $k) delete_user_meta(${vid}, $k);
+    foreach (["mandala_crm", "mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_pending_consent", "mandala_crm_offer_seen"] as $k) delete_option($k);`);
+}
+
 {
   const [manage, qty] = JSON.parse(origStock);
   wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(${manage ? 'true' : 'false'}); $p->set_stock_quantity(${Number(qty) || 0}); $p->set_stock_status("instock"); $p->save();`);

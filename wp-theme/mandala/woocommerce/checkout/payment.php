@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
 if (!wp_doing_ajax()) {
     do_action('woocommerce_review_order_before_payment');
 }
-$icons = ['bacs' => 'bank', 'cod' => 'cash', 'cheque' => 'bank'];
+$icons = ['bacs' => 'bank', 'cod' => 'cash', 'cheque' => 'bank', 'mandala_deferred' => 'bank'];
 ?>
 <div id="payment" class="woocommerce-checkout-payment">
   <?php if (WC()->cart && WC()->cart->needs_payment()) : ?>

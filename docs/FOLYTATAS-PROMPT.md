@@ -20,7 +20,7 @@ PR-t ne nyiss). Commit-üzenet magyarul, a végén a szokásos Co-Authored-By / 
 - Build: `python3 tools/build-theme.py --content` → `dist/mandala-tema.zip` (verzió: 1.1.ÉÉÉÉHHNNÓÓPP), varázsló,
   telepítő csomag. A `dist/laci/` nincs a repóban (adatbázis-jelszós JUTA-szkriptek).
 - Tesztek (helyi WordPress + Playwright): `tests/wp-e2e.mjs`, `wp-features.mjs`, `wp-marketing.mjs`,
-  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 306/0 (2026-10-12), mkt 68/0, olds 24/0, oldd 34/0.
+  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 306/0 (2026-10-12), mkt 68/0, olds 24/0, oldd 34/0; feat 337/0 (2026-10-16, Partner CRM 2. hullám, MariaDB-s teszt-WP).
   A tesztkörnyezet előfeltételei (friss `wp mandala setup --demo` után): a GLS-helyettesítő módok a magyar zónában,
   `viszontelado` / `b2b` felhasználó `b2b@example.com` címmel és 29000-es nagyker árral a MND-HT-0490-en,
   `WP_ENVIRONMENT_TYPE=local` (alkalmazásjelszó http-n), a `wp-plugin/*` belinkelve, a WooCommerce bevezető kihagyva.
@@ -29,12 +29,16 @@ PR-t ne nyiss). Commit-üzenet magyarul, a végén a szokásos Co-Authored-By / 
 - Dokumentáció: `docs/` (ATALLAS, JUTA, ATADAS, TELEPITES, PARTNER-CRM, LOCAL-CLAUDE-PROMPT-1/2/3).
 - **Mandala Partner CRM** (2026-10-12): a viszonteladókat a csapat egy külön CRM-példányon kezeli (a HelloProVision CRM-je
   + `helloprovision-partner` bővítmény a `aronritok-sketch/hlprv` repóban, leírás: hlprv `docs/partner/README.md`). A
-  webshop oldala: `inc/features/crm-connect.php` (WooCommerce → Partner CRM, összekötő kód) – `docs/PARTNER-CRM.md`.
+  webshop oldala: `inc/features/crm-connect.php` (protokoll, események, parancsok; WooCommerce → Partner CRM, összekötő
+  kód) és `inc/features/crm-partner.php` (a viszonteladó oldala: feltételek, üzenet, hozzájárulás, ajánlat-link) –
+  `docs/PARTNER-CRM.md` (az ajánlat-link közös tesztvektorával).
 
 **Az élő oldal:** https://mandala.hu (ELIN.hu tárhely, nginx, Redis, HPOS, `md_` táblaelőtag). A téma utolsó
-kiadott verziója: 1.1.202610151525 (a rendeléses levelek tilthatók a `mandala_order_mail_allowed` szűrővel – a Dropship
-partnerrendeléseihez; a hivatalos GLS bővítmény csomagszám-mezői a követőben) – kérdezd meg, fent van-e már (előtte
-1.1.202610121823 Partner CRM összekötő, 1.1.202610081138).
+kiadott verziója: 1.1.202610160024 (Partner CRM 2. hullám: `terms` parancs – kedvezményszint, fizetési határidő → „Átutalás
+számla alapján” fizetési mód + Számlázz.hu-határidő, rendelés-tiltás → csak előre utalás; Fiókom → Üzenet a
+Mandalának; partnerlevél-hozzájárulás; webes forgalom havonta a CRM-nek; egy kattintásos rendelés aláírt
+ajánlat-linkből – `inc/features/crm-partner.php`, `docs/PARTNER-CRM.md`) – kérdezd meg, fent van-e már (előtte
+1.1.202610151525 rendeléses levelek tilthatók a Dropshiphoz, 1.1.202610121823 Partner CRM összekötő, 1.1.202610081138).
 - Az adminhoz **nincs hozzáférésed** (a `claude` alkalmazásjelszót visszavonták). Az ELIN a mi IP-nkről érkező
   POST-kéréseket sokszor 403-mal tiltja; GET működik (REST: `https://mandala.hu/?rest_route=/…`, Store API is).
   Admin-teendőt a tulajdonos vagy a „helyi Claude” (böngészős) végez – nekik promptot írunk (`docs/LOCAL-CLAUDE-PROMPT-*.md`).
@@ -81,6 +85,13 @@ partnerrendeléseihez; a hivatalos GLS bővítmény csomagszám-mezői a követ�
    `plugins/helloprovision-dropship/` (leírás: hlprv `docs/dropship/README.md`); a Mandalán WooCommerce → Partnerrendelések
    (raktár mód, felvételi cím, Ananda partner + nagyker fiók → összekötő kód), az Anandán WooCommerce → Dropship (kód,
    MyGLS-belépés). A partnerrendelés a Mandalában az Ananda nagyker fiókjára kerül, „Feladva” után teljesített → JUTA.
+
+11. **Partner CRM – 2. hullám a webshopban (2026-10-16, téma 1.1.202610160024)**: a CRM `terms` parancsa, Üzenet a Mandalának,
+   partnerlevél-pipa, webes forgalom (`web_stats`), ajánlat-link (`docs/PARTNER-CRM.md`). Élesítéskor: WooCommerce →
+   Partner CRM → Kedvezményszintek (ha a szintekhez % jár, pl. `Kiemelt = 5`); WooCommerce → Fizetés → „Átutalás számla
+   alapján (viszonteladók)” (alapból be, csak a CRM-ben határidőt kapott partner látja); a Számlázz.hu-számla határidejét
+   a téma állítja (élesben egy próbaszámlán ellenőrizni). A CRM-modulok (hlprv) a webshop eseményeit és parancsait ezzel
+   a szerződéssel használják.
 
 9. **Mandala Partner CRM – 1. szakasz kész (2026-10-12)**: telepítésre vár (új WordPress, javasolt cím partner.mandala.hu,
    hlprv `docs/partner/README.md` → Telepítés), utána az összekötő kód a mandala.hu-ra (WooCommerce → Partner CRM).
