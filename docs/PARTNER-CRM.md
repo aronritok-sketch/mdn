@@ -17,6 +17,15 @@ telepítés: `aronritok-sketch/hlprv` → `docs/partner/README.md`. Ez a fájl a
 | Üzenet (`message`) | Fiókom → **Üzenet a Mandalának** (csak viszonteladónak): `{ user_id, email, name, company, subject, body, at }` – a CRM-ben teendő a felelősnek, a válasz e-mailben megy. Ráta-korlát: óránként 5, egymás után 20 mp. Összekötés nélkül levél a bolt címére. | `crm-partner.php` – azonnal (háttérfeladat) |
 | Webes forgalom (`web_stats`) | naponta (03:20) az aktuális és az előző hónap, csatornánként: `{ month: 'YYYY-MM', channel: 'egyeni' \| 'kereskedo', orders, net, gross, items, shipping_net, computed_at }` – minden rendelés (teljesített, feldolgozás alatti; a lemondott / visszatérített / függő nem, a visszatérített részösszeg levonva); csatorna: a vásárló viszonteladói szerepe vagy a rendelés jelölője; `net` = termékek + díjak nettója (szállítás és ÁFA nélkül). Az első teljes küldés 13 hónapot küld. | `wc_get_orders` (HPOS), 200-as oldalak, 10 percenként legfeljebb 2 hónap |
 
+**Időpontok:** minden időpont ISO 8601 alakban, zónával megy (`'c'`, pl. `2026-10-16T09:40:00+02:00` – rendelés
+`created`, fiók `registered` / `last_active`, aktivitás és üzenet `at`, hozzájárulás, `web_stats.computed_at`,
+ajánlat-események), a CRM a saját zónájára váltja (`hpv_pt_parse_shop_time`). A régi, zóna nélküli helyi időt a CRM
+2026-10-16 óta a webhely zónájában értelmezi (addig UTC-nek vette – 1–2 órás csúszás).
+
+**E-mail:** a fiók-, a rendelés- és az üzenet-eseményben az `email` a fiók e-mail-címe (`user_email`; a számlázási e-mail
+külön `billing_email`-ként megy) – a CRM a webshop-fiókra (`user_id`) párosít, e-mailre csak akkor, ha a kartonon még
+nincs fiók.
+
 A **fiók-esemény** (`customer`) a partnerlevél-hozzájárulást is viszi: `marketing_consent` (bool) és `marketing_consent_at`
 (a módosítás ideje), valamint a webshopban érvényes feltételeket (`terms`: `discount_level`, `discount_pct`,
 `payment_days`, `blocked`, `block_reason`). A hozzájárulás a „Viszonteladóknak” oldal jelentkezésében egy pipa
@@ -27,7 +36,8 @@ létrejöttekor (jóváhagyás) kerül rá.
 Az óránkénti `hello` esemény `features` mezője megmondja, mit tud a téma (`approve,resync,terms,message,web_stats,consent,offer`)
 – a CRM ebből láthatja, hogy a webshopban fent van-e már a 2. hullámos téma (a régi a `terms` parancsra „ismeretlen parancs” nyugtát ad).
 
-A CRM válaszában jöhet parancs: **approve** (a CRM-ben jóváhagyott jelentkező viszonteladói szerepet kap; ha nincs
+A CRM válaszában jöhet parancs: **approve** (a CRM-ben jóváhagyott jelentkező viszonteladói szerepet kap – hozzáadva, a
+fiók többi szerepe megmarad, csak a sima `customer` megy le; ha nincs
 fiókja, a WooCommerce nyit egyet, és elküldi a fiók-levelet – **ehhez a levélküldésnek működnie kell**, lásd a nyitott
 levél-hibát), **terms** (lent) és **resync** (teljes újraküldés; `what: 'web_stats'` → csak a webes forgalom, 13 hónap).
 Az eredményt a következő kérésben nyugtázza.
@@ -40,7 +50,8 @@ szerint; ha nincs ilyen fiók, a nyugta `ok: false` („nincs ilyen fiók a webs
 discount_level, discount_pct, payment_days, blocked, block_reason }`.
 
 - **Kedvezményszint** (`_mandala_discount_level`): a viszonteladói felületen látszik. Ha jár hozzá százalék (a parancs
-  `discount_pct`-je, vagy WooCommerce → Partner CRM → **Kedvezményszintek**: `Kiemelt = 5`, vagy „5%” a szint nevében),
+  `discount_pct`-je, vagy WooCommerce → Partner CRM → **Kedvezményszintek**: `Kiemelt = 5`; a szint NEVÉBŐL nem olvas
+  százalékot – a CRM is csak a beállított szintek közül ad),
   a kosárban a nagyker árból ennyivel kevesebb (a tétel ára csökken – a JUTA is így kapja), a rendelés tételén
   „Kedvezmény: −5%”.
 - **Fizetési határidő** (`_mandala_payment_days`): a pénztárban megjelenik az **Átutalás számla alapján** fizetési mód
@@ -63,13 +74,22 @@ bájtsoráé (kitöltés nélküli base64url); a webshop előbb az aláírást (
 `A–Z a–z 0–9 _ . : -`, legfeljebb 64 karakter; legfeljebb 200 tétel.
 
 Ha egy tételnek van `p` ára, a kosárban azon az áron megy (nettó + a termék ÁFÁ-ja, a bolt bruttó áraihoz igazítva) –
-de csak ha nem drágább a partner szokott nagyker áránál (ha az kisebb, az marad); a rendelés tételén
+de csak ha nem drágább a partner szokott áránál (nagyker ár a kedvezményszinttel; ha az kisebb, az marad), és **legfeljebb
+az ajánlott darabszámig**: ha a kosárban többet tesz be, a többi darab a szokott áron megy (a tétel egységára a kettő
+súlyozott átlaga; a kosárban: „N db ajánlati áron, a többi a szokott áron”). A **lejárat a kosárban is számít**: lejárt
+ajánlatnál a tétel a szokott áron marad (a kosár szól), és a rendelés nem kap ajánlat-azonosítót. A rendelés tételén
 `_mandala_offer_price` (a nettó ajánlati ár). `p` nélkül a tétel nagyker áron (és a partner kedvezményszintjével) megy.
+A kosártétel adatai: `mandala_offer` (token), `mandala_offer_price`, `mandala_offer_qty` (az ajánlott db),
+`mandala_offer_x` (lejárat).
 
 - Nincs belépve → a belépő oldalra visz (süti, legfeljebb 1 nap), belépés után folytatja; a belépett fiók e-mailje
-  (vagy számlázási e-mailje) egyezzen az `e`-vel, és viszonteladói fiók legyen – különben barátságos hiba.
+  (`user_email` – a számlázási e-mail nem, azt a vásárló maga írja át) egyezzen az `e`-vel, és viszonteladói fiók
+  legyen – különben barátságos hiba.
 - A tételek a kosárba (nagyker áron, a Wholesale Prices bővítmény szerint; készlet fölött annyi, amennyi van; ami nem
-  rendelhető, azt felsorolja). Ugyanaz az ajánlat másodszor nem kerül be (kosárban van / már megrendelte).
+  rendelhető, azt felsorolja). Ugyanaz az ajánlat másodszor nem kerül be (kosárban van / már megrendelte). **Újra
+  használható**, ha belőle csak lemondott, sikertelen vagy visszatérített rendelés lett; sikeres (függő, várakozó,
+  feldolgozás alatti, teljesített, szállított …) rendelés után nem – a pénztárban is ellenőrizzük (a fizetésre váró,
+  újrapróbált rendelés nem számít).
 - A rendelés `_mandala_offer_token` metát kap (a tétel `_mandala_offer`-t és – ha volt – `_mandala_offer_price`-t), az
   `order` esemény `offer_token` mezőt; ezen felül `offer_open` és `offer_order` esemény (lásd fent). Lejárt vagy hamis
   link: barátságos hibaüzenet a kosár oldalon.
@@ -97,7 +117,9 @@ PHP: `hash_hmac('sha256', $json, $secret)`; a link: `rtrim(strtr(base64_encode($
    összekötő”).
 
 A téma 1.1.202610121823-tól van benne; a terms parancs, az üzenet, a webes forgalom, a hozzájárulás és az ajánlat-link
-a 2026. októberi 2. hullámtól (1.1.202610160024). Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
+a 2026. októberi 2. hullámtól (1.1.202610160024); az időpontok zónával, a `user_email`-párosítás, az ajánlat
+darabszám-korlátja, a kosárbeli lejárat és az újrahasználat szabálya, a szint százaléka csak a listából és a jóváhagyás
+szerep-hozzáadása az 1.1.202610160526-tól. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
 repóban soha.
 
 ## Teszt

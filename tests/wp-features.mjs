@@ -1439,6 +1439,10 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   const app = of('application');
   ok(app.length === 1 && app[0].data.company === 'Lótusz Bolt' && app[0].data.tax_number === '12345676-2-41' && app[0].data.type === 'Jógastúdió' && /havi rendelés/.test(app[0].data.message), 'CRM: viszonteladói jelentkezés (a spam-csapdás nem)');
   ok(of('customer').some((e) => e.data.user_id === r.vid && e.data.wholesale && e.data.email), 'CRM: teljes küldés – a viszonteladói fiókok');
+  const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+  ok(order && iso.test(order.data.created) && of('activity').length && of('activity').every((e) => !e.data.at || iso.test(e.data.at)) && of('customer').filter((e) => e.data.user_id === r.vid).every((e) => !e.data.registered || iso.test(e.data.registered)),
+    'CRM: az időpontok ISO 8601 alakban, zónával (a CRM a saját zónájára vált, nem csúszik)', order && order.data.created);
+  ok(of('customer').filter((e) => e.data.user_id === r.vid).every((e) => e.data.email === 'b2b@example.com' && 'billing_email' in e.data), 'CRM: a fiók-esemény e-mailje a fiók címe (user_email), a számlázási külön (billing_email)');
   const stock = of('stock');
   const ht = stock.flatMap((e) => e.data.items).find((i) => i.sku === 'MND-HT-0490');
   ok(stock.length >= 1 && stock[0].data.full_start && stock[stock.length - 1].data.full_end && ht && ht.wholesale === 29000 && typeof ht.in_stock === 'boolean', 'CRM: teljes készletlista (eleje / vége jelölve), nagyker árral');
@@ -1546,6 +1550,31 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(r.od.offer_token === 'ofr-x1' && r.od.payment_days === 15 && r.od.payment_due === '2026-10-30' && r.od.payment_method === 'mandala_deferred', 'CRM rendelés-esemény: offer_token, fizetési határidő');
   ok(r.due === '2026-10-30' && r.due2 === '2026-10-15', 'Számlázz.hu: a halasztott átutalás számláján a partner határideje (a többin marad)');
   ok(r.queue === 0, 'CRM: az új események is kimentek');
+
+  // Biztonság: a szint százaléka csak a beállított listából; ajánlat: darabszám-korlát, lejárat a kosárban, újrahasználat
+  // (lemondott után igen, sikeres után nem); jóváhagyás: szerep hozzáadva (a többi marad).
+  const sec = JSON.parse(wp(`
+    $vid = get_user_by("login", "viszontelado")->ID; $out = [];
+    update_option("mandala_crm_levels", ["Kiemelt" => 5], false);
+    update_user_meta($vid, "_mandala_discount_level", "Szuper 50%"); delete_user_meta($vid, "_mandala_discount_pct");
+    $out["name"] = mandala_crm_discount_pct($vid);
+    update_user_meta($vid, "_mandala_discount_level", "Kiemelt"); $out["list"] = mandala_crm_discount_pct($vid);
+    delete_user_meta($vid, "_mandala_discount_level"); delete_option("mandala_crm_levels");
+    $out["blend"] = [mandala_offer_blend_price(1000.0, 2000.0, 5, 2), mandala_offer_blend_price(1000.0, 2000.0, 2, 2), mandala_offer_blend_price(1000.0, 2000.0, 3, 0)];
+    $mk = function ($token, $status) use ($vid) { $o = wc_create_order(["customer_id" => $vid]); $o->update_meta_data("_mandala_offer_token", $token); $o->save(); $o->update_status($status); return $o; };
+    $c = $mk("ofr-sec-c", "cancelled"); $p = $mk("ofr-sec-p", "pending"); $d = $mk("ofr-sec-d", "completed");
+    $out["reuse"] = [mandala_offer_used("ofr-sec-c", $vid) === null, mandala_offer_used("ofr-sec-p", $vid) !== null, mandala_offer_used("ofr-sec-d", $vid) !== null];
+    $out["valid"] = [mandala_offer_item_valid(["mandala_offer" => "ofr-sec-x", "mandala_offer_x" => time() - 5], $vid), mandala_offer_item_valid(["mandala_offer" => "ofr-sec-x", "mandala_offer_x" => time() + 999], $vid), mandala_offer_item_valid(["mandala_offer" => "ofr-sec-d", "mandala_offer_x" => time() + 999], $vid)];
+    foreach ([$c, $p, $d] as $o) $o->delete(true);
+    $tu = wp_insert_user(["user_login" => "apr_" . wp_generate_password(4, false), "user_pass" => wp_generate_password(), "user_email" => "apr" . wp_rand() . "@example.com", "role" => "customer"]);
+    (new WP_User($tu))->add_role("subscriber");
+    mandala_crm_approve(["user_id" => $tu, "email" => get_userdata($tu)->user_email]);
+    $out["roles"] = array_values(get_userdata($tu)->roles); wp_delete_user($tu);
+    echo wp_json_encode($out);`));
+  ok(sec.name === 0 && sec.list === 5, 'CRM: a kedvezmény-százalék csak a beállított szintlistából (a szint nevéből nem)', JSON.stringify([sec.name, sec.list]));
+  ok(sec.blend[0] === 1600 && sec.blend[1] === 1000 && sec.blend[2] === 1000, 'ajánlat: az ajánlati ár legfeljebb az ajánlott darabig (a többi a szokott áron, súlyozott egységár)', JSON.stringify(sec.blend));
+  ok(sec.reuse.every(Boolean) && sec.valid[0] === false && sec.valid[1] === true && sec.valid[2] === false, 'ajánlat: lemondott után újra használható, függő / teljesített után nem; lejárt vagy már megrendelt tétel a kosárban szokott áron', JSON.stringify([sec.reuse, sec.valid]));
+  ok(sec.roles.includes('wholesale_customer') && sec.roles.includes('subscriber') && !sec.roles.includes('customer'), 'jóváhagyás: a viszonteladói szerep hozzáadva, a fiók többi szerepe megmarad (csak a sima customer megy le)', sec.roles.join(','));
 
   // Böngészőben: az ajánlat-link (belépés után folytatódik), üzenet a fiókból, tiltás a pénztárban, halasztott átutalás, pipa.
   wp(`update_option("mandala_crm", ["url" => "https://127.0.0.1:9/x", "secret" => "${secret}"], false); delete_option("mandala_crm_queue");`);

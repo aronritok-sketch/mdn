@@ -12,7 +12,10 @@
  *    az összekötő titka)>, json = {t: token, e: partner e-mail, i: [[cikkszám, db], …], x: lejárat (unix), p?: [[cikkszám,
  *    kedvezményes nettó egységár], …]} – a tételek a kosárba (nagyker áron, vagy a p ára, ha nem drágább), a rendelés
  *    `_mandala_offer_token`-t kap (a tétel `_mandala_offer_price`-t); offer_open / offer_order esemény, az order
- *    eseményben offer_token. Tesztvektor: docs/PARTNER-CRM.md és tests/wp-features.mjs.
+ *    eseményben offer_token. Az ajánlati ár legfeljebb az ajánlott darabszámig jár (a többi darab a szokott áron), a
+ *    lejárat a kosárban is számít, és a link csak akkor használható újra, ha belőle nincs sikeres (függő, várakozó,
+ *    feldolgozás alatti, teljesített …) rendelés – lemondott / sikertelen / visszatérített után igen. A link a fiók
+ *    e-mail-címéhez (user_email) kötött. Tesztvektor: docs/PARTNER-CRM.md és tests/wp-features.mjs.
  */
 
 defined('ABSPATH') || exit;
@@ -91,7 +94,10 @@ function mandala_crm_is_blocked(int $uid): bool
     return is_array($b) && !empty($b['on']);
 }
 
-/** A szint százaléka: a CRM-től kapott szám, a webshop beállítása (Partner CRM → Kedvezményszintek), vagy „…5%” a névben. */
+/**
+ * A szint százaléka: a CRM-től kapott szám (aláírt terms parancs), vagy a webshop beállítása (WooCommerce → Partner CRM →
+ * Kedvezményszintek). A szint NEVÉBŐL nem olvasunk százalékot (egy „50%” nevű szint ne adjon magától kedvezményt).
+ */
 function mandala_crm_discount_pct(int $uid): float
 {
     if (!$uid) {
@@ -110,7 +116,7 @@ function mandala_crm_discount_pct(int $uid): float
             return max(0.0, min(50.0, (float) $pct));
         }
     }
-    return preg_match('/(\d+(?:[.,]\d+)?)\s*%/', $level, $m) ? max(0.0, min(50.0, (float) str_replace(',', '.', $m[1]))) : 0.0;
+    return 0.0;
 }
 
 /** „5”, „2,5” – a százalék magyarosan. */
@@ -290,12 +296,61 @@ function mandala_offer_unit_price(WC_Product $product, float $net, float $curren
 }
 
 /**
+ * Érvényes-e még a kosártétel ajánlati ára: nem járt le (x), és az ajánlatból még nincs sikeres rendelés. A régi
+ * (frissítés előtt kosárba tett) tételnél nincs lejárat – az ajánlat-link ellenőrzése akkor megvolt.
+ */
+function mandala_offer_item_valid(array $item, int $uid): bool
+{
+    if (empty($item['mandala_offer'])) {
+        return false;
+    }
+    if (!empty($item['mandala_offer_x']) && (int) $item['mandala_offer_x'] < time()) {
+        return false;
+    }
+    return !$uid || !mandala_offer_used((string) $item['mandala_offer'], $uid);
+}
+
+/**
+ * Az ajánlatból van-e már sikeres rendelés (egy kérésen belül gyorsítótárazva). Sikeres: minden állapot, ami nem
+ * lemondott, sikertelen, visszatérített vagy piszkozat (függő, várakozó, feldolgozás alatt, teljesített, szállítva …).
+ */
+function mandala_offer_used(string $token, int $uid): ?WC_Order
+{
+    static $cache = [];
+    $key = $uid . '|' . $token;
+    if (!array_key_exists($key, $cache)) {
+        $ok = array_values(array_diff(array_map(fn($s) => preg_replace('/^wc-/', '', $s), array_keys(wc_get_order_statuses())), ['cancelled', 'failed', 'refunded', 'checkout-draft', 'trash']));
+        $found = $token !== '' ? wc_get_orders(['customer_id' => $uid, 'limit' => 3, 'meta_key' => '_mandala_offer_token', 'meta_value' => $token, 'status' => $ok]) : []; // phpcs:ignore WordPress.DB.SlowDBQuery
+        // A fizetésre váró, újrapróbált rendelés (a WooCommerce ugyanazt használja újra) nem számít „már megrendeltnek”.
+        $retry = function_exists('WC') && WC()->session ? (int) WC()->session->get('order_awaiting_payment') : 0;
+        $found = array_values(array_filter($found, fn($o) => (int) $o->get_id() !== $retry));
+        $cache[$key] = $found ? $found[0] : null;
+    }
+    return $cache[$key];
+}
+
+/**
+ * A tétel egységára az ajánlattal: az ajánlati ár legfeljebb az ajánlott darabszámig jár, a többi darab a szokott
+ * áron ($normal: nagyker ár a kedvezményszinttel) – a kettő súlyozott átlaga egy egységárban (a WooCommerce tételenként
+ * egy árat ismer). Ajánlott darabszám nélkül (régi kosártétel) minden darab ajánlati áron.
+ */
+function mandala_offer_blend_price(float $offer, float $normal, int $qty, int $offered): float
+{
+    if ($offered <= 0 || $qty <= $offered) {
+        return $offer;
+    }
+    return round(($offer * $offered + $normal * ($qty - $offered)) / $qty, wc_get_price_decimals());
+}
+
+/**
  * A nagyker ár (a Wholesale Prices bővítmény a 10-es prioritáson állítja be) után: az ajánlat tételén az ajánlati ár
- * (ha van, és nem drágább a szokottnál), a többin a partner kedvezményszintje. Egy kérésen belül többször is lefuthat –
- * amit már csökkentettünk, azt nem csökkentjük újra. A JUTA a tétel árát kapja, ezért nem díjként (negatív tételként).
+ * (ha van, nem drágább a szokottnál, nem járt le, és az ajánlatból még nincs sikeres rendelés) legfeljebb az ajánlott
+ * darabszámig, a többi darabon és a többi tételen a partner kedvezményszintje. Egy kérésen belül többször is lefuthat –
+ * az eredeti árból számolunk (amit már beállítottunk, azt nem csökkentjük újra). A JUTA a tétel árát kapja, ezért nem
+ * díjként (negatív tételként).
  */
 add_action('woocommerce_before_calculate_totals', function ($cart) {
-    static $applied = [];
+    static $base = [], $applied = [];
     if ((is_admin() && !wp_doing_ajax()) || !$cart instanceof WC_Cart) {
         return;
     }
@@ -306,23 +361,52 @@ add_action('woocommerce_before_calculate_totals', function ($cart) {
         if (!$product instanceof WC_Product) {
             continue;
         }
-        $cur = (float) $product->get_price('edit');
-        if (!empty($item['mandala_offer']) && isset($item['mandala_offer_price']) && (float) $item['mandala_offer_price'] > 0) {
-            $product->set_price(mandala_offer_unit_price($product, (float) $item['mandala_offer_price'], $cur));
-            continue;
-        }
         $key = spl_object_id($product);
-        if ($level <= 0 || $cur <= 0 || (isset($applied[$key]) && abs($applied[$key] - $cur) < 0.0001)) {
-            continue;
+        $cur = (float) $product->get_price('edit');
+        if (isset($applied[$key]) && abs($applied[$key] - $cur) < 0.0001) {
+            $cur = $base[$key]; // már beállítottuk: az eredeti (nagyker) árból számolunk újra
         }
-        $applied[$key] = round($cur * (1 - $level / 100), wc_get_price_decimals());
-        $product->set_price($applied[$key]);
+        $base[$key] = $cur;
+        $normal = $level > 0 && $cur > 0 ? round($cur * (1 - $level / 100), wc_get_price_decimals()) : $cur;
+        $price = $normal;
+        if (isset($item['mandala_offer_price']) && (float) $item['mandala_offer_price'] > 0 && mandala_offer_item_valid($item, $uid)) {
+            $unit = mandala_offer_unit_price($product, (float) $item['mandala_offer_price'], $normal);
+            $price = mandala_offer_blend_price($unit, $normal, (int) ($item['quantity'] ?? 1), (int) ($item['mandala_offer_qty'] ?? 0));
+        }
+        if ($price !== $cur) {
+            $product->set_price($price);
+        }
+        $applied[$key] = $price;
     }
 }, 1000);
 
+// A kosárban: ha az ajánlat lejárt, vagy már megrendelték, szólunk (a tétel a szokott áron marad).
+add_action('woocommerce_check_cart_items', function () {
+    if (!function_exists('WC') || !WC()->cart) {
+        return;
+    }
+    $uid = get_current_user_id();
+    $told = [];
+    foreach (WC()->cart->get_cart() as $item) {
+        $t = (string) ($item['mandala_offer'] ?? '');
+        if ($t === '' || isset($told[$t]) || empty($item['mandala_offer_price']) || mandala_offer_item_valid($item, $uid)) {
+            continue;
+        }
+        $told[$t] = true;
+        wc_add_notice(!empty($item['mandala_offer_x']) && (int) $item['mandala_offer_x'] < time()
+            ? sprintf(__('Az ajánlat %s-ig volt érvényes – a tételei a szokott áron maradtak a kosárban.', 'mandala'), wp_date('Y. m. d.', (int) $item['mandala_offer_x']))
+            : __('Ezt az ajánlatot már megrendelted – a tételei a szokott áron maradtak a kosárban.', 'mandala'), 'notice');
+    }
+});
+
 add_filter('woocommerce_get_item_data', function ($data, $item) {
     if (!empty($item['mandala_offer'])) {
-        $data[] = ['key' => __('Ajánlatból', 'mandala'), 'value' => !empty($item['mandala_offer_price']) ? __('ajánlati áron', 'mandala') : __('nagyker áron', 'mandala')];
+        $valid = mandala_offer_item_valid((array) $item, get_current_user_id());
+        $offered = (int) ($item['mandala_offer_qty'] ?? 0);
+        $value = !empty($item['mandala_offer_price']) && $valid
+            ? ($offered && (int) ($item['quantity'] ?? 0) > $offered ? sprintf(__('%d db ajánlati áron, a többi a szokott áron', 'mandala'), $offered) : __('ajánlati áron', 'mandala'))
+            : __('nagyker áron', 'mandala');
+        $data[] = ['key' => __('Ajánlatból', 'mandala'), 'value' => $value];
     }
     return $data;
 }, 10, 2);
@@ -330,7 +414,7 @@ add_filter('woocommerce_get_item_data', function ($data, $item) {
 // A rendelésbe: az ajánlat azonosítója (rendelés + tétel), az ajánlati nettó egységár, a partner kedvezményszintje.
 add_action('woocommerce_checkout_create_order_line_item', function ($line, $cart_key, $values, $order) {
     $uid = (int) $order->get_customer_id();
-    if (!empty($values['mandala_offer'])) {
+    if (!empty($values['mandala_offer']) && mandala_offer_item_valid((array) $values, $uid)) {
         $line->add_meta_data('_mandala_offer', (string) $values['mandala_offer'], true);
         $order->update_meta_data('_mandala_offer_token', (string) $values['mandala_offer']);
         if (!empty($values['mandala_offer_price'])) {
@@ -517,12 +601,13 @@ function mandala_crm_send_message(int $uid, string $subject, string $body, bool 
     $m = fn($k) => (string) get_user_meta($uid, $k, true);
     $data = [
         'user_id' => $uid,
-        'email' => $m('billing_email') ?: $u->user_email,
+        'email' => $u->user_email, // a párosítás a fiók e-mail-címével
+        'billing_email' => $m('billing_email'),
         'name' => trim(($m('billing_last_name') ?: $u->last_name) . ' ' . ($m('billing_first_name') ?: $u->first_name)) ?: $u->display_name,
         'company' => $m('billing_company'),
         'subject' => $subject !== '' ? $subject : __('Üzenet a viszonteladói fiókból', 'mandala'),
         'body' => $body,
-        'at' => current_time('mysql'),
+        'at' => mandala_crm_time(),
     ];
     array_unshift($log, ['at' => time(), 'subject' => $data['subject']]);
     update_user_meta($uid, '_mandala_crm_messages', array_slice($log, 0, 10));
@@ -659,8 +744,8 @@ function mandala_offer_mask(string $email): string
 function mandala_offer_apply(array $offer, WP_User $user): array
 {
     $res = ['status' => 'none', 'added' => 0, 'partial' => [], 'missing' => [], 'order' => ''];
-    $emails = array_filter([strtolower($user->user_email), strtolower((string) get_user_meta($user->ID, 'billing_email', true))]);
-    if (!in_array($offer['e'], $emails, true)) {
+    // Csak a fiók e-mail-címe (user_email) – a számlázási e-mailt a vásárló maga írja át, az nem köt.
+    if ($offer['e'] !== strtolower(trim((string) $user->user_email))) {
         return ['status' => 'email'] + $res;
     }
     if (!mandala_is_wholesale_user((int) $user->ID)) {
@@ -672,11 +757,13 @@ function mandala_offer_apply(array $offer, WP_User $user): array
             return ['status' => 'in_cart'] + $res;
         }
     }
-    $done = wc_get_orders(['customer_id' => (int) $user->ID, 'limit' => 1, 'meta_key' => '_mandala_offer_token', 'meta_value' => $offer['t'], 'status' => ['pending', 'processing', 'on-hold', 'completed']]); // phpcs:ignore WordPress.DB.SlowDBQuery
+    // Újra csak akkor, ha belőle nincs sikeres rendelés (a lemondott / sikertelen nem számít).
+    $done = mandala_offer_used($offer['t'], (int) $user->ID);
     if ($done) {
-        return ['status' => 'ordered', 'order' => (string) $done[0]->get_order_number()] + $res;
+        return ['status' => 'ordered', 'order' => (string) $done->get_order_number()] + $res;
     }
     foreach ($offer['i'] as [$sku, $qty, $price]) {
+        $offered = $qty; // az ajánlott darabszám: eddig jár az ajánlati ár (a készlet miatt kevesebb is mehet a kosárba)
         $pid = wc_get_product_id_by_sku($sku);
         $product = $pid ? wc_get_product($pid) : null;
         if (!$product || !$product->is_purchasable() || !$product->is_in_stock()) {
@@ -695,7 +782,7 @@ function mandala_offer_apply(array $offer, WP_User $user): array
                 $qty = $avail;
             }
         }
-        $data = ['mandala_offer' => $offer['t'], 'mandala_offer_price' => $price];
+        $data = ['mandala_offer' => $offer['t'], 'mandala_offer_price' => $price, 'mandala_offer_qty' => $offered, 'mandala_offer_x' => (int) $offer['x']];
         if ($cart->add_to_cart($product->get_id(), $qty, 0, [], $data)) {
             $res['added'] += $qty;
         } else {
@@ -716,7 +803,7 @@ function mandala_offer_opened(array $offer, int $uid): void
     $seen[$offer['t']] = time();
     update_option('mandala_crm_offer_seen', array_slice($seen, -500, null, true), false);
     $u = $uid ? get_userdata($uid) : null;
-    mandala_crm_enqueue('offer_open', ['token' => $offer['t'], 'at' => current_time('mysql'), 'user_id' => $uid, 'email' => $u ? $u->user_email : $offer['e']]);
+    mandala_crm_enqueue('offer_open', ['token' => $offer['t'], 'at' => mandala_crm_time(), 'user_id' => $uid, 'email' => $u ? $u->user_email : $offer['e']]);
 }
 
 // offer_order: az ajánlatból lett rendelés (az order esemény offer_token mezője mellett, a CRM ajánlat-moduljának).
@@ -725,7 +812,7 @@ add_action('woocommerce_checkout_order_processed', function ($order_id) {
     $token = $order ? (string) $order->get_meta('_mandala_offer_token') : '';
     if ($token !== '' && !$order->get_meta('_mandala_offer_sent')) {
         $d = mandala_crm_order_data($order);
-        mandala_crm_enqueue('offer_order', ['token' => $token, 'order_id' => $d['id'], 'number' => $d['number'], 'user_id' => $d['user_id'], 'email' => $d['email'], 'status' => $d['status'], 'net' => $d['net'], 'gross' => $d['gross'], 'at' => current_time('mysql')]);
+        mandala_crm_enqueue('offer_order', ['token' => $token, 'order_id' => $d['id'], 'number' => $d['number'], 'user_id' => $d['user_id'], 'email' => $d['email'], 'status' => $d['status'], 'net' => $d['net'], 'gross' => $d['gross'], 'at' => mandala_crm_time()]);
         $order->update_meta_data('_mandala_offer_sent', time());
         $order->save_meta_data();
         mandala_crm_soon();

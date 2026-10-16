@@ -211,10 +211,11 @@ function mandala_crm_approve(array $d): array
         $created = true;
     }
     if (!in_array($role, (array) $user->roles, true)) {
-        if (array_intersect(['administrator', 'shop_manager', 'editor'], (array) $user->roles)) {
-            $user->add_role($role);
-        } else {
-            $user->set_role($role);
+        // Hozzáadjuk a viszonteladói szerepet (a fiók többi szerepe – pl. bolti munkatárs – megmarad); csak a sima
+        // „customer” szerep megy le, hogy ne legyen kétféle vásárló egyszerre.
+        $user->add_role($role);
+        if (in_array('customer', (array) $user->roles, true)) {
+            $user->remove_role('customer');
         }
     }
     // Számlázási adatok, ha üresek (a CRM-ben javított adattal).
@@ -245,6 +246,25 @@ function mandala_crm_find_user(array $d): ?WP_User
 
 /* ---------- Adatok ---------- */
 
+/**
+ * Időpont a CRM-nek: ISO 8601 zónával ('c', pl. 2026-10-16T09:40:00+02:00), hogy a CRM ne csúsztassa el (a régi, zóna
+ * nélküli helyi időt a CRM UTC-nek vette). $v: unix idő, helyi 'Y-m-d H:i:s' (a webhely zónájában), vagy 'now'.
+ */
+function mandala_crm_time($v = 'now'): string
+{
+    if ($v === '' || $v === null || $v === 0 || $v === '0') {
+        return '';
+    }
+    if (is_int($v) || (is_string($v) && ctype_digit($v))) {
+        return wp_date('c', (int) $v);
+    }
+    try {
+        return (new DateTimeImmutable((string) $v, wp_timezone()))->format('c');
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
 function mandala_crm_customer_data(int $uid): array
 {
     $u = get_userdata($uid);
@@ -254,7 +274,9 @@ function mandala_crm_customer_data(int $uid): array
     $m = fn($k) => (string) get_user_meta($uid, $k, true);
     return [
         'user_id' => $uid,
-        'email' => $m('billing_email') ?: $u->user_email,
+        // A párosítás a fiók e-mail-címével (user_email) – a számlázási e-mailt a vásárló maga írja át, az nem köt.
+        'email' => $u->user_email,
+        'billing_email' => $m('billing_email'),
         'first_name' => $m('billing_first_name') ?: $m('first_name'),
         'last_name' => $m('billing_last_name') ?: $m('last_name'),
         'company' => $m('billing_company'),
@@ -265,11 +287,11 @@ function mandala_crm_customer_data(int $uid): array
         'street' => trim($m('billing_address_1') . ' ' . $m('billing_address_2')),
         'country' => $m('billing_country') ?: 'HU',
         'wholesale' => mandala_is_wholesale_user($uid),
-        'registered' => $u->user_registered ? get_date_from_gmt($u->user_registered) : '',
-        'last_active' => ($la = (int) $m('wc_last_active')) ? wp_date('Y-m-d H:i:s', $la) : '',
+        'registered' => $u->user_registered ? gmdate('c', (int) strtotime($u->user_registered . ' UTC')) : '',
+        'last_active' => ($la = (int) $m('wc_last_active')) ? wp_date('c', $la) : '',
         // Partnerlevél-hozzájárulás (a jelentkezés pipája, a fiókban módosítható) és a CRM-től kapott feltételek.
         'marketing_consent' => $m('_mandala_partner_mail') === 'yes',
-        'marketing_consent_at' => $m('_mandala_partner_mail_at'),
+        'marketing_consent_at' => mandala_crm_time($m('_mandala_partner_mail_at')),
         'terms' => mandala_crm_terms_of($uid),
     ];
 }
@@ -301,7 +323,7 @@ function mandala_crm_order_data(WC_Order $order, bool $backfill = false): array
         'company' => $order->get_billing_company(),
         'name' => trim($order->get_billing_last_name() . ' ' . $order->get_billing_first_name()),
         'tax_number' => (string) $order->get_meta('_billing_tax_number'),
-        'created' => $created ? $created->date_i18n('Y-m-d H:i:s') : '',
+        'created' => $created ? $created->date('c') : '', // ISO zónával (a CRM a saját zónájába váltja)
         'status' => $order->get_status(),
         'net' => round($net, 2),
         'gross' => (float) $order->get_total(),
@@ -489,7 +511,7 @@ function mandala_crm_web_stats_step(int $max = 2): int
     while ($todo && $done < $max) {
         $month = (string) array_shift($todo);
         foreach (mandala_crm_web_stats($month) as $channel => $row) {
-            mandala_crm_enqueue('web_stats', ['month' => $month, 'channel' => $channel] + $row + ['computed_at' => current_time('mysql')]);
+            mandala_crm_enqueue('web_stats', ['month' => $month, 'channel' => $channel] + $row + ['computed_at' => mandala_crm_time()]);
         }
         $done++;
         update_option('mandala_crm_web_stats_todo', $todo, false);
@@ -612,7 +634,7 @@ add_filter('iu_form_submit_viszontelado', function ($response) {
         'message' => implode("\n", $msg),
         'user_id' => get_current_user_id(),
         'marketing_consent' => !empty($post['partnerlevelek']), // „Kérek partnerleveleket” (crm-partner.php)
-        'marketing_consent_at' => current_time('mysql'),
+        'marketing_consent_at' => mandala_crm_time(),
     ]);
     mandala_crm_soon();
     return $response;
@@ -667,13 +689,13 @@ function mandala_crm_order_event(int $order_id): void
 // Viszonteladó a webshopban: belépés, árlista, fotók, gyorsrendelő, új érkezések levél.
 add_action('wp_login', function ($login, $user) {
     if ($user instanceof WP_User && mandala_is_wholesale_user((int) $user->ID)) {
-        mandala_crm_enqueue('activity', ['user_id' => (int) $user->ID, 'email' => $user->user_email, 'kind' => 'login', 'at' => current_time('mysql')]);
+        mandala_crm_enqueue('activity', ['user_id' => (int) $user->ID, 'email' => $user->user_email, 'kind' => 'login', 'at' => mandala_crm_time()]);
     }
 }, 30, 2);
 add_action('mandala_b2b_activity', function ($kind, $meta = []) {
     $uid = get_current_user_id();
     if ($uid && mandala_is_wholesale_user($uid)) {
-        mandala_crm_enqueue('activity', ['user_id' => $uid, 'kind' => (string) $kind, 'at' => current_time('mysql'), 'meta' => (array) $meta]);
+        mandala_crm_enqueue('activity', ['user_id' => $uid, 'kind' => (string) $kind, 'at' => mandala_crm_time(), 'meta' => (array) $meta]);
     }
 }, 10, 2);
 
