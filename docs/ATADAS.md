@@ -126,6 +126,28 @@ Parancssorból: `wp mandala showcase on --mailto=cim@example.com` / `wp mandala 
 Minden automata levél szövege, be/ki kapcsolása és előnézete: **WooCommerce → Mandala levelek**.
 A leiratkozott vásárló marketing levelet nem kap; a rendelési (tranzakciós) levelek mindig mennek.
 
+**Hozzájárulások (Grt. 6. §, GDPR 7. cikk):** reklámlevelet csak az kap, aki kifejezetten kérte – minden célnak
+külön, alapból üres pipája van, a vásárlás egyiktől sem függ:
+
+| Cél | Hol adja meg | Hol kapcsolja ki |
+|---|---|---|
+| Hírlevél | lábléc űrlapja, pénztár, felugró ablak, Fiókom → Hírlevél, regisztráció | Fiókom → Hírlevél, a levél alján egy kattintás |
+| Partnerlevél (viszonteladó) | viszonteladói jelentkezés, viszonteladói felület, a Partner CRM-ben rögzített telefonos hozzájárulás | viszonteladói felület, a CRM, a levél alján |
+| Heti új érkezések (viszonteladó) | viszonteladói felület | viszonteladói felület, a levél alján (csak erről a levélről) |
+
+Minden megadás és visszavonás a hozzájárulás-naplóba kerül: időpont, forrás, a pipa **pontos szövege** és változata,
+IP-cím, név (ha ismert) – ez a bizonyíték (Grt. 6. § (5)). Letöltés: **Eszközök → Mandala űrlapok** → hírlevél-
+feliratkozók (a bizonyítékkal), partnerlevél-hozzájárulások, teljes napló (CSV). A visszavont hozzájárulás adatai 5 évig
+maradnak meg (addig kell tudni bizonyítani, hogy a korábbi levelekhez volt hozzájárulás), utána maguktól törlődnek.
+
+Minden reklámlevél alján: „Reklámlevél – feladó: Mandala – Asita Cult Kft., 1093 Budapest, Bakáts u. 6.”, hogy miért
+kapja, és egy kattintásos leiratkozó link (belépés nélkül); a fejlécben `List-Unsubscribe` és `List-Unsubscribe-Post`
+(a Gmail / Apple Mail „Leiratkozás” gombja is működik). Az általános leiratkozás minden reklámlevelet leállít
+(hírlevél, emlékeztetők, partnerlevél, heti levél – a Partner CRM és a MailerLite is megkapja). Új, kifejezett
+hozzájárulás (pl. újra feliratkozik) leveszi a leiratkozottak listájáról. A hírlevél-feliratkozás egylépcsős (nincs
+megerősítő levél); hozzájárulást kérő levelet nem küldünk (az maga is reklám). Tranzakciós levélbe (rendelés, szállítás,
+utalvány, visszaküldés) nem teszünk reklámot vagy feliratkozásra hívást.
+
 ### 4.1 Önjáró eszközök (beállítás után nincs vele munka)
 
 | Eszköz | Mit csinál | Beállítás | Ajánlott kezdés |

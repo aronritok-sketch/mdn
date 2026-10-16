@@ -5,7 +5,8 @@
  *  - gyorsrendelő táblázat: keresés, kategória, cikkszám, nagyker ár, készlet, mennyiség → kosárba egyszerre;
  *  - árlista letöltése (CSV, Excelben nyitható);
  *  - termékfotók letöltése kategóriánként (ZIP, cikkszám szerint elnevezve) a saját webshopjukhoz;
- *  - heti levél az új érkezésekről (feliratkozással).
+ *  - heti levél az új érkezésekről (feliratkozással; reklámlevél: feladó, egy kattintásos leiratkozás – csak erről a
+ *    levélről –, leiratkozott címre nem megy; a hozzájárulás a naplóba: consent.php).
  * Az árakat a kosárban a Wholesale Prices bővítmény számolja; a téma csak megjeleníti.
  */
 
@@ -61,7 +62,7 @@ add_action('woocommerce_account_' . MANDALA_B2B_ENDPOINT . '_endpoint', function
   </form>
   <form method="post" class="b2b-arrivals">
     <?php wp_nonce_field('mandala_b2b_arrivals', '_b2bnonce'); ?>
-    <label class="check"><input type="checkbox" name="mandala_b2b_arrivals" value="1"<?php checked($subscribed); ?> onchange="this.form.submit()"> <span><?php esc_html_e('Heti levél az új érkezésekről', 'mandala'); ?></span></label>
+    <label class="check"><input type="checkbox" name="mandala_b2b_arrivals" value="1"<?php checked($subscribed); ?> onchange="this.form.submit()"> <span><?php echo esc_html(mandala_consent_text('b2b_arrivals')); ?></span></label>
     <noscript><button class="iu-button iu-button-link" type="submit"><?php esc_html_e('Mentés', 'mandala'); ?></button></noscript>
   </form>
   <?php do_action('mandala_b2b_tools', $user); // partnerlevél-hozzájárulás (crm-partner.php) ?>
@@ -91,13 +92,46 @@ add_action('woocommerce_account_' . MANDALA_B2B_ENDPOINT . '_endpoint', function
     wp_enqueue_script_module('mandala-b2b', MANDALA_URL . '/assets/js/b2b.js', [], MANDALA_VERSION);
 });
 
+/**
+ * A heti új érkezések levele (be / ki): napló (consent.php – a megadásnál a pipa szövegével), a megadás leveszi a címet
+ * a leiratkozottak listájáról; változáskor a CRM activity eseményt kap (arrivals / arrivals_off) és – ha $x['notify']
+ * nem false – fiók-eseményt (b2b_arrivals), a MailerLite szinkronizál. $x: wording, ip, at, notify. Visszaad: változott-e.
+ */
+function mandala_b2b_arrivals_set(int $uid, bool $on, string $source, array $x = []): bool
+{
+    $u = get_userdata($uid);
+    if (!$u) {
+        return false;
+    }
+    $notify = $x['notify'] ?? true;
+    unset($x['notify']);
+    $old = get_user_meta($uid, '_mandala_b2b_arrivals', true) === 'yes';
+    update_user_meta($uid, '_mandala_b2b_arrivals', $on ? 'yes' : 'no');
+    if ($on || $old) {
+        $wording = $on ? (string) ($x['wording'] ?? mandala_consent_wording(__('Viszonteladói felület', 'mandala'), mandala_consent_text('b2b_arrivals'))) : '';
+        mandala_consent_log($u->user_email, 'b2b_arrivals', $on, $source, ['wording' => $wording, 'user_id' => $uid, 'name' => mandala_consent_user_name($u)] + $x);
+    }
+    if ($on) {
+        mandala_consent_lift($u->user_email);
+    }
+    if ($old === $on) {
+        return false;
+    }
+    update_user_meta($uid, '_mandala_b2b_arrivals_at', current_time('mysql'));
+    do_action('mandala_partner_consent_changed', $uid, 'b2b_arrivals', $on, $source);
+    if (function_exists('mandala_crm_enqueue') && mandala_is_wholesale_user($uid)) {
+        mandala_crm_enqueue('activity', ['user_id' => $uid, 'email' => $u->user_email, 'kind' => $on ? 'arrivals' : 'arrivals_off', 'at' => mandala_crm_time(), 'meta' => ['source' => $source]]);
+        if ($notify) {
+            mandala_crm_enqueue('customer', mandala_crm_customer_data($uid));
+        }
+    }
+    return true;
+}
+
 /* Feliratkozás mentése */
 add_action('template_redirect', function () {
     if (isset($_POST['_b2bnonce']) && is_user_logged_in() && wp_verify_nonce(sanitize_key($_POST['_b2bnonce']), 'mandala_b2b_arrivals') && mandala_is_wholesale_user()) {
-        update_user_meta(get_current_user_id(), '_mandala_b2b_arrivals', empty($_POST['mandala_b2b_arrivals']) ? 'no' : 'yes');
-        if (!empty($_POST['mandala_b2b_arrivals'])) {
-            do_action('mandala_b2b_activity', 'arrivals', []); // Partner CRM (crm-connect.php)
-        }
+        mandala_b2b_arrivals_set(get_current_user_id(), !empty($_POST['mandala_b2b_arrivals']), 'nagyker');
         wc_add_notice(empty($_POST['mandala_b2b_arrivals']) ? __('Leiratkoztál az új érkezések leveléről.', 'mandala') : __('Feliratkoztál: hetente írunk az új érkezésekről.', 'mandala'));
         wp_safe_redirect(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT));
         exit;
@@ -215,6 +249,12 @@ add_action('mandala_b2b_weekly', function () {
     }
     $users = get_users(['role__in' => (array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']), 'meta_key' => '_mandala_b2b_arrivals', 'meta_value' => 'yes']);
     foreach ($users as $user) {
+        // Reklámlevél: leiratkozott címre nem megy (a mandala_send_mail is ellenőrzi és naplózza – itt csak nem
+        // számolunk feleslegesen nagyker árat).
+        if (mandala_is_unsubscribed($user->user_email)) {
+            mandala_mail_log('b2b_weekly', $user->user_email, __('Új érkezések a Mandalánál', 'mandala'), 'unsubscribed');
+            continue;
+        }
         wp_set_current_user($user->ID); // a nagyker ár a címzett szerint
         $rows = '';
         foreach ($ids as $id) {

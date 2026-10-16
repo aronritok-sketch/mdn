@@ -9,7 +9,9 @@ add_filter('pre_wp_mail', function ($null, $atts) {
     if ($null !== null) { // egy korábbi szűrő már eldöntötte (pl. az adatátvétel letiltja a leveleket)
         return $null;
     }
-    file_put_contents(WP_CONTENT_DIR . '/mail.log', date('c') . ' TO: ' . (is_array($atts['to']) ? implode(',', $atts['to']) : $atts['to']) . "\nSUBJECT: {$atts['subject']}\n{$atts['message']}\n-----\n", FILE_APPEND);
+    // A fejlécek (List-Unsubscribe…) a levél végén, „HEADERS:” sorban.
+    $headers = is_array($atts['headers'] ?? '') ? implode(' | ', $atts['headers']) : str_replace(["\r\n", "\n"], ' | ', trim((string) ($atts['headers'] ?? '')));
+    file_put_contents(WP_CONTENT_DIR . '/mail.log', date('c') . ' TO: ' . (is_array($atts['to']) ? implode(',', $atts['to']) : $atts['to']) . "\nSUBJECT: {$atts['subject']}\n{$atts['message']}\nHEADERS: {$headers}\n-----\n", FILE_APPEND);
     return true;
 }, 100, 2);
 

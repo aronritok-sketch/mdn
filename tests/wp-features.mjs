@@ -1666,6 +1666,235 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     foreach (["mandala_crm", "mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_pending_consent", "mandala_crm_offer_seen"] as $k) delete_option($k);`);
 }
 
+// ======================= Hozzájárulások és leiratkozás (Grt. 6. §, consent.php) =======================
+{
+  const T = Date.now();
+  const vid = Number(wp('echo get_user_by("login", "viszontelado")->ID;'));
+  const consentRows = (email, purpose) => JSON.parse(wp(`global $wpdb; echo wp_json_encode($wpdb->get_results($wpdb->prepare("SELECT * FROM " . mandala_consent_table() . " WHERE email = %s AND purpose = %s ORDER BY id", "${email}", "${purpose}"), ARRAY_A));`));
+  const lastRow = (email, purpose) => consentRows(email, purpose).at(-1) || null;
+  const crmQueue = () => JSON.parse(wp('echo wp_json_encode(get_option("mandala_crm_queue", []));'));
+  const crmOn = () => wp('update_option("mandala_crm", ["url" => "https://crm.test/wp-json/hpv/v1/partner/connect", "secret" => "teszt-titok-0123456789abcdefghij"], false); delete_option("mandala_crm_queue");');
+  const crmOff = () => wp('foreach (["mandala_crm", "mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_pending_consent"] as $k) delete_option($k);');
+  const um = (key) => wp(`echo get_user_meta(${vid}, "${key}", true);`);
+  const lastMail = (to) => { const all = mails().split('\n-----\n'); return all.filter((m) => m.includes(`TO: ${to}\n`)).at(-1) || ''; };
+  const ip = /^(127\.0\.0\.1|::1)$/;
+  wp(`delete_option("mandala_unsubscribed"); delete_option("mandala_newsletter"); foreach (["_mandala_partner_mail", "_mandala_partner_mail_at", "_mandala_partner_mail_source", "_mandala_partner_mail_wording"] as $k) delete_user_meta(${vid}, $k); update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes");`);
+
+  // 1. Heti új érkezések: reklámlevél – feladó, a saját lábléce, egy kattintásos leiratkozás (List-Unsubscribe + Post).
+  crmOn();
+  wp('do_action("mandala_b2b_weekly");');
+  let m = lastMail('b2b@example.com');
+  const unsubUrl = ((m.match(/List-Unsubscribe: <([^>]+)>/) || [])[1] || '').replace(/&#038;|&amp;/g, '&');
+  ok(/SUBJECT: Új érkezések/.test(m) && m.includes('Viszonteladóként, a fiókodban kérted a heti levelet az új érkezésekről.') && m.includes('Asita Cult Kft.') && m.includes('Reklámlevél') && /cel=b2b/.test(unsubUrl)
+    && m.includes('List-Unsubscribe-Post: List-Unsubscribe=One-Click') && !m.includes('A levelet a viszonteladói felületen kapcsoltad be'), 'heti új érkezések: reklámlevél – feladó, saját lábléc, List-Unsubscribe (cel=b2b) + List-Unsubscribe-Post');
+  // Egy kattintás a levelezőprogramból (RFC 8058: POST, belépés és süti nélkül).
+  const one = await fetch(unsubUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'List-Unsubscribe=One-Click', redirect: 'manual' });
+  const arrRow = lastRow('b2b@example.com', 'b2b_arrivals');
+  ok(one.status === 200 && um('_mandala_b2b_arrivals') === 'no' && arrRow && arrRow.granted === '0' && arrRow.source === 'leiratkozo-link' && wp('echo (int) mandala_is_unsubscribed("b2b@example.com");') === '0'
+    && crmQueue().some((e) => e.type === 'activity' && e.data.kind === 'arrivals_off' && e.data.user_id === vid), 'egy kattintásos leiratkozás (POST): csak a heti levél áll le, napló, a CRM arrivals_off eseményt kap', String(one.status));
+  const bad = await fetch(unsubUrl.replace(/k=[a-f0-9]+/, 'k=rossz'));
+  ok(bad.status === 400, 'leiratkozó link: hamis aláírás elutasítva');
+  // Leiratkozott címre nem megy (és a naplóban látszik).
+  wp(`update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes"); update_option("mandala_unsubscribed", ["b2b@example.com"]);`);
+  let before = mails().length;
+  wp('do_action("mandala_b2b_weekly");');
+  ok(!mails().slice(before).includes('TO: b2b@example.com') && wp('global $wpdb; echo $wpdb->get_var("SELECT status FROM " . mandala_mail_table() . " WHERE recipient = \'b2b@example.com\' AND type = \'b2b_weekly\' ORDER BY id DESC LIMIT 1");') === 'unsubscribed', 'heti új érkezések: leiratkozott címre nem megy (napló: leiratkozott)');
+  // Minden reklámlevél alján: feladó, „reklám”, egy kattintásos leiratkozás; a fejlécben mindkét List-Unsubscribe.
+  wp('mandala_send_mail("reklam-teszt@example.com", "Teszt", "Teszt", "<p>Ajánlat</p>", true, ["type" => "teszt"]);');
+  m = lastMail('reklam-teszt@example.com');
+  ok(m.includes('Reklámlevél – feladó:') && m.includes('Asita Cult Kft.') && m.includes('Azért kapod, mert vásároltál nálunk') && /List-Unsubscribe: <[^>]*mandala_unsub=/.test(m) && m.includes('List-Unsubscribe-Post: List-Unsubscribe=One-Click'), 'reklámlevél: feladó, reklám-jelölés, leiratkozó link, List-Unsubscribe + List-Unsubscribe-Post');
+  wp('mandala_send_mail("tranzakcio-teszt@example.com", "Teszt", "Teszt", "<p>Rendelés</p>", false, ["type" => "teszt"]);');
+  m = lastMail('tranzakcio-teszt@example.com');
+  ok(m && !m.includes('List-Unsubscribe') && !m.includes('Reklámlevél'), 'tranzakciós levél: nincs reklám-lábléc és leiratkozó fejléc');
+  // Általános leiratkozás (link): minden reklámlevél – partnerlevél és heti levél is ki, a CRM fiók-eseményt kap.
+  wp(`delete_option("mandala_unsubscribed"); update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes"); update_user_meta(${vid}, "_mandala_partner_mail", "yes"); delete_option("mandala_crm_queue");`);
+  const page = await newPage();
+  await page.goto(wp('echo mandala_unsubscribe_url("b2b@example.com");'));
+  const cust = crmQueue().filter((e) => e.type === 'customer' && e.data.user_id === vid).at(-1);
+  ok((await page.textContent('body')).includes('Leiratkoztál') && wp('echo (int) mandala_is_unsubscribed("b2b@example.com");') === '1' && um('_mandala_partner_mail') === 'no' && um('_mandala_b2b_arrivals') === 'no'
+    && cust && cust.data.marketing_consent === false && cust.data.b2b_arrivals === false && cust.data.unsubscribed === true && lastRow('b2b@example.com', 'all')?.granted === '0', 'általános leiratkozás: minden reklámlevél leáll (partnerlevél, heti levél), a CRM marketing_consent = false');
+
+  // 2. Lábléc hírlevél-űrlap: nincs megerősítő levél – a sikerüzenet igaz; hozzájárulás a naplóban.
+  const nlMail = `labl.${T}@example.com`;
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  ok(!(await page.content()).includes('megerősítő levelet'), 'hírlevél-űrlap: nem ígér megerősítő levelet');
+  await page.fill('.nl-form input[name="email"]', nlMail);
+  await page.check('.nl-form input[name="adatkezeles"]');
+  await page.click('.nl-form button[type="submit"]');
+  await page.waitForSelector('.nl-form.iu-form-success', { timeout: 8000 }).catch(() => {});
+  ok(await page.isVisible('.nl-form .iu-form-success-message') && (await page.textContent('.nl-form .iu-form-success-message')).trim() === 'Feliratkoztál – a következő hírlevelünket már megkapod.', 'hírlevél-űrlap: „Feliratkoztál – a következő hírlevelünket már megkapod.”');
+  let row = lastRow(nlMail, 'newsletter');
+  const entry = JSON.parse(wp(`echo wp_json_encode(get_option("mandala_newsletter")["${nlMail}"] ?? null);`));
+  ok(row && row.granted === '1' && row.source === 'weboldal' && row.wording.includes('jelölőnégyzet: „Elfogadom az adatkezelési tájékoztatót, és bármikor leiratkozhatok.”') && row.wording.includes('gomb: „Feliratkozom”')
+    && /^v[0-9a-f]{8}$/.test(row.version) && ip.test(row.ip) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(row.created) && entry && entry.source === 'weboldal' && Number(entry.consent) === Number(row.id), 'hozzájárulás-napló: időpont, forrás, a pipa és a gomb pontos szövege, változat, IP', row && `${row.wording} ${row.ip}`);
+  // Régi (adatbázisba mentett) sablon „megerősítő levél” szövege sem jelenik meg.
+  const old = wp('echo do_blocks(\'<!-- wp:iu/form {"formId":"hirlevel","success":"Köszönjük! Küldtünk egy megerősítő levelet."} --><form class="iu-form nl-form" data-form-id="hirlevel"><span class="iu-form-success-message">Köszönjük! Küldtünk egy megerősítő levelet – kattints a benne lévő linkre.</span></form><!-- /wp:iu/form -->\');');
+  ok(!old.includes('megerősítő') && old.includes('Feliratkoztál – a következő hírlevelünket már megkapod.'), 'hírlevél-űrlap: a régi „megerősítő levél” szöveg helyett is a valódi');
+
+  // 3. Felugró ablak: a visszatérő vásárló, aki bepipálja, a listára kerül (kupon nélkül); a napló szövege = amit látott.
+  const back = `visszatero.${T}@example.com`;
+  wp(`$o = wc_create_order(); $o->set_billing_email("${back}"); $o->save(); update_option("mandala_unsubscribed", ["${back}"]);`);
+  wp('global $wpdb; $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE \'%transient%mandala_welcome_%\'");');
+  await page.evaluate(() => { try { localStorage.removeItem('mandala.welcome'); } catch {} window.mandalaWelcome?.(); });
+  await page.waitForSelector('.welcome-layer.is-open', { timeout: 4000 }).catch(() => {});
+  const shown = { lead: (await page.textContent('.welcome > p:not(.eyebrow)').catch(() => '')).trim(), accept: (await page.textContent('.welcome-accept span').catch(() => '')).trim(), button: (await page.textContent('.welcome-form button[type="submit"]').catch(() => '')).trim() };
+  await page.fill('#welcome-email', back);
+  await page.check('#welcome-accept');
+  await page.click('.welcome-form button[type="submit"]');
+  await page.waitForSelector('.welcome-done', { timeout: 6000 }).catch(() => {});
+  row = lastRow(back, 'newsletter');
+  ok(!(await page.$('.welcome-code')) && wp(`echo (int) isset(get_option("mandala_newsletter")["${back}"]);`) === '1' && row && row.source === 'felugro' && ip.test(row.ip)
+    && row.wording === wp('echo mandala_consent_popup_wording();') && row.wording.includes(`„${shown.lead}”`) && row.wording.includes(`„${shown.accept}”`) && row.wording.includes(`„${shown.button}”`), 'felugró ablak: visszatérő vásárló a listára kerül (kupon nélkül), a napló szövege = amit látott', JSON.stringify(shown));
+  // 4. Új, kifejezett hozzájárulás leveszi a leiratkozottak listájáról.
+  ok(wp(`echo (int) mandala_is_unsubscribed("${back}");`) === '0', 'újra feliratkozás: a cím lekerül a leiratkozottak listájáról');
+  await page.context().close();
+
+  // 5–6. Fiókom: hírlevél be / ki (alapból üres), regisztráció külön pipával; pénztár: a pipa szövege a naplóban.
+  const cu = `fiok.${T}@example.com`;
+  wp(`wp_insert_user(["user_login" => "fiok${T}", "user_pass" => "Fiok-Jelszo-${T}", "user_email" => "${cu}", "role" => "customer", "first_name" => "Lilla", "last_name" => "Varga"]); update_option("mandala_unsubscribed", ["${cu}"]);`);
+  const acc = await newPage();
+  await acc.goto(`${BASE}/wp-login.php`);
+  await acc.fill('#user_login', `fiok${T}`);
+  await acc.fill('#user_pass', `Fiok-Jelszo-${T}`);
+  await Promise.all([acc.waitForNavigation(), acc.click('#wp-submit')]);
+  await acc.goto(`${BASE}/fiokom/`, { waitUntil: 'networkidle' });
+  const unticked = (await acc.isVisible('.nl-account input[name="mandala_nl"]')) && !(await acc.isChecked('.nl-account input[name="mandala_nl"]'));
+  await Promise.all([acc.waitForNavigation(), acc.check('.nl-account input[name="mandala_nl"]')]);
+  row = lastRow(cu, 'newsletter');
+  ok(unticked && await acc.isChecked('.nl-account input[name="mandala_nl"]') && wp(`echo (int) mandala_newsletter_is_active("${cu}");`) === '1' && row && row.source === 'fiok' && row.name === 'Varga Lilla' && ip.test(row.ip) && row.wording.includes('Kérem a Mandala hírlevelét'),
+    'Fiókom: hírlevél-kapcsoló (alapból üres) → feliratkozás a naplóval, le a leiratkozottak listájáról');
+  await Promise.all([acc.waitForNavigation(), acc.uncheck('.nl-account input[name="mandala_nl"]')]);
+  ok(!(await acc.isChecked('.nl-account input[name="mandala_nl"]')) && wp(`echo (int) isset(get_option("mandala_newsletter")["${cu}"]);`) === '0' && lastRow(cu, 'newsletter')?.granted === '0', 'Fiókom: hírlevél kikapcsolva (visszavonás a naplóban)');
+  // Pénztár: a hírlevél-pipa szövege és a név a naplóban.
+  const mala = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+  await acc.goto(`${BASE}/?add-to-cart=${mala}`, { waitUntil: 'networkidle' });
+  const coid = await checkout(acc, { email: cu, before: async () => { await acc.check('#mandala_newsletter'); } });
+  row = lastRow(cu, 'newsletter');
+  ok(coid && row && row.granted === '1' && row.source === 'penztar' && row.wording === wp('echo mandala_consent_wording(__("Pénztár", "mandala"), mandala_consent_text("checkout"));') && ip.test(row.ip) && row.name.length > 0, 'pénztár: a hírlevél-pipa pontos szövege, név és IP a naplóban', row && row.wording);
+  await acc.context().close();
+  // Regisztráció: külön, alapból üres pipa.
+  const reg = await newPage();
+  const regMail = `reg.${T}@example.com`;
+  await reg.goto(`${BASE}/fiokom/`, { waitUntil: 'networkidle' });
+  const regUnticked = (await reg.isVisible('#mandala_nl_reg')) && !(await reg.isChecked('#mandala_nl_reg'));
+  await reg.fill('#reg_email', regMail);
+  if (await reg.$('#reg_password')) await reg.fill('#reg_password', `Reg-Jelszo-${T}-Hosszu!`);
+  // A jelszóerősség-jelző a mező elhagyásakor beszúr egy sort (a pipa lejjebb csúszik) – előbb az, aztán a pipa.
+  await reg.focus('#reg_email');
+  await reg.waitForTimeout(400);
+  await reg.check('#mandala_nl_reg');
+  await Promise.all([reg.waitForNavigation().catch(() => {}), reg.click('button[name="register"]')]);
+  row = lastRow(regMail, 'newsletter');
+  ok(regUnticked && row && row.source === 'regisztracio' && Number(row.user_id) > 0 && wp(`echo (int) mandala_newsletter_is_active("${regMail}");`) === '1', 'regisztráció: külön, alapból üres hírlevél-pipa → feliratkozás a naplóval');
+  await reg.context().close();
+
+  // Partnerlevél a viszonteladói felületen: forrás, szöveg, IP; CSV-k.
+  wp(`delete_option("mandala_unsubscribed"); update_user_meta(${vid}, "_mandala_partner_mail", "no");`);
+  const b2b = await newPage();
+  await b2b.goto(`${BASE}/wp-login.php`);
+  await b2b.fill('#user_login', 'viszontelado');
+  await b2b.fill('#user_pass', 'b2b');
+  await Promise.all([b2b.waitForNavigation(), b2b.click('#wp-submit')]);
+  await b2b.goto(`${BASE}/fiokom/nagyker/`, { waitUntil: 'networkidle' });
+  await Promise.all([b2b.waitForNavigation(), b2b.check('.b2b-consent input[type="checkbox"]')]);
+  row = lastRow('b2b@example.com', 'partner_mail');
+  ok(um('_mandala_partner_mail') === 'yes' && um('_mandala_partner_mail_source') === 'nagyker' && um('_mandala_partner_mail_wording').includes('Kérek partnerleveleket (új érkezések, akciók)') && row && row.granted === '1' && ip.test(row.ip) && row.name.length > 0,
+    'partnerlevél-hozzájárulás: forrás, a pipa szövege és IP (meta + napló)', row && row.name);
+  const cust2 = crmQueue().filter((e) => e.type === 'customer' && e.data.user_id === vid).at(-1);
+  ok(cust2 && cust2.data.marketing_consent === true && cust2.data.marketing_consent_source === 'nagyker' && cust2.data.marketing_consent_text.includes('Kérek partnerleveleket'), 'CRM fiók-esemény: marketing_consent_source és _text');
+  await b2b.context().close();
+  const admin = await newPage();
+  await admin.goto(`${BASE}/wp-login.php`);
+  await admin.fill('#user_login', 'admin');
+  await admin.fill('#user_pass', 'admin');
+  await Promise.all([admin.waitForNavigation(), admin.click('#wp-submit')]);
+  await admin.goto(`${BASE}/wp-admin/tools.php?page=mandala-forms`, { waitUntil: 'networkidle' });
+  const csvHref = async (re) => (await admin.$$eval('#wpbody-content a.button', (as) => as.map((a) => a.href))).find((h) => re.test(h));
+  const nlCsv = await (await admin.request.get(await csvHref(/mandala_newsletter_csv/))).text();
+  const pCsv = await (await admin.request.get(await csvHref(/what=partner/))).text();
+  const logCsv = await (await admin.request.get(await csvHref(/what=log/))).text();
+  const nlLine = nlCsv.split('\n').find((l) => l.startsWith(nlMail)) || '';
+  ok(nlCsv.startsWith('email,datum,forras,nev,hozzajarulas_idopont_utc,ip,hozzajarulas_szovege,valtozat') && nlLine.includes('weboldal') && /127\.0\.0\.1|::1/.test(nlLine) && nlLine.includes('Elfogadom az adatkezelési tájékoztatót'), 'CSV: hírlevél-feliratkozók a bizonyítékkal (időpont, IP, szöveg, változat)');
+  ok(pCsv.includes('b2b@example.com') && /b2b@example\.com;[^\n]*;kér;[^\n]*nagyker;[^\n]*Kérek partnerleveleket/.test(pCsv) && logCsv.includes('Partnerlevél;megadta') && /Heti új érkezések \(viszonteladó\)"?;visszavonta/.test(logCsv), 'CSV: partnerlevél-hozzájárulások és a teljes napló');
+  await admin.context().close();
+
+  // 7. MailerLite: a partnerlevelet kérő viszonteladó csak a Viszonteladók csoportba; webhook → partnerlevél ki, CRM.
+  const runHook = (hook) => wp(`foreach (as_get_scheduled_actions(["hook" => "${hook}", "status" => "pending", "per_page" => 100]) as $aid => $a) { do_action("${hook}", ...$a->get_args()); ActionScheduler::store()->cancel_action($aid); }`);
+  const mlMock = () => JSON.parse(wp('echo wp_json_encode(get_option("mandala_ml_mock", []));'));
+  wp('foreach (as_get_scheduled_actions(["hook" => "mandala_ml_sync", "status" => "pending", "per_page" => 100]) as $aid => $a) ActionScheduler::store()->cancel_action($aid);');
+  wp('update_option("mandala_mailerlite", ["token" => "ml-test", "group" => "111", "buyer_group" => "222", "b2b_group" => "333", "fields" => "yes", "groups" => ["111" => "Hírlevél", "222" => "Vásárlók", "333" => "Viszonteladók"], "webhook_id" => "wh1", "webhook_secret" => "whsecret"], false); delete_option("mandala_ml_mock");');
+  wp(`update_user_meta(${vid}, "_mandala_partner_mail", "no"); mandala_crm_set_consent(${vid}, true, false, "nagyker");`);
+  runHook('mandala_ml_sync');
+  let mock = mlMock();
+  let sub = mock.find((r) => r.method === 'POST' && r.path === 'subscribers' && r.body?.email === 'b2b@example.com');
+  ok(sub && sub.body.groups.join() === '333' && sub.body.status === 'active' && sub.body.resubscribe === true && sub.body.fields.mandala_viszontelado === 'igen' && sub.body.opted_in_at
+    && mock.some((r) => r.method === 'DELETE' && r.path === 'subscribers/s1/groups/111') && !mock.some((r) => r.method === 'DELETE' && r.path.endsWith('/groups/333')), 'MailerLite: partnerlevél → csak a Viszonteladók csoport (a hírlevél csoportból ki), resubscribe, ugyanazok a mezők', JSON.stringify(sub?.body?.groups));
+  wp('delete_option("mandala_ml_mock");');
+  wp(`mandala_crm_set_consent(${vid}, false, false, "nagyker");`);
+  runHook('mandala_ml_sync');
+  sub = mlMock().find((r) => r.path === 'subscribers' && r.body?.email === 'b2b@example.com');
+  ok(sub && sub.body.status === 'unsubscribed', 'MailerLite: az utolsó hozzájárulás visszavonva → leiratkozott');
+  // Kötegelt átküldés: a partnerlevelet kérő viszonteladó is (hírlevél nélkül).
+  wp(`update_user_meta(${vid}, "_mandala_partner_mail", "yes"); delete_option("mandala_ml_mock"); mandala_ml_bulk_start();`);
+  runHook('mandala_ml_bulk');
+  const breq = (mlMock().find((r) => r.path === 'batch')?.body?.requests || []).find((r) => r.body.email === 'b2b@example.com');
+  ok(breq && breq.body.groups.join() === '333' && breq.body.status === 'active', 'MailerLite: a „Meglévő lista átküldése” a partnerlevelet kérő viszonteladókat is viszi (csak a Viszonteladók csoportba)');
+  // Webhook: a MailerLite-ban leiratkozott viszonteladó → partnerlevél és heti levél ki, a CRM marketing_consent = false.
+  wp(`update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes"); delete_option("mandala_crm_queue"); foreach (as_get_scheduled_actions(["hook" => "mandala_ml_sync", "status" => "pending", "per_page" => 100]) as $aid => $a) ActionScheduler::store()->cancel_action($aid);`);
+  const payload = JSON.stringify({ events: [{ type: 'subscriber.unsubscribed', data: { subscriber: { email: 'b2b@example.com', status: 'unsubscribed' } } }] });
+  const hook = await fetch(wp('echo rest_url("mandala/v1/mailerlite");'), { method: 'POST', headers: { 'Content-Type': 'application/json', Signature: createHmac('sha256', 'whsecret').update(payload).digest('hex') }, body: payload });
+  const cust3 = crmQueue().filter((e) => e.type === 'customer' && e.data.user_id === vid).at(-1);
+  ok(hook.status === 200 && um('_mandala_partner_mail') === 'no' && um('_mandala_b2b_arrivals') === 'no' && cust3 && cust3.data.marketing_consent === false && lastRow('b2b@example.com', 'partner_mail')?.source === 'mailerlite'
+    && wp('echo count(as_get_scheduled_actions(["hook" => "mandala_ml_sync", "status" => "pending", "args" => ["b2b@example.com", "withdrawn"]]));') === '0', 'MailerLite webhook: viszonteladó → partnerlevél és heti levél ki, a CRM megkapja (nem küldjük vissza)');
+  // 4. Újra feliratkozás a leiratkozás után: a MailerLite is újra aktiválja (resubscribe).
+  wp('delete_option("mandala_ml_mock");');
+  wp(`update_option("mandala_unsubscribed", ["${nlMail}"]); $n = (array) get_option("mandala_newsletter"); unset($n["${nlMail}"]); update_option("mandala_newsletter", $n); mandala_newsletter_subscribe("${nlMail}", "weboldal", "teszt");`);
+  runHook('mandala_ml_sync');
+  sub = mlMock().find((r) => r.path === 'subscribers' && r.body?.email === nlMail);
+  ok(sub && sub.body.status === 'active' && sub.body.resubscribe === true && sub.body.groups.join() === '111' && wp(`echo (int) mandala_is_unsubscribed("${nlMail}");`) === '0', 'újra feliratkozás leiratkozás után: le a listáról, a MailerLite-ban resubscribe');
+  wp('delete_option("mandala_mailerlite"); delete_option("mandala_ml_mock");');
+
+  // 8. CRM consent parancs: 'no' (a CRM-ben leiratkozott) → partnerlevél és heti levél ki; 'yes' (telefonon kérte) → be, a CRM szövegével.
+  const crm = JSON.parse(wp(`
+    update_option("mandala_crm", ["url" => "https://crm.test/wp-json/hpv/v1/partner/connect", "secret" => "teszt-titok-0123456789abcdefghij"], false);
+    foreach (["mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_pending_consent"] as $k) delete_option($k);
+    delete_option("mandala_unsubscribed");
+    update_user_meta(${vid}, "_mandala_partner_mail", "yes"); update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes");
+    $GLOBALS["crm_req"] = [];
+    add_filter("pre_http_request", function ($pre, $args, $url) {
+      if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
+      $GLOBALS["crm_req"][] = $args["body"];
+      $n = count($GLOBALS["crm_req"]);
+      $cmds = $n === 1 ? [["id" => 61, "type" => "consent", "data" => ["email" => "b2b@example.com", "partner_mail" => "no", "source" => "leiratkozas"]]]
+        : ($n === 2 ? [["id" => 62, "type" => "consent", "data" => ["user_id" => ${vid}, "email" => "b2b@example.com", "partner_mail" => "yes", "source" => "telefon", "wording" => "Telefonon kérte a partnerleveleket (Kovács Judit, 2026-10-16)", "at" => "2026-10-01T10:00:00+02:00"]],
+          ["id" => 63, "type" => "consent", "data" => ["email" => "uj-telefonos-${T}@example.com", "partner_mail" => "yes"]], ["id" => 64, "type" => "consent", "data" => ["email" => "b2b@example.com", "partner_mail" => "talan"]]] : []);
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+    }, 10, 3);
+    mandala_crm_post();
+    $after_no = [get_user_meta(${vid}, "_mandala_partner_mail", true), get_user_meta(${vid}, "_mandala_b2b_arrivals", true)];
+    mandala_crm_post();
+    $after_yes = [get_user_meta(${vid}, "_mandala_partner_mail", true), get_user_meta(${vid}, "_mandala_partner_mail_source", true), get_user_meta(${vid}, "_mandala_partner_mail_wording", true), get_user_meta(${vid}, "_mandala_b2b_arrivals", true)];
+    mandala_crm_post();
+    echo wp_json_encode(["no" => $after_no, "yes" => $after_yes, "acks" => array_map(fn($b) => json_decode($b, true)["acks"] ?? [], $GLOBALS["crm_req"]), "pending" => get_option("mandala_crm_pending_consent", [])["uj-telefonos-${T}@example.com"] ?? null,
+      "hello" => mandala_crm_hello()["features"]]);
+    foreach (["mandala_crm", "mandala_crm_queue", "mandala_crm_acks", "mandala_crm_state", "mandala_crm_pending_consent"] as $k) delete_option($k);`));
+  const acks = crm.acks.flat();
+  const ackOf = (id) => acks.find((a) => a.id === id);
+  row = lastRow('b2b@example.com', 'partner_mail');
+  ok(crm.no[0] === 'no' && crm.no[1] === 'no' && ackOf(61)?.ok && ackOf(61).result.partner_mail === 'no' && ackOf(61).result.b2b_arrivals === false, 'CRM consent „no”: a webshopban a partnerlevél és a heti levél is ki, nyugta');
+  ok(crm.yes[0] === 'yes' && crm.yes[1] === 'crm:telefon' && crm.yes[2] === 'Telefonon kérte a partnerleveleket (Kovács Judit, 2026-10-16)' && crm.yes[3] === 'no' && ackOf(62)?.ok
+    && row && row.granted === '1' && row.source === 'crm:telefon' && row.ip === '' && row.created === '2026-10-01 08:00:00', 'CRM consent „yes” (telefonon): partnerlevél be a CRM szövegével, időponttal (UTC), IP nélkül; a heti levél nem változik', JSON.stringify(crm.yes));
+  ok(ackOf(63)?.ok && ackOf(63).result.pending === true && crm.pending?.on === true && ackOf(64) && !ackOf(64).ok && crm.hello.split(',').includes('consent_cmd'), 'CRM consent: fiók nélkül függő hozzájárulás; hibás érték → hibás nyugta; hello: consent_cmd');
+
+  crmOff();
+  wp(`foreach (["_mandala_partner_mail", "_mandala_partner_mail_at", "_mandala_partner_mail_source", "_mandala_partner_mail_wording", "_mandala_b2b_arrivals_at"] as $k) delete_user_meta(${vid}, $k); update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes");
+    delete_option("mandala_unsubscribed"); delete_option("mandala_newsletter");
+    foreach (["fiok${T}"] as $l) { $u = get_user_by("login", $l); if ($u) wp_delete_user($u->ID); }
+    $u = get_user_by("email", "${regMail}"); if ($u) wp_delete_user($u->ID);
+    foreach (wc_get_orders(["billing_email" => "${back}", "limit" => 5, "return" => "ids"]) as $id) wc_get_order($id)->delete(true);
+    $o = wc_get_order(${coid || 0}); if ($o) $o->delete(true);`);
+}
+
 {
   const [manage, qty] = JSON.parse(origStock);
   wp(`$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage_stock(${manage ? 'true' : 'false'}); $p->set_stock_quantity(${Number(qty) || 0}); $p->set_stock_status("instock"); $p->save();`);

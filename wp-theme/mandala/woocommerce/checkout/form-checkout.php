@@ -131,7 +131,7 @@ $icon = 'mandala_icon';
           <?php do_action('woocommerce_after_checkout_registration_form', $checkout); ?>
         </div>
         <?php endif; ?>
-        <p class="form-row form-row-wide check-row"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox" for="mandala_newsletter"><input type="checkbox" class="woocommerce-form__input input-checkbox" name="mandala_newsletter" id="mandala_newsletter" value="1"<?php checked(!empty($_POST['mandala_newsletter'])); // phpcs:ignore ?>> <span><?php esc_html_e('Feliratkozom a hírlevélre (havonta kétszer, bármikor leiratkozhatok)', 'mandala'); ?></span></label></p>
+        <p class="form-row form-row-wide check-row"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox" for="mandala_newsletter"><input type="checkbox" class="woocommerce-form__input input-checkbox" name="mandala_newsletter" id="mandala_newsletter" value="1"<?php checked(!empty($_POST['mandala_newsletter'])); // phpcs:ignore ?>> <span><?php echo esc_html(mandala_consent_text('checkout')); ?></span></label></p>
         <?php wc_get_template('checkout/terms.php'); ?>
       </div>
 

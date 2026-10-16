@@ -155,7 +155,7 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 | WooCommerce → **Mandala mérés** | Consent Mode alapállapot, saját felületek eseményei, Meta Conversions API (Pixel ID, token) |
 | WooCommerce → **Mandala kereső** | szinonimák (pl. a vásárlók szavai a termékekre), népszerű keresések; havonta érdemes megnézni a „Nincs találat” listát |
 | WooCommerce → **Mandala tanácsadó** | AI chat: be/ki, üdvözlő szöveg, modell, korlátok (üzenet / látogató / óra, napi összesített plafon), beszélgetések megőrzése; a beszélgetések és az értékelések átnézése (hetente érdemes) |
-| Mandala levelek → **MailerLite** | API-kulcs → „Mentés és kapcsolat ellenőrzése” → hírlevél csoport (és ha kell: vásárlók, viszonteladók) → vásárlási adatok mezői → **„Meglévő lista átküldése”** (egyszer) → **„Leiratkozás-visszajelzés bekapcsolása”**. A MailerLite-ban a csoporthoz köthető az üdvözlő sorozat. Ha a MailerLite saját WooCommerce bővítménye is fut, a kosárelhagyó levelet csak az egyikben kapcsold be |
+| Mandala levelek → **MailerLite** | API-kulcs → „Mentés és kapcsolat ellenőrzése” → hírlevél csoport (és ha kell: vásárlók, viszonteladók) → vásárlási adatok mezői → **„Meglévő lista átküldése”** (egyszer) → **„Leiratkozás-visszajelzés bekapcsolása”**. A Viszonteladók csoportba csak a partnerlevelet / heti levelet kérő viszonteladók kerülnek (hírlevél nélkül is), a hírlevél csoportokba nem – partnerlevelet csak ennek a csoportnak küldjetek. A MailerLite-ban a csoporthoz köthető az üdvözlő sorozat. Ha a MailerLite saját WooCommerce bővítménye is fut, a kosárelhagyó levelet csak az egyikben kapcsold be |
 | **Adatkezelési tájékoztató** | egy bekezdés az AI tanácsadóról: a kérdéseket az Anthropic (Claude) dolgozza fel, a beszélgetést 30 napig őrizzük a szolgáltatás javításához, személyes adatot nem kérünk |
 | Termékek → **Új termékek → Beállítások** | kiket értesítsen az új JUTA-termékekről, minimális leírás hossza |
 | Termékek → **Új termékek → Claude migráció** | modell, küszöb, próbafuttatás (lásd `UJ-TERMEKEK.md`) |
@@ -208,6 +208,10 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
 - [ ] **MailerLite:** feliratkozás a lábléc űrlapján → pár percen belül a MailerLite csoportban (a mezőkkel); a
   leiratkozó link és a MailerLite-os leiratkozás mindkét irányban átmegy (a webhook élő címet igényel, tesztszerveren
   csak ha kívülről elérhető). A hibák a MailerLite fül alján látszanak.
+- [ ] **Hozzájárulások:** a lábléc űrlapja „Feliratkoztál – a következő hírlevelünket már megkapod.” üzenetet ad;
+  Eszközök → Mandala űrlapok → „Hírlevél-feliratkozók” CSV-ben ott az időpont, az IP és a pipa szövege. Egy valódi
+  reklámlevél (pl. elhagyott kosár a saját címedre) alján a feladó (Asita Cult Kft.) és a leiratkozó link; Gmailben a
+  levél tetején „Leiratkozás” gomb (List-Unsubscribe-Post).
 - [ ] **AI tanácsadó:** 15–20 valódi vásárlói kérdés (ajánlás kerettel, termékoldalon „Kérdésem van”, szállítás,
   visszaküldés, egy témán kívüli kérdés); a linkelt termékek léteznek-e, az árak stimmelnek-e. A WooCommerce →
   Mandala tanácsadó oldalon a beszélgetések és a tokenek.

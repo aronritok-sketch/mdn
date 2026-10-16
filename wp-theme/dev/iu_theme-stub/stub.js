@@ -12,7 +12,14 @@ document.addEventListener('submit', async (e) => {
   if (json.errors && (Object.keys(json.errors).length || json.error)) {
     Object.entries(json.errors).forEach(([name, text]) => { const el = form.querySelector(`[name="${name}"]`); if (el) el.insertAdjacentHTML('afterend', `<p class="field-error">${text}</p>`); });
     if (msg) { msg.className = 'form-message is-error'; msg.textContent = json.error || 'Javítsd a hibás mezőket.'; }
-  } else if (msg) { msg.className = 'form-message is-success'; msg.textContent = 'Köszönjük, megkaptuk.'; form.reset(); }
+  } else {
+    // Mint a valódi iu_theme: ha az űrlapnak van sikerüzenete (.iu-form-success-message), siker → iu-form-success
+    // osztály, és az üzenet látszik.
+    const ok = form.querySelector('.iu-form-success-message');
+    if (ok) form.classList.add('iu-form-success');
+    if (msg) { msg.className = 'form-message is-success'; msg.textContent = ok?.textContent.trim() || 'Köszönjük, megkaptuk.'; }
+    form.reset();
+  }
 });
 document.addEventListener('click', (e) => {
   const head = e.target.closest('.iu-accordion-item-head');

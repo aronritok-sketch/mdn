@@ -11,7 +11,7 @@ telepítés: `aronritok-sketch/hlprv` → `docs/partner/README.md`. Ez a fájl a
 | Viszonteladói jelentkezés | a „Viszonteladóknak” oldal űrlapja (cégnév, adószám, tevékenység, település, weboldal, kapcsolattartó, várható rendelés, érdeklődés) | `iu_form_submit_viszontelado` – azonnal (háttérfeladat) |
 | Viszonteladói fiók | regisztráció, szerepváltás (`wholesale_customer`), cím- és adatváltozás | `user_register`, `set_user_role`, `add_user_role`, `profile_update` |
 | Rendelés | viszonteladó rendelése: létrejötte és minden állapotváltozása, tételekkel (cikkszám, név, db, nettó, kategória); `offer_token` (ha ajánlat-linkből jött), `payment_method`, `payment_days`, `payment_due` (halasztott átutalásnál) | `woocommerce_checkout_order_processed`, `woocommerce_order_status_changed`; a rendelés `_mandala_wholesale` jelölőt kap |
-| Aktivitás | belépés, árlista CSV, termékfotók ZIP, gyorsrendelő, új érkezések feliratkozás | `wp_login`, `mandala_b2b_activity` (b2b.php) |
+| Aktivitás | belépés, árlista CSV, termékfotók ZIP, gyorsrendelő, új érkezések levele be (`arrivals`) / ki (`arrivals_off` – a felületen, a levél egy kattintásos leiratkozó linkjével, a CRM `consent: no` parancsával vagy általános leiratkozással; `meta.source`) | `wp_login`, `mandala_b2b_activity`, `mandala_b2b_arrivals_set()` (b2b.php) |
 | Ajánlat (`offer_open`, `offer_order`) | `offer_open { token, at, user_id, email }` – az ajánlat-link első érvényes megnyitásakor (tokenenként egyszer, belépés előtt is); `offer_order { token, order_id, number, user_id, email, status, net, gross, at }` – az ajánlatból lett rendelés (az `order` esemény `offer_token` mezője mellett) | `crm-partner.php` |
 | Készlet | változás 10 percenként (ujjlenyomat; a JUTA közvetlen DB-írása után is), teljes lista naponta | `wc_product_meta_lookup`, nagyker ár, `_mandala_incoming`, 90 napos eladás |
 | Üzenet (`message`) | Fiókom → **Üzenet a Mandalának** (csak viszonteladónak): `{ user_id, email, name, company, subject, body, at }` – a CRM-ben teendő a felelősnek, a válasz e-mailben megy. Ráta-korlát: óránként 5, egymás után 20 mp. Összekötés nélkül levél a bolt címére. | `crm-partner.php` – azonnal (háttérfeladat) |
@@ -26,21 +26,26 @@ ajánlat-események), a CRM a saját zónájára váltja (`hpv_pt_parse_shop_tim
 külön `billing_email`-ként megy) – a CRM a webshop-fiókra (`user_id`) párosít, e-mailre csak akkor, ha a kartonon még
 nincs fiók.
 
-A **fiók-esemény** (`customer`) a partnerlevél-hozzájárulást is viszi: `marketing_consent` (bool) és `marketing_consent_at`
-(a módosítás ideje), valamint a webshopban érvényes feltételeket (`terms`: `discount_level`, `discount_pct`,
+A **fiók-esemény** (`customer`) a partnerlevél-hozzájárulást is viszi: `marketing_consent` (bool), `marketing_consent_at`
+(a módosítás ideje), `marketing_consent_source` (`nagyker` | `jelentkezes` | `crm[:forrás]` | `leiratkozo-link` |
+`mailerlite`), `marketing_consent_text` (a pipa pontos szövege a megadáskor), `b2b_arrivals` (bool – kéri-e a heti új
+érkezések levelét), `unsubscribed` (bool – minden reklámlevélről leiratkozott), valamint a webshopban érvényes feltételeket (`terms`: `discount_level`, `discount_pct`,
 `payment_days`, `blocked`, `block_reason`). A hozzájárulás a „Viszonteladóknak” oldal jelentkezésében egy pipa
 („Kérek partnerleveleket (új érkezések, akciók)” – a téma az űrlapba teszi, az oldal tartalmához nem kell nyúlni; a
 jelentkezés-esemény is viszi), a viszonteladói felületen kapcsoló. Ha a jelentkezőnek még nincs fiókja, a fiók
 létrejöttekor (jóváhagyás) kerül rá.
 
-Az óránkénti `hello` esemény `features` mezője megmondja, mit tud a téma (`approve,resync,terms,message,web_stats,consent,offer`)
-– a CRM ebből láthatja, hogy a webshopban fent van-e már a 2. hullámos téma (a régi a `terms` parancsra „ismeretlen parancs” nyugtát ad).
+Az óránkénti `hello` esemény `features` mezője megmondja, mit tud a téma (`approve,resync,terms,message,web_stats,consent,offer,consent_cmd`)
+– a CRM ebből láthatja, hogy a webshopban fent van-e már a 2. hullámos téma (a régi a `terms` parancsra „ismeretlen parancs” nyugtát ad),
+illetve a `consent` parancsot értő téma (`consent_cmd`; a régebbi „ismeretlen parancs” nyugtát ad – a CRM ilyenkor várjon / próbálja újra).
 
 A CRM válaszában jöhet parancs: **approve** (a CRM-ben jóváhagyott jelentkező viszonteladói szerepet kap – hozzáadva, a
 fiók többi szerepe megmarad, csak a sima `customer` megy le; ha nincs
 fiókja, a WooCommerce nyit egyet, és elküldi a fiók-levelet – **ehhez a levélküldésnek működnie kell**, lásd a nyitott
-levél-hibát), **terms** (lent) és **resync** (teljes újraküldés; `what: 'web_stats'` → csak a webes forgalom, 13 hónap).
-Az eredményt a következő kérésben nyugtázza.
+levél-hibát), **terms** (lent), **consent** (lent) és **resync** (teljes újraküldés; `what: 'web_stats'` → csak a webes
+forgalom, 13 hónap). Az eredményt a következő kérésben nyugtázza. A parancsok mindig a webshop saját, aláírt kérésére
+(`hpv-partner-v1`) adott válaszban jönnek a beállított https CRM-címről – kívülről parancsot küldeni nem lehet, külön
+aláírás a parancson nincs (ugyanaz, mint az approve / terms / resync).
 
 ### `terms` – partner-feltételek
 
@@ -64,6 +69,34 @@ discount_level, discount_pct, payment_days, blocked, block_reason }`.
   „Most előre utalással tudsz rendelni.” + a `reason` (a partnernek szóló rövid szöveg a CRM beállításából; ha üres,
   egy alapmondat). Az adminban is látszik (Felhasználók → a partner adatlapja → Partner CRM).
 - Hibás parancsnál (pl. nincs ilyen fiók) a nyugta `{ id, ok: false, result: { error } }`.
+
+### `consent` – partnerlevél-hozzájárulás a CRM-ből
+
+`{ id, type: 'consent', data: { email, user_id?, partner_mail: 'yes' | 'no', source?, wording?, at? } }`
+
+- **`partner_mail: 'no'`** – a partner a CRM-ben leiratkozott, vagy a csapat visszavonta: a webshopban a partnerlevél
+  (`_mandala_partner_mail = no`) **és** a heti új érkezések levele (`_mandala_b2b_arrivals = no`) is kikapcsol; a
+  MailerLite-ban kikerül a Viszonteladók csoportból (ha más hozzájárulása nincs: leiratkozott). A hírlevél-feliratkozás
+  (B2C, külön cél) nem változik. Az `arrivals_off` aktivitás-esemény megjön.
+- **`partner_mail: 'yes'`** – a CRM-ben rögzített hozzájárulás (pl. telefonon vagy személyesen kérte – Grt. 6. § (8)):
+  a partnerlevél bekapcsol, a webshop leveszi a címet a leiratkozottak listájáról, a MailerLite újra aktiválja
+  (`resubscribe`). A heti új érkezések levele nem kapcsol be (azt a partner maga kéri a felületen).
+- `source` (nem kötelező, pl. `telefon`, `szemelyesen`, `leiratkozas`) → a webshopban `crm:<source>` forrás;
+  `wording` (`yes`-nél): a hozzájárulás pontos szövege, ahogy a CRM-ben rögzítették (pl. „Telefonon kérte a
+  partnerleveleket (Kovács Judit, 2026-10-16)”) – üresen „Telefonon vagy személyesen kérte a partnerleveleket (a Partner
+  CRM-ben rögzítve)”; `at`: ISO 8601 időpont zónával (üresen / a jövőben: most). IP-cím nincs (a webshop nem látja).
+- A fiók: `user_id`, ha az e-mail egyezik, különben az e-mail szerint (mint a `terms`). **Fiók nélkül** (érvényes
+  e-maillel) függő hozzájárulás: a fiók létrejöttekor (jóváhagyás) kerül rá; a nyugta `{ user_id: 0, pending: true,
+  partner_mail }`.
+- Nyugta (`result`): `{ user_id, partner_mail: 'yes' | 'no', b2b_arrivals: bool, at }` (`at`: a hozzájárulás ideje,
+  ISO). Hibás `partner_mail` (nem `yes` / `no`) vagy fiók és e-mail nélkül: `{ id, ok: false, result: { error } }`.
+- A webshop a hozzájárulás-naplójába írja (consent.php: cél `partner_mail` / `b2b_arrivals`, forrás, szöveg, időpont), a
+  `customer` eseményt nem küldi vissza (a CRM-ben már az az állapot).
+
+Visszafelé: ha a partner a **webshopban** iratkozik le (a levél alján, a felületen, vagy a MailerLite-ban – webhook),
+a CRM `customer` eseményt kap `marketing_consent: false`-szal (és `b2b_arrivals`, `unsubscribed`), a heti levélről
+leiratkozásnál `activity` / `arrivals_off`-ot. A CRM-nek az `arrivals_off`-ot is a hozzájárulás visszavonásaként kell
+kezelnie, ha a hozzájárulást korábban az `arrivals` eseményből vezette le (a CRM-oldali `hpv_pt_mk_consent`).
 
 ### Egy kattintásos rendelés ajánlatból
 
@@ -119,7 +152,8 @@ PHP: `hash_hmac('sha256', $json, $secret)`; a link: `rtrim(strtr(base64_encode($
 A téma 1.1.202610121823-tól van benne; a terms parancs, az üzenet, a webes forgalom, a hozzájárulás és az ajánlat-link
 a 2026. októberi 2. hullámtól (1.1.202610160024); az időpontok zónával, a `user_email`-párosítás, az ajánlat
 darabszám-korlátja, a kosárbeli lejárat és az újrahasználat szabálya, a szint százaléka csak a listából és a jóváhagyás
-szerep-hozzáadása az 1.1.202610160526-tól. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
+szerep-hozzáadása az 1.1.202610160526-tól; a `consent` parancs, a hozzájárulás-napló (forrás, szöveg, IP), az
+`arrivals_off` esemény és a fiók-esemény új hozzájárulás-mezői az 1.1.202610162144-tól. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
 repóban soha.
 
 ## Teszt
@@ -132,4 +166,8 @@ fiók a cégadatokkal, nyugta, admin oldal, őrszem. „Partner CRM: feltételek
 web_stats csatornánként, offer_token, Számlázz.hu határidő, a `p` ár (csak olcsóbb); böngészőben: ajánlat-link
 belépéssel → kosár (ajánlati ár, hiányzó tétel, másodszor nem, megrendelt, lejárt, offer_open / offer_order), Üzenet a
 Mandalának, tiltás a fiókban (a CRM szövegével) és a pénztárban, rendelés halasztott átutalással, hozzájárulás a fiókban
-és a jelentkezésben.
+és a jelentkezésben. „Hozzájárulások és leiratkozás”: heti új érkezések levele reklámlevélként (feladó, saját
+lábléc, List-Unsubscribe + List-Unsubscribe-Post, egy kattintásos POST-leiratkozás → `arrivals_off`, leiratkozott címre
+nem megy), általános leiratkozás → `marketing_consent: false`, partnerlevél-hozzájárulás forrással, szöveggel, IP-vel
+(CSV), MailerLite Viszonteladók csoport és webhook, `consent` parancs (`no`, `yes` telefonon, fiók nélkül függő, hibás
+érték, `consent_cmd`).

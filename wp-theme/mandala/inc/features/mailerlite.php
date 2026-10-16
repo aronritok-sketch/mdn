@@ -4,11 +4,16 @@
  *
  *  - Csak aki hozzájárult: a hírlevél űrlap és a pénztári hírlevél-jelölő feliratkozói kerülnek át
  *    (vásárló hozzájárulás nélkül nem). A választott csoportba, a nevével.
+ *  - Viszonteladók külön célra: aki a partnerleveleket vagy a heti új érkezések levelét kéri (_mandala_partner_mail /
+ *    _mandala_b2b_arrivals = yes), csak a Viszonteladók csoportba kerül (ha be van állítva) – hírlevél-feliratkozás
+ *    nélkül is, de a hírlevél csoportokba nem. Visszavonáskor a csoportból kikerül; ha semmilyen hozzájárulás nem maradt,
+ *    a MailerLite-ban is leiratkozott lesz. Új, kifejezett hozzájárulásnál resubscribe (a korábban leiratkozott újra aktív).
  *  - Vásárlási adatok mezőkben a szegmentáláshoz (ha be van kapcsolva): vásárlások száma, költés,
  *    utolsó rendelés, vásárolt kategóriák, viszonteladó-e, honnan iratkozott fel. Rendelés teljesítésekor
  *    frissül; vásárló / viszonteladó csoport is választható.
  *  - Leiratkozás mindkét irányban: a téma leiratkozó linkje → MailerLite „unsubscribed”; a MailerLite-ban
- *    leiratkozott → a téma sem küld neki emlékeztetőt (webhook, aláírás-ellenőrzéssel).
+ *    leiratkozott → a téma sem küld neki semmilyen reklámlevelet, a partnerlevél és a heti levél is kikapcsol, a Partner
+ *    CRM megkapja (webhook, aláírás-ellenőrzéssel).
  *  - Meglévő lista egyszeri átküldése kötegekben (MailerLite batch API, 50 / kérés, percenként).
  *  - Minden hívás a háttérben (Action Scheduler), az űrlapot és a pénztárt nem lassítja; 429-nél újrapróbál.
  *
@@ -84,6 +89,32 @@ function mandala_ml_is_subscriber(string $email): bool
     return isset(((array) get_option('mandala_newsletter', []))[$email]) && !mandala_is_unsubscribed($email);
 }
 
+/** Viszonteladó partnerlevél-hozzájárulással (csak ha a Viszonteladók csoport be van állítva). */
+function mandala_ml_partner(string $email): ?WP_User
+{
+    $email = strtolower($email);
+    if ((string) mandala_ml_settings()['b2b_group'] === '' || mandala_is_unsubscribed($email)) {
+        return null;
+    }
+    $user = get_user_by('email', $email);
+    if (!$user || !mandala_is_wholesale_user((int) $user->ID)) {
+        return null;
+    }
+    $yes = fn($k) => get_user_meta($user->ID, $k, true) === 'yes';
+    return $yes('_mandala_partner_mail') || $yes('_mandala_b2b_arrivals') ? $user : null;
+}
+
+/** A partnerlevél-hozzájárulással rendelkező viszonteladók címei (a kötegelt átküldéshez). */
+function mandala_ml_partner_emails(): array
+{
+    if ((string) mandala_ml_settings()['b2b_group'] === '') {
+        return [];
+    }
+    $users = get_users(['role__in' => (array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']), 'fields' => ['user_email'],
+        'meta_query' => ['relation' => 'OR', ['key' => '_mandala_partner_mail', 'value' => 'yes'], ['key' => '_mandala_b2b_arrivals', 'value' => 'yes']]]);
+    return array_values(array_filter(array_map(fn($u) => strtolower((string) $u->user_email), $users), fn($e) => is_email($e) && !mandala_is_unsubscribed($e)));
+}
+
 /** A feliratkozó adatai a MailerLite-nak (upsert: a meglévőt frissíti, a csoportokat hozzáadja). */
 function mandala_ml_payload(string $email, string $status = 'active'): array
 {
@@ -92,9 +123,13 @@ function mandala_ml_payload(string $email, string $status = 'active'): array
         return ['email' => $email, 'status' => 'unsubscribed'];
     }
     $s = mandala_ml_settings();
+    $nl = mandala_ml_is_subscriber($email);
+    $partner = mandala_ml_partner($email);
     $entry = (array) (((array) get_option('mandala_newsletter', []))[$email] ?? []);
     $fields = [];
-    $groups = array_filter([(string) $s['group']]);
+    // Célonként külön csoport: hírlevél (és vásárlók) csak hírlevél-feliratkozónak, viszonteladók csak partnerlevél-
+    // hozzájárulással.
+    $groups = $nl ? array_filter([(string) $s['group']]) : [];
     $orders = function_exists('wc_get_orders') ? wc_get_orders(['billing_email' => $email, 'status' => ['processing', 'completed'], 'limit' => 200, 'orderby' => 'date', 'order' => 'DESC', 'type' => 'shop_order']) : [];
     $user = get_user_by('email', $email);
     if ($orders) {
@@ -119,19 +154,37 @@ function mandala_ml_payload(string $email, string $status = 'active'): array
             'mandala_utolso_rendeles' => $orders && $orders[0]->get_date_created() ? $orders[0]->get_date_created()->date('Y-m-d') : null,
             'mandala_kategoriak' => mb_substr(implode(', ', array_keys($cats)), 0, 250),
             'mandala_viszontelado' => $b2b ? 'igen' : 'nem',
-            'mandala_forras' => (string) ($entry['source'] ?? ''),
+            'mandala_forras' => (string) ($entry['source'] ?? ($partner ? 'partnerlevél' : '')),
         ];
     }
-    if ($orders && $s['buyer_group']) {
+    if ($nl && $orders && $s['buyer_group']) {
         $groups[] = (string) $s['buyer_group'];
     }
-    if ($b2b && $s['b2b_group']) {
+    if ($partner && $s['b2b_group']) {
         $groups[] = (string) $s['b2b_group'];
     }
     $payload = ['email' => $email, 'fields' => (object) array_filter($fields, fn($v) => $v !== null && $v !== ''), 'groups' => array_values(array_unique($groups)), 'status' => 'active'];
+    if ($status === 'consent') {
+        $payload['resubscribe'] = true; // új, kifejezett hozzájárulás: a korábban leiratkozott cím is újra aktív
+    }
     if (!empty($entry['date']) && ($t = strtotime((string) $entry['date']))) {
         $payload['subscribed_at'] = gmdate('Y-m-d H:i:s', $t - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS));
         $payload['opted_in_at'] = $payload['subscribed_at'];
+    }
+    // A hozzájárulás bizonyítéka a naplóból (consent.php): időpont (UTC) és IP.
+    $proof = [];
+    foreach ($nl ? ['newsletter'] : ['partner_mail', 'b2b_arrivals'] as $purpose) {
+        $row = mandala_consent_latest($purpose, [$email])[$email] ?? [];
+        if ($row && (!$proof || (int) $row['id'] > (int) $proof['id'])) {
+            $proof = $row;
+        }
+    }
+    if ($proof) {
+        $payload['opted_in_at'] = (string) $proof['created'];
+        $payload['subscribed_at'] = $payload['subscribed_at'] ?? (string) $proof['created'];
+        if (filter_var((string) $proof['ip'], FILTER_VALIDATE_IP)) {
+            $payload['optin_ip'] = (string) $proof['ip'];
+        }
     }
     return (array) apply_filters('mandala_mailerlite_payload', $payload, $email);
 }
@@ -150,28 +203,65 @@ function mandala_ml_queue(string $email, string $status = 'active'): void
     }
 }
 
+/*
+ * Állapotok: active = adatfrissítés (hozzájárulás nélkül nem megy), consent = új hozzájárulás (resubscribe, a nem kért
+ * csoportokból ki), withdrawn = egy cél visszavonva (a csoportjából ki; ha semmi nem maradt: unsubscribed),
+ * unsubscribed = általános leiratkozás.
+ */
 add_action('mandala_ml_sync', function ($email, $status = 'active') {
     if (!mandala_ml_ready()) {
         return;
     }
-    // Közben leiratkozott / már nincs a listán: nem aktiváljuk újra.
-    if ($status === 'active' && !mandala_ml_is_subscriber((string) $email)) {
-        return;
+    $email = (string) $email;
+    $send = (string) $status;
+    if ($send !== 'unsubscribed' && !mandala_ml_is_subscriber($email) && !mandala_ml_partner($email)) {
+        if ($send !== 'withdrawn') {
+            return; // közben leiratkozott / nincs hozzájárulása: nem aktiváljuk
+        }
+        $send = 'unsubscribed'; // az utolsó cél is visszavonva
     }
-    $result = mandala_ml_request('POST', 'subscribers', mandala_ml_payload((string) $email, (string) $status));
+    $result = mandala_ml_request('POST', 'subscribers', mandala_ml_payload($email, $send));
     if (is_wp_error($result)) {
         if ($result->get_error_code() !== 'mandala_ml_api') {
             as_schedule_single_action(time() + (int) ($result->get_error_data()['retry_after'] ?? 120), 'mandala_ml_sync', [$email, $status], MANDALA_AS_GROUP);
         }
         mandala_ml_log_error($email . ': ' . $result->get_error_message());
+        return;
+    }
+    // A feltöltés csak hozzáad csoportot (a MailerLite nem vesz ki a hiányzóból): a nem kért célok csoportjaiból ki.
+    if ($send !== 'unsubscribed' && in_array($status, ['consent', 'withdrawn'], true) && !empty($result['data']['id'])) {
+        $s = mandala_ml_settings();
+        $drop = [];
+        if (!mandala_ml_is_subscriber($email)) {
+            $drop = [(string) $s['group'], (string) $s['buyer_group']];
+        }
+        if (!mandala_ml_partner($email)) {
+            $drop[] = (string) $s['b2b_group'];
+        }
+        foreach (array_unique(array_filter($drop)) as $group) {
+            mandala_ml_request('DELETE', 'subscribers/' . rawurlencode((string) $result['data']['id']) . '/groups/' . rawurlencode($group)); // 404: nem volt benne
+        }
     }
 }, 10, 2);
 
-add_action('mandala_newsletter_subscribed', fn($email) => mandala_ml_queue((string) $email));
-add_action('mandala_unsubscribed', fn($email) => mandala_ml_queue((string) $email, 'unsubscribed'));
+add_action('mandala_newsletter_subscribed', fn($email) => mandala_ml_queue((string) $email, 'consent'));
+add_action('mandala_newsletter_withdrawn', fn($email) => mandala_ml_queue((string) $email, 'withdrawn'));
+// A MailerLite-ból jött leiratkozást nem küldjük vissza.
+add_action('mandala_unsubscribed', function ($email, $source = '') {
+    if ($source !== 'mailerlite') {
+        mandala_ml_queue((string) $email, 'unsubscribed');
+    }
+}, 10, 2);
+add_action('mandala_partner_consent_changed', function ($uid, $purpose, $on, $source = '') {
+    $u = get_userdata((int) $uid);
+    // Általános leiratkozásnál (a cím a leiratkozottak között) a mandala_unsubscribed intézi.
+    if ($u && $source !== 'mailerlite' && ($on || !mandala_is_unsubscribed($u->user_email))) {
+        mandala_ml_queue($u->user_email, $on ? 'consent' : 'withdrawn');
+    }
+}, 10, 4);
 add_action('woocommerce_order_status_completed', function ($order_id) {
     $order = wc_get_order($order_id);
-    if ($order && mandala_ml_ready() && mandala_ml_is_subscriber($order->get_billing_email())) {
+    if ($order && mandala_ml_ready() && (mandala_ml_is_subscriber($order->get_billing_email()) || mandala_ml_partner($order->get_billing_email()))) {
         mandala_ml_queue($order->get_billing_email());
     }
 });
@@ -182,6 +272,10 @@ function mandala_ml_bulk_start(): int
     $subs = array_keys((array) get_option('mandala_newsletter', []));
     $unsub = (array) get_option('mandala_unsubscribed', []);
     $items = array_merge(array_map(fn($e) => [$e, in_array($e, $unsub, true) ? 'unsubscribed' : 'active'], $subs), array_map(fn($e) => [$e, 'unsubscribed'], array_diff($unsub, $subs)));
+    // A partnerlevél-hozzájárulással rendelkező viszonteladók (hírlevél nélkül is) – csak a Viszonteladók csoportba.
+    foreach (array_diff(mandala_ml_partner_emails(), $subs, $unsub) as $email) {
+        $items[] = [$email, 'active'];
+    }
     foreach (array_chunk($items, 50) as $i => $chunk) {
         as_schedule_single_action(time() + 5 + $i * MINUTE_IN_SECONDS, 'mandala_ml_bulk', [$chunk], MANDALA_AS_GROUP);
     }
@@ -225,13 +319,9 @@ add_action('rest_api_init', function () {
                 $type = (string) ($it['type'] ?? $it['event'] ?? $data['type'] ?? $data['event'] ?? '');
                 $status = (string) ($it['status'] ?? $it['subscriber']['status'] ?? $it['data']['subscriber']['status'] ?? '');
                 if (is_email($email) && (str_contains($type, 'unsubscribed') || $status === 'unsubscribed')) {
-                    // Közvetlenül (nem a mandala_unsubscribed hookkal), hogy ne küldjük vissza a MailerLite-nak.
-                    $list = (array) get_option('mandala_unsubscribed', []);
-                    $list[] = $email;
-                    update_option('mandala_unsubscribed', array_values(array_unique($list)), false);
-                    $subs = (array) get_option('mandala_newsletter', []);
-                    unset($subs[$email]);
-                    update_option('mandala_newsletter', $subs, false);
+                    // Minden reklámlevél leáll: hírlevél, emlékeztetők, partnerlevél, heti új érkezések – a Partner CRM
+                    // fiók-eseményt kap (marketing_consent = false). A forrás „mailerlite”: nem küldjük vissza.
+                    mandala_unsubscribe_all($email, 'mailerlite', ['ip' => '']);
                     $n++;
                 }
             }
@@ -303,7 +393,7 @@ function mandala_ml_admin(): void
                 $s['webhook_id'] = (string) $hook['data']['id'];
                 $s['webhook_secret'] = (string) ($hook['data']['secret'] ?? '');
                 update_option('mandala_mailerlite', $s, false);
-                $notice = '<div class="notice notice-success"><p>Webhook bekapcsolva: a MailerLite-ban leiratkozók a témától sem kapnak emlékeztetőt.</p></div>';
+                $notice = '<div class="notice notice-success"><p>Webhook bekapcsolva: a MailerLite-ban leiratkozók a témától sem kapnak reklámlevelet (a partnerlevél is kikapcsol, a CRM is megkapja).</p></div>';
             }
         }
         $s = mandala_ml_settings();
@@ -314,7 +404,7 @@ function mandala_ml_admin(): void
     $groups = ['' => '– nincs –'] + (array) $s['groups'];
     $sel = fn($name, $value) => '<select name="ml[' . $name . ']" id="ml-' . $name . '">' . implode('', array_map(fn($k, $v) => '<option value="' . esc_attr((string) $k) . '"' . selected((string) $value, (string) $k, false) . '>' . esc_html($v) . '</option>', array_keys($groups), $groups)) . '</select>';
     echo $notice; // phpcs:ignore
-    echo '<p>A hírlevél-feliratkozók (űrlap és pénztár) automatikusan a MailerLite-ba kerülnek; a leiratkozás mindkét irányban érvényes. Aki nem iratkozott fel, azt nem küldjük át.</p>';
+    echo '<p>A hírlevél-feliratkozók (űrlap, pénztár, felugró ablak, Fiókom) automatikusan a MailerLite-ba kerülnek; a leiratkozás mindkét irányban érvényes. Aki nem iratkozott fel, azt nem küldjük át. A viszonteladók közül, aki a partnerleveleket vagy a heti új érkezések levelét kéri, a Viszonteladók csoportba kerül (csak oda) – ehhez válaszd ki a csoportot.</p>';
     echo '<form method="post">';
     wp_nonce_field('mandala_ml');
     echo '<input type="hidden" name="ml[x]" value="1"><table class="form-table" role="presentation">'
@@ -322,12 +412,12 @@ function mandala_ml_admin(): void
         . '<p class="description">Állapot: ' . (mandala_ml_ready() ? ($s['groups'] ? '<strong style="color:#008a20">kapcsolódva</strong>' : 'kulcs megadva – mentsd a kapcsolat ellenőrzéséhez') : 'nincs kulcs') . '</p></td></tr>'
         . '<tr><th scope="row"><label for="ml-group">Hírlevél csoport</label></th><td>' . $sel('group', $s['group']) . ' <input type="text" name="ml[new_group]" placeholder="vagy új csoport neve" class="regular-text" aria-label="Új csoport neve"><p class="description">Ide kerül minden feliratkozó. A csoporthoz kötött MailerLite automatizmus (pl. üdvözlő sorozat) így indul.</p></td></tr>'
         . '<tr><th scope="row"><label for="ml-buyer_group">Vásárlók csoport</label></th><td>' . $sel('buyer_group', $s['buyer_group']) . '<p class="description">Nem kötelező: a feliratkozók közül, akik már vásároltak.</p></td></tr>'
-        . '<tr><th scope="row"><label for="ml-b2b_group">Viszonteladók csoport</label></th><td>' . $sel('b2b_group', $s['b2b_group']) . '</td></tr>'
+        . '<tr><th scope="row"><label for="ml-b2b_group">Viszonteladók csoport</label></th><td>' . $sel('b2b_group', $s['b2b_group']) . '<p class="description">Külön cél: a partnerlevél-hozzájárulással rendelkező viszonteladók (hírlevél nélkül is) – a hírlevél csoportokba nem kerülnek. Visszavonáskor kikerülnek.</p></td></tr>'
         . '<tr><th scope="row">Vásárlási adatok</th><td><label><input type="checkbox" name="ml[fields]" value="1"' . checked($s['fields'], 'yes', false) . '> mezőkbe a szegmentáláshoz</label><p class="description">' . esc_html(implode(', ', array_keys(MANDALA_ML_FIELDS))) . ' – mentéskor létrehozzuk őket a MailerLite-ban. Pl. szegmens: „hangtálat vett, de 90 napja nem rendelt”.</p></td></tr>'
         . '</table><p class="submit"><button type="submit" class="button button-primary" name="ml_action" value="save">Mentés és kapcsolat ellenőrzése</button></p>';
     if (mandala_ml_ready()) {
         echo '<h2>Szinkron</h2><p>Nálunk: <strong>' . (int) $subs . '</strong> feliratkozó, <strong>' . (int) $unsub . '</strong> leiratkozott. Várakozó szinkron feladat: ' . (int) $pending . '.</p>'
-            . '<p><button type="submit" class="button" name="ml_action" value="bulk">Meglévő lista átküldése a MailerLite-ba</button> <span class="description">Egyszer, bekötéskor: a feliratkozók a csoportba, a leiratkozottak „unsubscribed” állapotba.</span></p>'
+            . '<p><button type="submit" class="button" name="ml_action" value="bulk">Meglévő lista átküldése a MailerLite-ba</button> <span class="description">Egyszer, bekötéskor: a feliratkozók a csoportba, a partnerlevelet kérő viszonteladók a Viszonteladók csoportba, a leiratkozottak „unsubscribed” állapotba.</span></p>'
             . '<p><button type="submit" class="button" name="ml_action" value="webhook">' . ($s['webhook_id'] ? 'Leiratkozás-visszajelzés újra beállítása' : 'Leiratkozás-visszajelzés bekapcsolása (webhook)') . '</button> <span class="description">' . ($s['webhook_id'] ? 'Bekapcsolva.' : 'A MailerLite-ban leiratkozók a témától se kapjanak emlékeztetőt.') . '</span></p>';
     }
     echo '</form>';

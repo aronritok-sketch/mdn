@@ -5,7 +5,8 @@
  *  - Vásárlás utáni ajánló: a teljesítés után X nappal 3 odaillő termék (a tanuló ajánlóból).
  *  - Kedvencek: ha egy belépett vásárló kedvence akciós lett vagy fogyóban van – egyszer szólunk.
  *  - Feliratkozó ablak: „Iratkozz fel, és kapsz X%-ot az első rendelésedre” – egyedi, egyszer
- *    használható, a címhez kötött kupon; a feliratkozó a hírlevél-listára (és a MailerLite-ba) kerül.
+ *    használható, a címhez kötött kupon; a feliratkozó a hírlevél-listára (és a MailerLite-ba) kerül – a visszatérő
+ *    vásárló is (kupon nélkül), a hozzájárulás a naplóba (consent.php).
  *  - Ajánlási program: minden vásárlónak saját link; a barát X% kedvezményt kap az első rendelésére,
  *    az ajánló pedig a barát teljesített rendelése után egy kupont. Önmagának nem ajánlhat.
  *
@@ -167,7 +168,9 @@ add_filter('mandala_js_data', function ($data) {
     $s = mandala_growth_settings();
     $customer = is_user_logged_in() && function_exists('wc_get_customer_order_count') && wc_get_customer_order_count(get_current_user_id()) > 0;
     if ($s['popup'] === 'yes' && !$customer) {
-        $data['welcome'] = ['percent' => (int) $s['popup_percent'], 'delay' => (int) $s['popup_delay'], 'mode' => $s['popup_mode'], 'privacy' => get_privacy_policy_url()];
+        // A szövegek a hozzájárulás-naplóval közösek (consent.php): amit a látogató lát, az kerül a naplóba is.
+        $data['welcome'] = ['percent' => (int) $s['popup_percent'], 'delay' => (int) $s['popup_delay'], 'mode' => $s['popup_mode'], 'privacy' => get_privacy_policy_url(),
+            'text' => ['lead' => mandala_consent_text('popup_lead'), 'accept' => mandala_consent_text('popup_accept'), 'link' => mandala_consent_text('popup_link'), 'button' => mandala_consent_text('popup_button')]];
     }
     return $data;
 });
@@ -201,16 +204,15 @@ add_action('rest_api_init', function () {
             set_transient('mandala_welcome_' . $ip, $tries + 1, HOUR_IN_SECONDS);
             $subs = (array) get_option('mandala_newsletter', []);
             $had_order = (bool) wc_get_orders(['billing_email' => $email, 'limit' => 1, 'return' => 'ids', 'type' => 'shop_order']);
-            if (isset($subs[$email]) || $had_order) {
+            $known = isset($subs[$email]) || $had_order;
+            // A pipa kifejezett hozzájárulás: a visszatérő vásárló is a listára kerül (napló, le a leiratkozottak közül,
+            // MailerLite) – csak az első rendelési kupon jár kizárólag új címnek.
+            mandala_newsletter_subscribe($email, 'felugro', mandala_consent_popup_wording());
+            if ($known) {
                 return ['ok' => true, 'message' => __('Köszönjük! Ezzel a címmel már feliratkoztál vagy vásároltál nálunk – az első rendelési kupon új vásárlóknak szól, de a hírleveleinket megkapod.', 'mandala')];
             }
-            $subs[$email] = ['date' => current_time('mysql'), 'source' => 'felugró ablak'];
-            update_option('mandala_newsletter', $subs, false);
-            $list = array_diff((array) get_option('mandala_unsubscribed', []), [$email]);
-            update_option('mandala_unsubscribed', array_values($list), false);
             $coupon = mandala_growth_coupon('UDV', 'percent', (float) $s['popup_percent'], (int) $s['popup_days'], $email, ['_mandala_first_order' => 'yes', '_mandala_source' => 'welcome']);
             mandala_mail('welcome', $email, ['keresztnev' => __('Kedves Vásárlónk', 'mandala'), 'kupon' => strtoupper($coupon->get_code()), 'kupon_ertek' => (int) $s['popup_percent'] . '%'], ['kupon_doboz' => mandala_growth_coupon_box($coupon), 'gomb' => mandala_mail_button(mandala_shop_url(), __('Irány a kínálat', 'mandala'))]);
-            do_action('mandala_newsletter_subscribed', $email, 'felugro');
             return ['ok' => true, 'code' => strtoupper($coupon->get_code()), 'message' => sprintf(__('Köszönjük! A kuponodat e-mailben is elküldtük: %s (%d%%, %d napig).', 'mandala'), strtoupper($coupon->get_code()), (int) $s['popup_percent'], (int) $s['popup_days'])];
         },
     ]);
@@ -363,8 +365,8 @@ add_filter('mandala_mail_types', function ($types) {
         'sample' => fn() => [['keresztnev' => 'Anna'], ['termekek' => mandala_mail_sample_rows(1, false, esc_html__('Már csak néhány darab van raktáron.', 'mandala')), 'gomb' => mandala_mail_button(home_url('/'), __('A kedvenceim', 'mandala'))]],
     ];
     $types['welcome'] = [
-        'label' => 'Üdvözlő kupon (feliratkozó ablak)', 'group' => 'Értesítések', 'required' => true,
-        'when' => 'Amikor valaki a felugró ablakban feliratkozik (új címmel). Mindig megy – ebben van a kupon. Az ablak be/ki: WooCommerce → Mandala kuponok.',
+        'label' => 'Üdvözlő kupon (feliratkozó ablak)', 'group' => 'Értesítések', 'required' => true, 'marketing' => true,
+        'when' => 'Amikor valaki a felugró ablakban feliratkozik (új címmel). Mindig megy – ebben van a kupon. Reklámlevél (hozzájárulással): a végén a feladó és egy kattintásos leiratkozó link. Az ablak be/ki: WooCommerce → Mandala kuponok.',
         'vars' => ['kupon' => 'A kuponkód', 'kupon_ertek' => 'A kedvezmény (pl. 10%)'], 'blocks' => ['kupon_doboz' => 'Kupon doboz', 'gomb' => '„Irány a kínálat” gomb'],
         'subject' => __('Itt a {kupon_ertek} kedvezményed', 'mandala'), 'heading' => __('Üdv a Mandalánál', 'mandala'),
         'body' => '<p>' . __('Köszönjük, hogy feliratkoztál! Ritkán írunk: új érkezésekről Nepálból és Indiából, magazincikkekről és előfizetői kedvezményekről.', 'mandala') . '</p><p>' . __('Az első rendelésedre ígért kupon:', 'mandala') . '</p>{kupon_doboz}{gomb}',
@@ -379,7 +381,7 @@ add_filter('mandala_mail_types', function ($types) {
         'vars' => ['keresztnev' => 'Az ajánló keresztneve', 'kupon' => 'A kuponkód', 'kupon_ertek' => 'A kupon értéke', 'ajanlasok' => 'Eddigi sikeres ajánlások'],
         'blocks' => ['kupon_doboz' => 'Kupon doboz', 'ajanlo_link' => 'Az ajánló saját linkje'],
         'subject' => __('Köszönjük az ajánlást – itt a kuponod', 'mandala'), 'heading' => __('Köszönjük, hogy ajánlottál', 'mandala'),
-        'body' => $hello . '<p>' . __('Egy barátod az ajánlásodra vásárolt nálunk, és már meg is kapta a csomagját. Köszönetképp:', 'mandala') . '</p>{kupon_doboz}<p>' . __('A linked továbbra is él – oszd meg bátran:', 'mandala') . '</p>{ajanlo_link}',
+        'body' => $hello . '<p>' . __('Egy barátod az ajánlásodra vásárolt nálunk, és már meg is kapta a csomagját. Köszönetképp:', 'mandala') . '</p>{kupon_doboz}<p>' . __('Az ajánló linked továbbra is érvényes:', 'mandala') . '</p>{ajanlo_link}',
         'sample' => fn() => [['keresztnev' => 'Anna', 'kupon' => 'KOSZI-MINTA1', 'kupon_ertek' => '2 000 Ft', 'ajanlasok' => '1'], ['kupon_doboz' => '<p style="font-family:monospace;font-size:22px;text-align:center">KOSZI-MINTA1</p>', 'ajanlo_link' => '<p style="text-align:center">' . esc_html(home_url('/?ajanlo=ABC123')) . '</p>']],
     ];
     return $types;

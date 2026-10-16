@@ -377,7 +377,7 @@ function newsletterSection() {
       <p class="lead" style="margin:0">Új érkezések Nepálból és Indiából, magazincikkek és előfizetői kedvezmények. Nincs zaj – csak ami számít.</p>
     </div>
     <div class="iu-column iu-column-1-2">
-      <form class="iu-form" data-form-id="hirlevel" novalidate data-success="Köszönjük! Küldtünk egy megerősítő levelet – kattints a benne lévő linkre.">
+      <form class="iu-form" data-form-id="hirlevel" novalidate data-success="Feliratkoztál – a következő hírlevelünket már megkapod.">
         <div class="nl-row">${formField({ id: 'nl-email', name: 'email', label: 'E-mail-cím', type: 'email', auto: 'email', placeholder: 'nev@pelda.hu', validate: 'required|Add meg az e-mail-címed.\nemail|Ez nem tűnik érvényes e-mail-címnek.' }).replace('<label', '<label class="sr-only"')}
           <button class="iu-button iu-button-large" type="submit">Feliratkozom</button></div>
         ${acceptField('nl-accept', 'Elfogadom az <a href="jogi.html?d=adatkezeles">adatkezelési tájékoztatót</a>, és bármikor leiratkozhatok.')}

@@ -6,8 +6,9 @@
  *    Kedvezményszintek), fizetési határidő (halasztott átutalás a pénztárban, a Számlázz.hu-számla határideje ebből),
  *    rendelés-tiltás (a pénztárban csak előre utalás; a fiókban és a pénztárban rövid tájékoztató);
  *  - Fiókom → Üzenet a Mandalának → message esemény (a CRM-ben teendő a felelősnek, a válasz e-mailben megy);
- *  - partnerlevél-hozzájárulás: pipa a viszonteladói jelentkezésben, kapcsoló a viszonteladói felületen
- *    (a customer eseményben: marketing_consent + marketing_consent_at);
+ *  - partnerlevél-hozzájárulás: pipa a viszonteladói jelentkezésben, kapcsoló a viszonteladói felületen, a CRM consent
+ *    parancsa (pl. telefonon kérte / a CRM-ben leiratkozott); napló a pipa szövegével és IP-vel (consent.php), a
+ *    customer eseményben: marketing_consent (+ _at, _source, _text), b2b_arrivals, unsubscribed;
  *  - egy kattintásos rendelés ajánlatból: https://mandala.hu/?mandala_offer=<base64url(json)>.<hex HMAC-SHA256(json,
  *    az összekötő titka)>, json = {t: token, e: partner e-mail, i: [[cikkszám, db], …], x: lejárat (unix), p?: [[cikkszám,
  *    kedvezményes nettó egységár], …]} – a tételek a kosárba (nagyker áron, vagy a p ára, ha nem drágább), a rendelés
@@ -457,23 +458,85 @@ add_action('mandala_b2b_tools', function ($uid) {
   <form method="post" class="b2b-consent">
     <?php wp_nonce_field('mandala_partner_mail', '_pmnonce'); ?>
     <input type="hidden" name="mandala_partner_mail_form" value="1">
-    <label class="check"><input type="checkbox" name="mandala_partner_mail" value="1"<?php checked($on); ?> onchange="this.form.submit()"> <span><?php esc_html_e('Kérek partnerleveleket (új érkezések, akciók)', 'mandala'); ?></span></label>
+    <label class="check"><input type="checkbox" name="mandala_partner_mail" value="1"<?php checked($on); ?> onchange="this.form.submit()"> <span><?php echo esc_html(mandala_consent_text('partner_mail')); ?></span></label>
     <noscript><button class="iu-button iu-button-link" type="submit"><?php esc_html_e('Mentés', 'mandala'); ?></button></noscript>
   </form>
     <?php
 });
 
-/** Partnerlevél-hozzájárulás mentése; viszonteladónál a CRM is megkapja (customer esemény). */
-function mandala_crm_set_consent(int $uid, bool $on, bool $notify = true): void
+/**
+ * Partnerlevél-hozzájárulás mentése (Grt. 6. § (5)): _mandala_partner_mail (+ _at: helyi idő, _source, _wording), a
+ * naplóba minden megadás (a pipa szövegével, IP-vel) és a visszavonás (consent.php); a megadás leveszi a címet a
+ * leiratkozottak listájáról. Változáskor a MailerLite szinkronizál, viszonteladónál a CRM is megkapja (customer
+ * esemény), ha $notify. $source: nagyker | jelentkezes | crm[:…] | leiratkozo-link | mailerlite; $x: ip, at (UTC, a
+ * naplóhoz), at_local (a metához).
+ */
+function mandala_crm_set_consent(int $uid, bool $on, bool $notify = true, string $source = 'nagyker', string $wording = '', array $x = []): void
 {
+    $u = get_userdata($uid);
     $old = (string) get_user_meta($uid, '_mandala_partner_mail', true);
-    update_user_meta($uid, '_mandala_partner_mail', $on ? 'yes' : 'no');
-    if ($old !== ($on ? 'yes' : 'no') || !get_user_meta($uid, '_mandala_partner_mail_at', true)) {
-        update_user_meta($uid, '_mandala_partner_mail_at', current_time('mysql'));
+    $new = $on ? 'yes' : 'no';
+    $wording = $on ? ($wording !== '' ? $wording : mandala_consent_wording(__('Viszonteladói felület', 'mandala'), mandala_consent_text('partner_mail'))) : '';
+    $at_local = (string) ($x['at_local'] ?? current_time('mysql'));
+    unset($x['at_local']);
+    update_user_meta($uid, '_mandala_partner_mail', $new);
+    if ($old !== $new || $on || !get_user_meta($uid, '_mandala_partner_mail_at', true)) {
+        update_user_meta($uid, '_mandala_partner_mail_at', $at_local);
+        update_user_meta($uid, '_mandala_partner_mail_source', $source);
+        update_user_meta($uid, '_mandala_partner_mail_wording', $wording);
     }
-    if ($notify && $old !== ($on ? 'yes' : 'no') && mandala_is_wholesale_user($uid)) {
+    if ($u && ($on || $old === 'yes')) {
+        mandala_consent_log($u->user_email, 'partner_mail', $on, $source, ['wording' => $wording, 'user_id' => $uid, 'name' => mandala_consent_user_name($u)] + $x);
+    }
+    if ($u && $on) {
+        mandala_consent_lift($u->user_email);
+    }
+    if ($old !== $new) {
+        do_action('mandala_partner_consent_changed', $uid, 'partner_mail', $on, $source);
+    }
+    if ($notify && $old !== $new && mandala_is_wholesale_user($uid)) {
         mandala_crm_enqueue('customer', mandala_crm_customer_data($uid));
     }
+}
+
+/**
+ * A CRM consent parancsa: { email, user_id?, partner_mail: 'yes' | 'no', source?, wording?, at? }.
+ *  - 'no': a CRM-ben leiratkozott / visszavonta → a partnerlevél és a heti új érkezések levele is ki a webshopban.
+ *  - 'yes': a CRM-ben rögzített (pl. telefonon kért – Grt. 6. § (8)) hozzájárulás → partnerlevél be, a CRM szövegével
+ *    (wording; üresen egy alapmondat), forrás: crm[:source], időpont: at (ISO; üresen most). A heti levél nem változik.
+ * Fiók nélkül függő hozzájárulás: a fiók létrejöttekor (jóváhagyás) kerül rá. Visszaad: a nyugta adatai.
+ */
+function mandala_crm_consent(array $d): array
+{
+    $pm = strtolower(trim((string) ($d['partner_mail'] ?? '')));
+    if (!in_array($pm, ['yes', 'no'], true)) {
+        throw new RuntimeException('partner_mail: yes vagy no');
+    }
+    $on = $pm === 'yes';
+    $source = 'crm' . (!empty($d['source']) ? ':' . mb_substr(sanitize_key((string) $d['source']), 0, 30) : '');
+    $wording = $on ? (sanitize_text_field((string) ($d['wording'] ?? '')) ?: mandala_consent_text('crm')) : '';
+    $ts = !empty($d['at']) ? strtotime((string) $d['at']) : false;
+    $ts = $ts && $ts <= time() + HOUR_IN_SECONDS ? $ts : time();
+    $x = ['ip' => '', 'at' => gmdate('Y-m-d H:i:s', $ts), 'at_local' => wp_date('Y-m-d H:i:s', $ts)];
+    $user = mandala_crm_find_user($d);
+    if (!$user) {
+        $email = strtolower(sanitize_email((string) ($d['email'] ?? '')));
+        if (!is_email($email)) {
+            throw new RuntimeException('nincs ilyen fiók a webshopban');
+        }
+        $pending = (array) get_option('mandala_crm_pending_consent', []);
+        $pending[$email] = ['on' => $on, 'at' => $x['at_local'], 'source' => $source, 'wording' => $wording];
+        update_option('mandala_crm_pending_consent', array_slice($pending, -300, null, true), false);
+        mandala_consent_log($email, 'partner_mail', $on, $source, ['wording' => $wording, 'ip' => '', 'at' => $x['at']]);
+        return ['user_id' => 0, 'pending' => true, 'partner_mail' => $pm];
+    }
+    $uid = (int) $user->ID;
+    mandala_crm_set_consent($uid, $on, false, $source, $wording, $x);
+    if (!$on && get_user_meta($uid, '_mandala_b2b_arrivals', true) === 'yes') {
+        mandala_b2b_arrivals_set($uid, false, $source, ['notify' => false, 'ip' => '', 'at' => $x['at']]);
+    }
+    return ['user_id' => $uid, 'partner_mail' => (string) get_user_meta($uid, '_mandala_partner_mail', true), 'b2b_arrivals' => get_user_meta($uid, '_mandala_b2b_arrivals', true) === 'yes',
+        'at' => mandala_crm_time((string) get_user_meta($uid, '_mandala_partner_mail_at', true))];
 }
 
 add_action('template_redirect', function () {
@@ -481,7 +544,7 @@ add_action('template_redirect', function () {
         return;
     }
     $on = !empty($_POST['mandala_partner_mail']);
-    mandala_crm_set_consent(get_current_user_id(), $on);
+    mandala_crm_set_consent(get_current_user_id(), $on, true, 'nagyker');
     wc_add_notice($on ? __('Köszönjük! Az új érkezésekről és az akciókról partnerlevélben írunk.', 'mandala') : __('Rendben, nem küldünk több partnerlevelet.', 'mandala'));
     wp_safe_redirect(wc_get_account_endpoint_url(MANDALA_B2B_ENDPOINT));
     exit;
@@ -494,7 +557,7 @@ add_filter('render_block', function ($html, $block) {
     if (($block['blockName'] ?? '') !== 'iu/form' || ($block['attrs']['formId'] ?? $block['attrs']['id'] ?? '') !== 'viszontelado' || str_contains((string) $html, 'name="partnerlevelek"')) {
         return $html;
     }
-    $box = '<p class="form-optin"><label class="check"><input type="checkbox" name="partnerlevelek" value="1"> <span>' . esc_html__('Kérek partnerleveleket (új érkezések, akciók)', 'mandala') . '</span></label></p>';
+    $box = '<p class="form-optin"><label class="check"><input type="checkbox" name="partnerlevelek" value="1"> <span>' . esc_html(mandala_consent_text('partner_mail')) . '</span></label></p>';
     foreach (['<div class="iu-form-accept', '<div class="iu-form-submit', '</form>'] as $marker) {
         $pos = strpos((string) $html, $marker);
         if ($pos !== false) {
@@ -515,13 +578,18 @@ add_filter('iu_form_submit_viszontelado', function ($response) {
         return $response;
     }
     $on = !empty($post['partnerlevelek']);
+    $wording = mandala_consent_wording(__('Viszonteladói jelentkezés', 'mandala'), mandala_consent_text('partner_mail'));
     $user = get_user_by('email', $email);
     if ($user) {
-        mandala_crm_set_consent((int) $user->ID, $on);
+        mandala_crm_set_consent((int) $user->ID, $on, true, 'jelentkezes', $wording);
     } else {
+        // Fiók még nincs: a bizonyíték most (IP-vel) a naplóba, az állapot a fiók létrejöttekor kerül rá.
         $pending = (array) get_option('mandala_crm_pending_consent', []);
-        $pending[$email] = ['on' => $on, 'at' => current_time('mysql')];
+        $pending[$email] = ['on' => $on, 'at' => current_time('mysql'), 'source' => 'jelentkezes', 'wording' => $on ? $wording : ''];
         update_option('mandala_crm_pending_consent', array_slice($pending, -300, null, true), false);
+        if ($on) {
+            mandala_consent_log($email, 'partner_mail', true, 'jelentkezes', ['wording' => $wording, 'name' => trim(sanitize_text_field((string) ($post['nev'] ?? '')) . (!empty($post['ceg']) ? ' (' . sanitize_text_field((string) $post['ceg']) . ')' : ''))]);
+        }
     }
     return $response;
 }, 15);
@@ -533,8 +601,14 @@ add_action('user_register', function ($uid) {
     if ($key === '' || !isset($pending[$key])) {
         return;
     }
-    update_user_meta((int) $uid, '_mandala_partner_mail', !empty($pending[$key]['on']) ? 'yes' : 'no');
+    $on = !empty($pending[$key]['on']);
+    update_user_meta((int) $uid, '_mandala_partner_mail', $on ? 'yes' : 'no');
     update_user_meta((int) $uid, '_mandala_partner_mail_at', (string) $pending[$key]['at']);
+    update_user_meta((int) $uid, '_mandala_partner_mail_source', (string) ($pending[$key]['source'] ?? 'jelentkezes'));
+    update_user_meta((int) $uid, '_mandala_partner_mail_wording', (string) ($pending[$key]['wording'] ?? ''));
+    if ($on) {
+        mandala_consent_lift($key);
+    }
     unset($pending[$key]);
     update_option('mandala_crm_pending_consent', $pending, false);
 }, 20); // a crm-connect.php customer eseménye (30) már ezzel megy
@@ -916,7 +990,9 @@ foreach (['show_user_profile', 'edit_user_profile'] as $mandala_hook) {
             . '<tr><th>Kedvezményszint</th><td>' . esc_html($t['discount_level'] ?: '–') . ($t['discount_pct'] > 0 ? ' (−' . esc_html(mandala_crm_pct_label($t['discount_pct'])) . '%)' : '') . '</td></tr>'
             . '<tr><th>Fizetési határidő</th><td>' . ($t['payment_days'] ? (int) $t['payment_days'] . ' nap (átutalás számla alapján)' : 'nincs – előre fizet') . '</td></tr>'
             . '<tr><th>Rendelés-tiltás</th><td>' . ($t['blocked'] ? '<strong style="color:#b3261e">csak előre fizetéssel rendelhet</strong>' . ($t['block_reason'] ? ' – ' . esc_html($t['block_reason']) : '') : 'nincs') . '</td></tr>'
-            . '<tr><th>Partnerlevelek</th><td>' . ($consent === 'yes' ? 'kér' : ($consent === 'no' ? 'nem kér' : '–')) . ($consent ? ' (' . esc_html((string) get_user_meta($user->ID, '_mandala_partner_mail_at', true)) . ')' : '') . '</td></tr>'
+            . '<tr><th>Partnerlevelek</th><td>' . ($consent === 'yes' ? 'kér' : ($consent === 'no' ? 'nem kér' : '–')) . ($consent ? ' (' . esc_html(trim((string) get_user_meta($user->ID, '_mandala_partner_mail_at', true) . ', ' . (string) get_user_meta($user->ID, '_mandala_partner_mail_source', true), ', ')) . ')' : '')
+            . (($w = (string) get_user_meta($user->ID, '_mandala_partner_mail_wording', true)) !== '' && $consent === 'yes' ? '<br><span class="description">' . esc_html($w) . '</span>' : '') . '</td></tr>'
+            . '<tr><th>Heti új érkezések</th><td>' . (get_user_meta($user->ID, '_mandala_b2b_arrivals', true) === 'yes' ? 'kér' : 'nem kér') . (mandala_is_unsubscribed($user->user_email) ? ' · <strong>minden reklámlevélről leiratkozott</strong>' : '') . '</td></tr>'
             . '</tbody></table><p class="description">A feltételeket a Partner CRM állítja (a partner kartonján).</p>';
     });
 }

@@ -474,13 +474,11 @@ add_filter('wc_szamlazz_xml_adoszam', function ($taxcode, $order) {
 add_action('woocommerce_checkout_create_order', function (WC_Order $order) {
     mandala_sync_tax_number($order);
     $order->update_meta_data('_mandala_newsletter', empty($_POST['mandala_newsletter']) ? 'no' : 'yes'); // phpcs:ignore
-    // A pénztárban bejelölt hírlevél is a feliratkozók közé kerül (és indíthat saját levelet).
-    $email = strtolower($order->get_billing_email());
-    $subscribers = (array) get_option('mandala_newsletter', []);
-    if (!empty($_POST['mandala_newsletter']) && is_email($email) && !isset($subscribers[$email])) { // phpcs:ignore
-        $subscribers[$email] = ['date' => current_time('mysql'), 'source' => 'pénztár'];
-        update_option('mandala_newsletter', $subscribers, false);
-        do_action('mandala_newsletter_subscribed', $email, 'penztar');
+    // A pénztárban bejelölt hírlevél (külön, alapból üres pipa – a rendelés nem függ tőle) is a feliratkozók közé kerül:
+    // napló a pipa szövegével, le a leiratkozottak közül, és indíthat saját levelet (consent.php).
+    if (!empty($_POST['mandala_newsletter'])) { // phpcs:ignore
+        mandala_newsletter_subscribe($order->get_billing_email(), 'penztar', mandala_consent_wording(__('Pénztár', 'mandala'), mandala_consent_text('checkout')),
+            ['name' => trim($order->get_billing_last_name() . ' ' . $order->get_billing_first_name()), 'user_id' => (int) $order->get_customer_id()]);
     }
     $order->update_meta_data('_mandala_is_company', empty($_POST['is_company']) ? 'no' : 'yes'); // phpcs:ignore
 });

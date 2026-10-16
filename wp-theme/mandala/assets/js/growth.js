@@ -2,6 +2,8 @@
 // amikor a látogató el akarná hagyni az oldalt (asztali gépen). A sütisáv előtt nem jelenik meg.
 const M = window.MANDALA || {};
 const W = M.welcome;
+// A szövegek a szerverről jönnek (consent.php) – ugyanez kerül a hozzájárulás-naplóba.
+const T = { lead: 'Iratkozz fel a hírlevelünkre – ritkán írunk, akkor is az új érkezésekről Nepálból és Indiából.', accept: 'Elfogadom az %s, bármikor leiratkozhatok.', link: 'adatkezelési tájékoztatót', button: 'Kérem a kupont', ...(W?.text || {}) };
 const KEY = 'mandala.welcome';
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const seen = () => { try { return Number(localStorage.getItem(KEY) || 0) > Date.now() - 14 * 864e5; } catch { return true; } };
@@ -22,12 +24,12 @@ if (W && M.rest && !seen()) {
           <button type="button" class="icon-button welcome-close" data-welcome-close aria-label="Bezárás">✕</button>
           <p class="eyebrow">Első rendelésedre</p>
           <h2 id="welcome-title">${W.percent}% kedvezmény</h2>
-          <p>Iratkozz fel a hírlevelünkre – ritkán írunk, akkor is az új érkezésekről Nepálból és Indiából.</p>
+          <p>${esc(T.lead)}</p>
           <form class="welcome-form" novalidate>
             <label class="screen-reader-text" for="welcome-email">E-mail-cím</label>
             <input type="email" id="welcome-email" name="email" autocomplete="email" placeholder="nev@pelda.hu" required>
-            <label class="welcome-accept" for="welcome-accept"><input type="checkbox" id="welcome-accept" name="accept" required> <span>Elfogadom az ${W.privacy ? `<a href="${esc(W.privacy)}">adatkezelési tájékoztatót</a>` : 'adatkezelési tájékoztatót'}, bármikor leiratkozhatok.</span></label>
-            <button type="submit" class="iu-button iu-button-block">Kérem a kupont</button>
+            <label class="welcome-accept" for="welcome-accept"><input type="checkbox" id="welcome-accept" name="accept" required> <span>${esc(T.accept).replace('%s', W.privacy ? `<a href="${esc(W.privacy)}">${esc(T.link)}</a>` : esc(T.link))}</span></label>
+            <button type="submit" class="iu-button iu-button-block">${esc(T.button)}</button>
             <p class="form-message" role="status" aria-live="polite"></p>
           </form>
         </div>

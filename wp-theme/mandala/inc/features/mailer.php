@@ -7,7 +7,8 @@
  *  - Be/ki kapcsolás és időzítés, élő előnézet mintaadatokkal, tesztlevél, alaphelyzet.
  *  - Napló: minden kiküldött levél (kinek, mikor, melyik, sikerült-e) – ügyfélszolgálathoz; 180 napig.
  *  - A WooCommerce saját rendszerlevelei (visszaigazolás, teljesítés…) listája, a beállításaikra linkelve.
- *  - Leiratkozás a marketing jellegű levelekből (List-Unsubscribe fejléccel), válaszcím a bolt címe.
+ *  - Reklámlevél (marketing): feladó a láblécben, egy kattintásos leiratkozás (List-Unsubscribe + List-Unsubscribe-Post,
+ *    RFC 8058), leiratkozott címre nem megy; válaszcím a bolt címe. Hozzájárulások: consent.php.
  *
  * Új levél: mandala_mail_types() bejegyzés + mandala_mail('azonosito', $cimzett, $valtozok, $blokkok).
  */
@@ -43,30 +44,47 @@ function mandala_token(string ...$parts): string
 {
     return substr(hash_hmac('sha256', implode('|', $parts), wp_salt('auth')), 0, 32);
 }
-function mandala_unsubscribe_url(string $email): string
+/**
+ * Aláírt, egy kattintásos leiratkozó link (belépés nélkül). $purpose: '' = minden reklámlevél (hírlevél,
+ * emlékeztetők, partnerlevél, heti új érkezések), 'b2b' = csak a heti új érkezések levele.
+ */
+function mandala_unsubscribe_url(string $email, string $purpose = ''): string
 {
-    return add_query_arg(['mandala_unsub' => rawurlencode(strtolower($email)), 'k' => mandala_token('unsub', strtolower($email))], home_url('/'));
+    $email = strtolower($email);
+    $args = ['mandala_unsub' => rawurlencode($email)];
+    if ($purpose !== '') {
+        $args['cel'] = $purpose;
+    }
+    $args['k'] = $purpose !== '' ? mandala_token('unsub', $email, $purpose) : mandala_token('unsub', $email);
+    return add_query_arg($args, home_url('/'));
 }
 function mandala_is_unsubscribed(string $email): bool
 {
     return in_array(strtolower($email), (array) get_option('mandala_unsubscribed', []), true);
 }
+// A link megnyitása (GET) és a levelezőprogramok egy kattintásos leiratkozása (RFC 8058: POST
+// „List-Unsubscribe=One-Click” ugyanerre a címre) ugyanazt teszi: azonnal leiratkoztat, megerősítés nélkül.
 add_action('template_redirect', function () {
     if (empty($_GET['mandala_unsub']) || empty($_GET['k'])) {
         return;
     }
     $email = strtolower(sanitize_email(wp_unslash($_GET['mandala_unsub'])));
-    if (!hash_equals(mandala_token('unsub', $email), sanitize_text_field(wp_unslash($_GET['k'])))) {
+    $purpose = sanitize_key(wp_unslash($_GET['cel'] ?? ''));
+    $expected = $purpose !== '' ? mandala_token('unsub', $email, $purpose) : mandala_token('unsub', $email);
+    if (!is_email($email) || !hash_equals($expected, sanitize_text_field(wp_unslash($_GET['k'])))) {
         wp_die(esc_html__('Érvénytelen leiratkozó link.', 'mandala'), '', ['response' => 400]);
     }
-    $list = (array) get_option('mandala_unsubscribed', []);
-    $list[] = $email;
-    update_option('mandala_unsubscribed', array_values(array_unique($list)), false);
-    $subs = (array) get_option('mandala_newsletter', []);
-    unset($subs[$email]);
-    update_option('mandala_newsletter', $subs, false);
-    do_action('mandala_unsubscribed', $email);
-    wp_die('<h1>' . esc_html__('Leiratkoztál', 'mandala') . '</h1><p>' . esc_html__('Több emlékeztetőt és hírlevelet nem küldünk erre a címre. A rendeléseidről szóló értesítéseket továbbra is megkapod.', 'mandala') . '</p><p><a href="' . esc_url(home_url('/')) . '">' . esc_html__('Vissza a webáruházba', 'mandala') . '</a></p>', esc_html__('Leiratkozás', 'mandala'), ['response' => 200]);
+    nocache_headers();
+    $back = '<p><a href="' . esc_url(home_url('/')) . '">' . esc_html__('Vissza a webáruházba', 'mandala') . '</a></p>';
+    if ($purpose === 'b2b') {
+        $user = get_user_by('email', $email);
+        if ($user && function_exists('mandala_b2b_arrivals_set')) {
+            mandala_b2b_arrivals_set((int) $user->ID, false, 'leiratkozo-link');
+        }
+        wp_die('<h1>' . esc_html__('Leiratkoztál', 'mandala') . '</h1><p>' . esc_html__('Több heti levelet nem küldünk az új érkezésekről. A partnerleveleket a viszonteladói felületen kapcsolhatod ki vagy be.', 'mandala') . '</p><p><a href="' . esc_url(mandala_unsubscribe_url($email)) . '">' . esc_html__('Semmilyen reklámlevelet nem kérek', 'mandala') . '</a></p>' . $back, esc_html__('Leiratkozás', 'mandala'), ['response' => 200]);
+    }
+    mandala_unsubscribe_all($email, 'leiratkozo-link');
+    wp_die('<h1>' . esc_html__('Leiratkoztál', 'mandala') . '</h1><p>' . esc_html__('Több reklámlevelet (hírlevél, emlékeztetők, partnerlevelek) nem küldünk erre a címre. A rendeléseidről szóló értesítéseket továbbra is megkapod.', 'mandala') . '</p>' . $back, esc_html__('Leiratkozás', 'mandala'), ['response' => 200]);
 });
 
 /* ---------- Napló ---------- */
@@ -174,14 +192,36 @@ function mandala_mail_error_hint(int $since): string
 
 /* ---------- Küldés ---------- */
 
+/** A reklámlevelek feladója (Grt. 6. §: a reklámozó egyértelműen azonosítható). */
+function mandala_mail_sender_line(): string
+{
+    $c = (array) mandala_config('contact', []);
+    $company = (string) mandala_config('company', 'Asita Cult Kft.');
+    $who = implode(' – ', array_filter([trim((string) get_bloginfo('name')), trim($company)]));
+    return (string) apply_filters('mandala_mail_sender_line', implode(', ', array_filter([$who, trim((string) ($c['address'] ?? ''))])));
+}
+
+/** A reklámlevél lábléce: reklám, feladó, miért kapja, egy kattintásos leiratkozás. $purpose: '' vagy 'b2b'. */
+function mandala_mail_marketing_footer(string $to, string $purpose = ''): string
+{
+    $why = $purpose === 'b2b'
+        ? __('Viszonteladóként, a fiókodban kérted a heti levelet az új érkezésekről.', 'mandala')
+        : __('Azért kapod, mert vásároltál nálunk, vagy feliratkoztál a leveleinkre.', 'mandala');
+    $link = $purpose === 'b2b' ? __('Leiratkozás erről a levélről', 'mandala') : __('Leiratkozás', 'mandala');
+    return '<p style="font-size:12px;color:#6E6357;margin-top:32px">' . esc_html(sprintf(__('Reklámlevél – feladó: %s.', 'mandala'), mandala_mail_sender_line())) . ' ' . esc_html($why) . ' '
+        . '<a href="' . esc_url(mandala_unsubscribe_url($to, $purpose)) . '" style="color:#6E6357">' . esc_html($link) . '</a> ' . esc_html__('(egy kattintás, belépés nélkül)', 'mandala') . '</p>';
+}
+
 /**
- * Levél küldése a WooCommerce sablonjában. $marketing = true esetén leiratkozott címre nem
- * megy, és a lábléc leiratkozó linket kap. $meta: ['type' => naplóazonosító, 'order' => rendelés id].
+ * Levél küldése a WooCommerce sablonjában. $marketing = true esetén leiratkozott címre nem megy, a lábléc
+ * feladót és egy kattintásos leiratkozó linket kap, a fejlécben List-Unsubscribe és List-Unsubscribe-Post (RFC 8058).
+ * $meta: ['type' => naplóazonosító, 'order' => rendelés id, 'purpose' => '' | 'b2b' (a leiratkozó link célja)].
  */
 function mandala_send_mail(string $to, string $subject, string $heading, string $body_html, bool $marketing = false, array $meta = []): bool
 {
     $type = (string) ($meta['type'] ?? 'egyeb');
     $order_id = (int) ($meta['order'] ?? 0);
+    $purpose = (string) ($meta['purpose'] ?? '');
     if (!is_email($to)) {
         return false;
     }
@@ -196,10 +236,7 @@ function mandala_send_mail(string $to, string $subject, string $heading, string 
         return false;
     }
     if ($marketing) {
-        $body_html .= '<p style="font-size:12px;color:#6E6357;margin-top:32px">' . sprintf(
-            esc_html__('Ezt a levelet a vásárlásod miatt kaptad. %s', 'mandala'),
-            '<a href="' . esc_url(mandala_unsubscribe_url($to)) . '" style="color:#6E6357">' . esc_html__('Leiratkozás az emlékeztetőkről', 'mandala') . '</a>'
-        ) . '</p>';
+        $body_html .= mandala_mail_marketing_footer($to, $purpose);
     }
     $mailer = function_exists('WC') ? WC()->mailer() : null;
     $message = $mailer ? $mailer->wrap_message($heading, $body_html) : '<h1>' . esc_html($heading) . '</h1>' . $body_html;
@@ -213,7 +250,9 @@ function mandala_send_mail(string $to, string $subject, string $heading, string 
         $headers[] = 'Reply-To: ' . $reply;
     }
     if ($marketing) {
-        $headers[] = 'List-Unsubscribe: <' . mandala_unsubscribe_url($to) . '>';
+        // Egy kattintásos leiratkozás a levelezőprogramban (Gmail, Apple Mail…): POST erre a címre, belépés nélkül.
+        $headers[] = 'List-Unsubscribe: <' . mandala_unsubscribe_url($to, $purpose) . '>';
+        $headers[] = 'List-Unsubscribe-Post: List-Unsubscribe=One-Click';
     }
     $sent = (bool) wp_mail($to, $subject, $message, $headers);
     mandala_mail_log($type, $to, $subject, $sent ? 'sent' : 'failed', $order_id);
@@ -290,7 +329,7 @@ function mandala_mail_types(bool $fresh = false): array
             'label' => 'Újra raktáron', 'group' => 'Értesítések', 'when' => 'Amikor a termék újra raktárra kerül, azoknak, akik a termékoldalon feliratkoztak rá. Egyszer.',
             'vars' => ['termek' => 'A termék neve'], 'blocks' => ['termek_sor' => 'A termék képpel és árral', 'gomb' => '„Megnézem” gomb'],
             'subject' => __('Újra raktáron: {termek}', 'mandala'), 'heading' => __('Újra elérhető', 'mandala'),
-            'body' => '<p>' . __('Kedves Vásárlónk!', 'mandala') . '</p><p>' . __('Jó hírünk van: a(z) {termek} újra elérhető webáruházunkban.', 'mandala') . '</p>{termek_sor}{gomb}<p>' . __('A készlet korlátozott, ezért érdemes hamar lecsapni rá.', 'mandala') . '</p>',
+            'body' => '<p>' . __('Kedves Vásárlónk!', 'mandala') . '</p><p>' . __('Jó hírünk van: a(z) {termek} újra elérhető webáruházunkban.', 'mandala') . '</p>{termek_sor}{gomb}<p>' . __('A készlet korlátozott. Ezt az értesítést egyszer küldjük, mert a termékoldalon kérted.', 'mandala') . '</p>',
             'sample' => function () {
                 $p = mandala_mail_sample_products(1)[0] ?? null;
                 return [['termek' => $p ? $p->get_name() : 'Hangtál'], ['termek_sor' => mandala_mail_sample_rows(1, true), 'gomb' => mandala_mail_button($p ? $p->get_permalink() : home_url('/'), __('Megnézem', 'mandala'))]];
@@ -315,11 +354,11 @@ function mandala_mail_types(bool $fresh = false): array
             'sample' => fn() => [['cimzett_nev' => 'Kata', 'kuldo' => 'Kovács Anna', 'kuldo_keresztnev' => 'Anna'], mandala_mail_sample_voucher()],
         ],
         'b2b_weekly' => [
-            'label' => 'Heti új érkezések (viszonteladó)', 'group' => 'Viszonteladó',
-            'when' => 'Hetente, ha volt új termék – a viszonteladóknak, akik a felületükön bekapcsolták. Nagyker árral.',
+            'label' => 'Heti új érkezések (viszonteladó)', 'group' => 'Viszonteladó', 'marketing' => true, 'purpose' => 'b2b',
+            'when' => 'Hetente, ha volt új termék – a viszonteladóknak, akik a felületükön bekapcsolták. Nagyker árral. Reklámlevél: a végén a feladó és egy kattintásos leiratkozó link (csak erről a levélről); leiratkozott címre nem megy.',
             'vars' => $name + ['db' => 'Az új termékek száma'], 'blocks' => ['termekek' => 'Az új termékek cikkszámmal és nagyker árral', 'gomb' => '„Gyorsrendelés” gomb'],
             'subject' => __('Új érkezések a Mandalánál', 'mandala'), 'heading' => __('Új érkezések', 'mandala'),
-            'body' => $hello . '<p>' . __('Ezen a héten {db} új termék érkezett.', 'mandala') . '</p>{termekek}{gomb}<p style="font-size:12px;color:#6E6357">' . __('A levelet a viszonteladói felületen kapcsoltad be; ugyanott ki is kapcsolhatod.', 'mandala') . '</p>',
+            'body' => $hello . '<p>' . __('Ezen a héten {db} új termék érkezett.', 'mandala') . '</p>{termekek}{gomb}',
             'sample' => fn() => [['keresztnev' => 'Péter', 'db' => '3'], ['termekek' => mandala_mail_sample_rows(3, true), 'gomb' => mandala_mail_button(home_url('/'), __('Gyorsrendelés', 'mandala'))]],
         ],
     ];
@@ -419,7 +458,7 @@ function mandala_mail(string $type, string $to, array $vars = [], array $blocks 
         return false;
     }
     [$subject, $heading, $body] = mandala_mail_render($type, $vars, $blocks);
-    return mandala_send_mail($to, $subject, $heading, $body, !empty($def['marketing']), ['type' => $type, 'order' => $order_id]);
+    return mandala_send_mail($to, $subject, $heading, $body, !empty($def['marketing']), ['type' => $type, 'order' => $order_id, 'purpose' => (string) ($def['purpose'] ?? '')]);
 }
 
 /* ---------- Mintaadatok az előnézethez ---------- */
@@ -656,7 +695,7 @@ function mandala_mail_admin_edit(string $type, string $base): void
     if ($missing && $tpl['custom']) {
         echo '<div class="notice notice-warning inline"><p>A szövegből hiányzik: ' . esc_html(implode(', ', array_map(fn($b) => '{' . $b . '}', $missing))) . ' – ez a rész nem kerül a levélbe.</p></div>';
     }
-    echo '<p class="description" style="margin-top:12px">Aláírás és válaszcím: Beállítások fül. ' . (!empty($def['marketing']) ? 'A levél alján leiratkozó link is lesz.' : '') . '</p>';
+    echo '<p class="description" style="margin-top:12px">Aláírás és válaszcím: Beállítások fül. ' . (!empty($def['marketing']) ? 'Reklámlevél: a levél alján a feladó (cég, cím) és egy kattintásos leiratkozó link is lesz.' : '') . '</p>';
     echo '<p class="submit" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
         . '<button type="submit" class="button button-primary" name="mail_save" value="1">Mentés</button>'
         . '<button type="submit" class="button" formaction="' . esc_url(admin_url('admin-post.php?action=mandala_mail_preview&type=' . $type)) . '" formtarget="mandala-mail-preview">Előnézet frissítése</button>'
@@ -761,7 +800,7 @@ function mandala_mail_admin_settings(): void
         . '<tr><th scope="row">Válaszcím</th><td><code>' . esc_html($reply ?: '–') . '</code><p class="description">A vásárló válasza ide megy (WooCommerce → Mandala bolt adatai → e-mail). A feladó nevét és címét a WooCommerce → Beállítások → E-mailek adja; a levélküldéshez SMTP bővítmény ajánlott.</p></td></tr>'
         . '<tr><th scope="row"><label for="ma-cats">Fogyóeszköz kategóriák</label></th><td><input type="text" id="ma-cats" class="regular-text" name="mandala_automations[reorder_cats]" value="' . esc_attr($s['reorder_cats']) . '"><p class="description">Az újrarendelés emlékeztetőhöz: kategória slugok vesszővel.</p></td></tr>'
         . '<tr><th scope="row"><label for="ma-mod">Értékelések moderátora</label></th><td><input type="email" id="ma-mod" class="regular-text" name="mandala_automations[moderator]" value="' . esc_attr($s['moderator']) . '" placeholder="' . esc_attr(get_option('admin_email')) . '"><p class="description">Új értékelésről ide megy értesítés.</p></td></tr>'
-        . '<tr><th scope="row">Leiratkozottak</th><td>' . count((array) get_option('mandala_unsubscribed', [])) . ' cím <p class="description">Nekik emlékeztetőt, értékelés kérést nem küldünk; a rendelésükről szóló leveleket megkapják.</p></td></tr>'
+        . '<tr><th scope="row">Leiratkozottak</th><td>' . count((array) get_option('mandala_unsubscribed', [])) . ' cím <p class="description">Nekik semmilyen reklámlevelet (hírlevél, emlékeztető, értékelés kérése, partnerlevél, heti új érkezések) nem küldünk; a rendelésükről szóló leveleket megkapják. Új, kifejezett hozzájárulással (pl. újra feliratkozik) lekerülnek a listáról.</p></td></tr>'
         ;
     do_action('mandala_mail_settings_fields');
     echo '</table>';

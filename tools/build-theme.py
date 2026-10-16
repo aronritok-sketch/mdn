@@ -329,7 +329,7 @@ def templates():
                     col('1-2', form('hirlevel', [
                         group(f_text('email', 'E-mail-cím', V_EMAIL, 'nev@pelda.hu', 'email'), className='nl-row'),
                         f_accept(label='Elfogadom az <a href="[mandala_url page=privacy]">adatkezelési tájékoztatót</a>, és bármikor leiratkozhatok.'),
-                    ], 'Feliratkozom', 'Köszönjük! Küldtünk egy megerősítő levelet – kattints a benne lévő linkre.', className='nl-form')),
+                    ], 'Feliratkozom', 'Feliratkoztál – a következő hírlevelünket már megkapod.', className='nl-form')),
                     v='center'), className='newsletter deco deco-bl'),
         section(
             row('1-4|1-4|1-4|1-4',

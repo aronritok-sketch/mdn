@@ -10,7 +10,8 @@
  *  - customer     viszonteladói fiók: regisztráció, szerepváltás, adatváltozás; marketing_consent (+ _at), terms;
  *  - order        viszonteladó rendelése (létrejötte és minden állapotváltozása, tételekkel, kategóriával; ajánlatból
  *                 jött rendelésnél offer_token, halasztott fizetésnél payment_days / payment_due);
- *  - activity     viszonteladó belépése, árlista- és fotóletöltés, gyorsrendelő, új érkezések feliratkozás;
+ *  - activity     viszonteladó belépése, árlista- és fotóletöltés, gyorsrendelő, új érkezések levele be / ki
+ *                 (arrivals / arrivals_off);
  *  - message      „Üzenet a Mandalának” a viszonteladói fiókból (crm-partner.php);
  *  - offer_open / offer_order  az ajánlat-link megnyitása, az ajánlatból lett rendelés (crm-partner.php);
  *  - web_stats    a webes forgalom havonta és csatornánként (egyéni / kereskedő) – naponta az aktuális és az előző hónap;
@@ -18,8 +19,10 @@
  *                 10 percenként (a JUTA közvetlen adatbázis-írása után is), a teljes lista naponta;
  *  - hello        a webshop állapota (verzió, viszonteladók száma, szinkron).
  * Mit kap: approve (viszonteladói szerep; ha nincs fiók, nyit egyet, és a WooCommerce elküldi a belépési levelet),
- * terms (kedvezményszint, fizetési határidő, rendelés-tiltás – crm-partner.php), resync (teljes újraküldés). Az
- * eredményt a következő kérésben nyugtázza. Az ajánlat-link (?mandala_offer=…) a közös titokkal aláírt: crm-partner.php.
+ * terms (kedvezményszint, fizetési határidő, rendelés-tiltás – crm-partner.php), consent (partnerlevél-hozzájárulás a
+ * CRM-ből: 'no' = leiratkozott, 'yes' = telefonon / személyesen kérte – crm-partner.php), resync (teljes újraküldés). Az
+ * eredményt a következő kérésben nyugtázza. A parancsok a webshop saját, aláírt kérésére adott válaszban jönnek (a
+ * beállított https CRM-címről) – kívülről nem lehet parancsot küldeni. Az ajánlat-link (?mandala_offer=…) a közös titokkal aláírt: crm-partner.php.
  *
  * Beállítás: WooCommerce → Partner CRM → az összekötő kód a CRM-ből (Partnerek → Beállítások), vagy a wp-config.php-ban
  * MANDALA_CRM_URL + MANDALA_CRM_SECRET. Protokoll: hpv-partner-v1 (a CRM oldala: helloprovision-partner/includes/core.php).
@@ -171,6 +174,8 @@ function mandala_crm_run_command(array $cmd): array
                 return ['id' => $id, 'ok' => true, 'result' => mandala_crm_approve($d)];
             case 'terms':
                 return ['id' => $id, 'ok' => true, 'result' => mandala_crm_terms($d)];
+            case 'consent':
+                return ['id' => $id, 'ok' => true, 'result' => mandala_crm_consent($d)];
             case 'resync':
                 if ((string) ($d['what'] ?? '') === 'web_stats') {
                     mandala_crm_web_stats_add(mandala_crm_last_months(13));
@@ -292,6 +297,10 @@ function mandala_crm_customer_data(int $uid): array
         // Partnerlevél-hozzájárulás (a jelentkezés pipája, a fiókban módosítható) és a CRM-től kapott feltételek.
         'marketing_consent' => $m('_mandala_partner_mail') === 'yes',
         'marketing_consent_at' => mandala_crm_time($m('_mandala_partner_mail_at')),
+        'marketing_consent_source' => $m('_mandala_partner_mail_source'), // nagyker | jelentkezes | crm[:…] | leiratkozo-link | mailerlite
+        'marketing_consent_text' => $m('_mandala_partner_mail_wording'),   // a pipa pontos szövege (a megadásnál)
+        'b2b_arrivals' => $m('_mandala_b2b_arrivals') === 'yes',           // heti új érkezések levele
+        'unsubscribed' => mandala_is_unsubscribed($u->user_email),         // minden reklámlevélről leiratkozott
         'terms' => mandala_crm_terms_of($uid),
     ];
 }
@@ -604,7 +613,7 @@ function mandala_crm_hello(): array
         'wholesale_users' => array_sum(array_map(fn($r) => (int) ($count['avail_roles'][$r] ?? 0), $roles)),
         'queue' => count((array) get_option(MANDALA_CRM_QUEUE, [])),
         'backfill' => get_option('mandala_crm_backfill') ? 'fut' : 'kész',
-        'features' => 'approve,resync,terms,message,web_stats,consent,offer', // amit ez a témaverzió tud (a CRM ebből láthatja)
+        'features' => 'approve,resync,terms,message,web_stats,consent,offer,consent_cmd', // amit ez a témaverzió tud (a CRM ebből láthatja)
     ];
 }
 

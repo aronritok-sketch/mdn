@@ -86,13 +86,12 @@ function mandala_handle_form(string $id, $response, $form = null)
     update_option('mandala_form_entries', array_slice($log, 0, 500), false);
 
     if ($id === 'hirlevel') {
-        $subscribers = get_option('mandala_newsletter', []);
-        $new = !isset($subscribers[strtolower($email)]);
-        $subscribers[strtolower($email)] = ['date' => $entry['date'], 'source' => 'weboldal'];
-        update_option('mandala_newsletter', $subscribers, false);
-        if ($new) {
-            do_action('mandala_newsletter_subscribed', strtolower($email), 'weboldal');
-        }
+        // Egylépcsős feliratkozás (nincs megerősítő levél): a hozzájárulás bizonyítéka a naplóba – az űrlap pontos
+        // szövegével (a jelölőnégyzet és a gomb felirata, ahogy a látogató látta), időponttal, IP-címmel (consent.php).
+        $labels = array_values(array_map(fn($f) => $f[0], array_filter($fields, fn($f) => $f[1] === 'iu/form-accept')));
+        $button = is_array($form) ? wp_strip_all_tags((string) ($form['attrs']['buttonLabel'] ?? '')) : '';
+        $wording = mandala_consent_wording(__('Hírlevél-űrlap', 'mandala'), implode(' | ', $labels), $button);
+        mandala_newsletter_subscribe($email, 'weboldal', $wording, ['name' => sanitize_text_field($post['name'] ?? $post['nev'] ?? '')]);
     }
 
     if ($config['mail']) {
@@ -120,7 +119,8 @@ add_action('admin_menu', function () {
         $entries = get_option('mandala_form_entries', []);
         $subs = get_option('mandala_newsletter', []);
         echo '<div class="wrap"><h1>Mandala űrlapok</h1><p>Az utolsó 500 beküldés. A levelek a beállított címre is mennek; ez a napló tartalék.</p>';
-        echo '<p><a class="button" href="' . esc_url(wp_nonce_url(admin_url('admin-post.php?action=mandala_newsletter_csv'), 'mandala_csv')) . '">Hírlevél-feliratkozók letöltése (' . count($subs) . ', CSV)</a></p>';
+        echo '<p><a class="button" href="' . esc_url(wp_nonce_url(admin_url('admin-post.php?action=mandala_newsletter_csv'), 'mandala_csv')) . '">Hírlevél-feliratkozók letöltése (' . count($subs) . ', CSV)</a> ' . mandala_consent_csv_links() . '</p>'
+            . '<p class="description">A hozzájárulások bizonyítéka (Grt. 6. § (5)): időpont, forrás, a jelölőnégyzet pontos szövege és változata, IP-cím, név (ha ismert). A visszavont hozzájárulás adatait 5 évig őrizzük, utána törlődnek.</p>';
         echo '<table class="widefat striped"><thead><tr><th>Dátum</th><th>Űrlap</th><th>E-mail</th><th>Adatok</th></tr></thead><tbody>';
         foreach (array_slice($entries, 0, 100) as $e) {
             $data = implode('<br>', array_map(fn($k, $v) => '<strong>' . esc_html($k) . ':</strong> ' . esc_html($v), array_keys($e['fields']), $e['fields']));
@@ -136,18 +136,50 @@ add_action('admin_post_mandala_newsletter_csv', function () {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=mandala-hirlevel.csv');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['email', 'datum', 'forras'], ',', '"', '');
-    foreach (get_option('mandala_newsletter', []) as $email => $row) {
-        fputcsv($out, [$email, $row['date'], $row['source']], ',', '"', '');
+    // Az első három oszlop a régi (import-kompatibilis); utána a hozzájárulás bizonyítéka a naplóból (consent.php).
+    $subs = (array) get_option('mandala_newsletter', []);
+    $proof = mandala_consent_latest('newsletter');
+    fputcsv($out, ['email', 'datum', 'forras', 'nev', 'hozzajarulas_idopont_utc', 'ip', 'hozzajarulas_szovege', 'valtozat'], ',', '"', '');
+    foreach ($subs as $email => $row) {
+        $p = $proof[$email] ?? [];
+        fputcsv($out, [$email, $row['date'] ?? '', $row['source'] ?? '', ($row['name'] ?? '') ?: ($p['name'] ?? ''), $p['created'] ?? '', $p['ip'] ?? '', $p['wording'] ?? '', $p['version'] ?? ''], ',', '"', '');
     }
     exit;
 });
 
-/** Pénztári hírlevél-feliratkozás ugyanabba a listába. */
-add_action('woocommerce_checkout_order_created', function (WC_Order $order) {
-    if ($order->get_meta('_mandala_newsletter') === 'yes') {
-        $subs = get_option('mandala_newsletter', []);
-        $subs[strtolower($order->get_billing_email())] = ['date' => current_time('mysql'), 'source' => 'pénztár'];
-        update_option('mandala_newsletter', $subs, false);
+/* ---------- Hírlevél-űrlap: a sikerüzenet ---------- */
+
+/** Egylépcsős feliratkozás: nincs megerősítő levél, a sikerüzenet ezt mondja. */
+function mandala_newsletter_success_text(): string
+{
+    return __('Feliratkoztál – a következő hírlevelünket már megkapod.', 'mandala');
+}
+// Az iu/form vázlat-markupjából (templates/, setup/content/ – kanonizálás előtt) hiányzik az űrlap azonosítója
+// (iu_form_id) és a hibaüzenet helye; a valódi iu_theme szkriptje nélkülük nem tudja beküldeni az űrlapot (a szerver nem
+// ismeri fel, a hibaüzenetnél TypeError). A kanonikus markupban megvannak – ott nem nyúlunk hozzá. A lábléc
+// hírlevél-űrlapja: a sikerüzenet akkor is látszódjon, ha a sablon (vagy egy régi, adatbázisba mentett változata) nem
+// tartalmazza, és ne ígérjen megerősítő levelet, amit nem küldünk.
+add_filter('render_block', function ($html, $block) {
+    if (($block['blockName'] ?? '') !== 'iu/form') {
+        return $html;
     }
-});
+    $id = (string) ($block['attrs']['formId'] ?? $block['attrs']['id'] ?? '');
+    if ($id !== '' && !str_contains((string) $html, 'name="iu_form_id"')) {
+        $html = (string) preg_replace_callback('~<form\b[^>]*>~', fn($m) => $m[0] . '<input type="hidden" name="iu_form_id" value="' . esc_attr($id) . '">', (string) $html, 1);
+    }
+    if (!str_contains((string) $html, 'iu-form-error-message')) {
+        $html = (string) preg_replace('~</form>~', '<span class="iu-form-error-message" role="alert"></span></form>', (string) $html, 1);
+    }
+    if ($id !== 'hirlevel') {
+        return $html;
+    }
+    $text = esc_html(mandala_newsletter_success_text());
+    $count = 0;
+    $html = (string) preg_replace_callback('~(<span class="iu-form-success-message"[^>]*>)(.*?)(</span>)~su', function ($m) use ($text) {
+        return $m[1] . (trim(wp_strip_all_tags($m[2])) === '' || preg_match('/megerősít/u', $m[2]) ? $text : $m[2]) . $m[3];
+    }, (string) $html, 1, $count);
+    if (!$count) {
+        $html = (string) preg_replace('~</form>~', '<span class="iu-form-success-message" role="status">' . $text . '</span></form>', $html, 1);
+    }
+    return $html;
+}, 10, 2);
