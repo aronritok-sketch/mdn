@@ -210,8 +210,9 @@ A téma telepítő oldala (Megjelenés → Mandala telepítő) mutatja, melyik b
   csak ha kívülről elérhető). A hibák a MailerLite fül alján látszanak.
 - [ ] **Hozzájárulások:** a lábléc űrlapja „Feliratkoztál – a következő hírlevelünket már megkapod.” üzenetet ad;
   Eszközök → Mandala űrlapok → „Hírlevél-feliratkozók” CSV-ben ott az időpont, az IP és a pipa szövege. Egy valódi
-  reklámlevél (pl. elhagyott kosár a saját címedre) alján a feladó (Asita Cult Kft.) és a leiratkozó link; Gmailben a
-  levél tetején „Leiratkozás” gomb (List-Unsubscribe-Post).
+  reklámlevél (pl. elhagyott kosár a saját, **feliratkozott** címedre) alján a feladó (Asita Cult Kft.) és a leiratkozó
+  link; Gmailben a levél tetején „Leiratkozás” gomb (List-Unsubscribe-Post). Feliratkozás nélküli címmel az elhagyott
+  kosár levél nem megy (Mandala levelek → Napló: „nincs hozzájárulás – nem ment”).
 - [ ] **AI tanácsadó:** 15–20 valódi vásárlói kérdés (ajánlás kerettel, termékoldalon „Kérdésem van”, szállítás,
   visszaküldés, egy témán kívüli kérdés); a linkelt termékek léteznek-e, az árak stimmelnek-e. A WooCommerce →
   Mandala tanácsadó oldalon a beszélgetések és a tokenek.

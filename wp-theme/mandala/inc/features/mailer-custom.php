@@ -455,7 +455,7 @@ function mandala_custom_mail_fields(string $id): void
         . '<tr><th scope="row">Kinek?</th><td>' . $sel('recipient', ['customer' => 'a vásárlónak', 'admin' => 'a boltnak (belső értesítés)', 'custom' => 'ezekre a címekre:'], $m['recipient'], 'Címzett')
         . ' <input type="text" name="cm[to]" value="' . esc_attr($m['to']) . '" class="regular-text" placeholder="raktar@mandala.hu, …" aria-label="Címek"' . ($m['recipient'] === 'custom' ? '' : ' hidden') . '>'
         . '<script>document.querySelector(\'select[name="cm[recipient]"]\').addEventListener("change", (e) => { document.querySelector(\'input[name="cm[to]"]\').hidden = e.target.value !== "custom"; });</script>'
-        . '<p><label><input type="checkbox" name="cm[marketing]" value="1"' . checked($m['marketing'], 'yes', false) . '> marketing jellegű (leiratkozó link, leiratkozottnak nem megy)</label></p></td></tr>'
+        . '<p><label><input type="checkbox" name="cm[marketing]" value="1"' . checked($m['marketing'], 'yes', false) . '> reklámlevél (kupon, ajánlat, visszacsábítás – ilyenkor kötelező): csak hírlevél-feliratkozónak megy (Grt. 6. §), a végén a feladó és egy kattintásos leiratkozó link; a rendelésről szóló, tájékoztató levélnél hagyd üresen</label></p></td></tr>'
         . '<tr><th scope="row">Feltételek</th><td><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;max-width:640px">'
         . '<label>Kategória (slug, vesszővel)<br><input type="text" name="cm[cond][cats]" value="' . esc_attr($c['cats']) . '" class="widefat" placeholder="hangtalak"></label>'
         . '<label>Cikkszám (vesszővel)<br><input type="text" name="cm[cond][skus]" value="' . esc_attr($c['skus']) . '" class="widefat"></label>'

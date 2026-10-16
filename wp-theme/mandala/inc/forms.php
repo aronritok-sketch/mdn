@@ -142,7 +142,7 @@ add_action('admin_post_mandala_newsletter_csv', function () {
     fputcsv($out, ['email', 'datum', 'forras', 'nev', 'hozzajarulas_idopont_utc', 'ip', 'hozzajarulas_szovege', 'valtozat'], ',', '"', '');
     foreach ($subs as $email => $row) {
         $p = $proof[$email] ?? [];
-        fputcsv($out, [$email, $row['date'] ?? '', $row['source'] ?? '', ($row['name'] ?? '') ?: ($p['name'] ?? ''), $p['created'] ?? '', $p['ip'] ?? '', $p['wording'] ?? '', $p['version'] ?? ''], ',', '"', '');
+        fputcsv($out, mandala_csv_row([$email, $row['date'] ?? '', $row['source'] ?? '', ($row['name'] ?? '') ?: ($p['name'] ?? ''), $p['created'] ?? '', $p['ip'] ?? '', $p['wording'] ?? '', $p['version'] ?? '']), ',', '"', '');
     }
     exit;
 });

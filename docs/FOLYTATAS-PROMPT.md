@@ -20,7 +20,7 @@ PR-t ne nyiss). Commit-üzenet magyarul, a végén a szokásos Co-Authored-By / 
 - Build: `python3 tools/build-theme.py --content` → `dist/mandala-tema.zip` (verzió: 1.1.ÉÉÉÉHHNNÓÓPP), varázsló,
   telepítő csomag. A `dist/laci/` nincs a repóban (adatbázis-jelszós JUTA-szkriptek).
 - Tesztek (helyi WordPress + Playwright): `tests/wp-e2e.mjs`, `wp-features.mjs`, `wp-marketing.mjs`,
-  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 306/0 (2026-10-12), mkt 68/0, olds 24/0, oldd 34/0; feat 337/0 (2026-10-16, Partner CRM 2. hullám, MariaDB-s teszt-WP); feat 372/0, e2e 77/0, mkt 68/0 (2026-10-16, hozzájárulások; iu_theme-stub, friss `wp mandala setup --demo` + MariaDB).
+  `wp-oldsettings.mjs`, `wp-olddata.mjs`. Utolsó eredmény: e2e 77/0, feat 306/0 (2026-10-12), mkt 68/0, olds 24/0, oldd 34/0; feat 337/0 (2026-10-16, Partner CRM 2. hullám, MariaDB-s teszt-WP); feat 372/0, e2e 77/0, mkt 68/0 (2026-10-16, hozzájárulások; iu_theme-stub, friss `wp mandala setup --demo` + MariaDB); feat 379/0 (egy futásban 378/1: a halasztott átutalás pénztára a csalásvédelem „túl gyors” szabályán akad – időzítés), e2e 77/0, mkt 70/0 (2026-10-16, átnézés: reklámlevél csak hozzájárulással).
   A tesztkörnyezet előfeltételei (friss `wp mandala setup --demo` után): a GLS-helyettesítő módok a magyar zónában,
   `viszontelado` / `b2b` felhasználó `b2b@example.com` címmel és 29000-es nagyker árral a MND-HT-0490-en,
   `WP_ENVIRONMENT_TYPE=local` (alkalmazásjelszó http-n), a `wp-plugin/*` belinkelve, a WooCommerce bevezető kihagyva.
@@ -102,6 +102,14 @@ ajánlat-linkből – `inc/features/crm-partner.php`, `docs/PARTNER-CRM.md`) –
    listájáról, MailerLite: a partnerlevelet kérő viszonteladók csak a Viszonteladók csoportba, a CRM `consent` parancsa
    (`docs/PARTNER-CRM.md`). A CRM-oldali párja (hlprv `helloprovision-partner`: a `consent` parancs küldése a kartonról /
    leiratkozáskor, az `arrivals_off` kezelése) még nincs meg.
+   Átnézés után (2026-10-16, téma 1.1.202610162322): reklámlevél csak hozzájárulással (`mandala_marketing_consent` a `mandala_send_mail`-ben –
+   az emlékeztetők is csak hírlevél-feliratkozónak, a heti levél a kérő viszonteladónak, a születésnapi kupon annak, aki
+   ezért megadta a napját; napló: „no_consent”), az elhagyott kosár csak feliratkozónál rögzül, a születésnap megadása /
+   törlése a hozzájárulás-naplóba kerül, az általános leiratkozás ezt is visszavonja, a hírlevél visszavonása törli a
+   megnézett termékek adatát, a felugró ablak pipája kifejezetten a hírlevélről szól, a MailerLite Viszonteladók csoportja a
+   viszonteladói szerepet is követi (jóváhagyás után bekerül), a CSV-k képlet-biztosak, az előnézet
+   és a tesztlevél a reklámlevél láblécével. Nyitott (Áron dönt): külön „emlékeztetők” cél saját pipával, ha a
+   feliratkozás nélküli vásárlóknak is mennének.
 
 9. **Mandala Partner CRM – 1. szakasz kész (2026-10-12)**: telepítésre vár (új WordPress, javasolt cím partner.mandala.hu,
    hlprv `docs/partner/README.md` → Telepítés), utána az összekötő kód a mandala.hu-ra (WooCommerce → Partner CRM).

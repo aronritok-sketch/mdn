@@ -7,6 +7,7 @@
  * (felugró ablak, pénztár, weboldal űrlap), és a böngésző csak akkor jelez, ha a marketing sütikhez is
  * hozzájárult. Nem megy, ha közben rendelt, leiratkozott, vagy 7 napon belül már kapott ilyet; a már
  * elfogyott termék kimarad. Az oldal-gyorsítótárat nem zavarja (a jelzés a böngészőből megy).
+ * A hírlevél visszavonásakor vagy leiratkozáskor a cím megnézett termékei is törlődnek (nincs már cél, amire kellenének).
  * Be/ki, időzítés, szöveg: Mandala levelek → „Megnézett termékek” levél.
  */
 
@@ -41,6 +42,17 @@ add_action('init', function () {
 });
 
 /* ---------- Azonosítás: feliratkozáskor ---------- */
+
+// Visszavonás (Fiókom) vagy leiratkozás (levél, MailerLite): a megnézett termékek adata törlődik.
+foreach (['mandala_newsletter_withdrawn', 'mandala_unsubscribed'] as $mandala_hook) {
+    add_action($mandala_hook, function ($email) {
+        global $wpdb;
+        if (get_option('mandala_browse_db') === MANDALA_BROWSE_DB_VERSION) {
+            $wpdb->delete(mandala_browse_table(), ['email' => strtolower((string) $email)]);
+        }
+    });
+}
+unset($mandala_hook);
 
 add_action('mandala_newsletter_subscribed', function ($email) {
     $email = strtolower(sanitize_email((string) $email));
@@ -117,7 +129,7 @@ function mandala_browse_sweep(): int
     foreach ($rows as $row) {
         $mark = fn() => $wpdb->update(mandala_browse_table(), ['last_sent' => current_time('mysql', true)], ['token' => $row->token]);
         $since = $row->last_sent ? strtotime($row->last_sent . ' UTC') : 0;
-        if (mandala_is_unsubscribed($row->email)) {
+        if (!mandala_marketing_consent($row->email)) { // leiratkozott / visszavonta a hírlevelet
             $mark();
             continue;
         }

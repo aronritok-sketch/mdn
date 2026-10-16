@@ -31,7 +31,7 @@ function mandala_pricedrop_sweep(): int
     $rows = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} WHERE last_view > %s", gmdate('Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS))); // phpcs:ignore
     $sent = 0;
     foreach ($rows as $row) {
-        if (mandala_is_unsubscribed($row->email)) {
+        if (!mandala_marketing_consent($row->email)) { // leiratkozott / visszavonta a hírlevelet
             continue;
         }
         $last_mail = (int) get_transient('mandala_pd_' . md5($row->email));

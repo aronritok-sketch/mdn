@@ -6,6 +6,9 @@
  *  - Megadás: Fiókom → Fiókadatok, illetve a pénztárban (nem kötelező mező).
  *  - Tárolás: e-mail-cím → „HH-NN” (vendég vásárlónál is), a WordPress adatexport/-törlés eszközeivel kezelhető.
  *  - Február 29.: nem szökőévben február 28-án megy.
+ *  - Hozzájárulás (Grt. 6. § (1), (5)): a születésnap megadása (a mező alatt: „Születésnapodon kedvezménykupont
+ *    küldünk”) a kupon-levélhez adott hozzájárulás – a naplóba kerül (consent.php, cél: birthday, a mező szövegével,
+ *    időponttal, IP-vel); a törlése visszavonás. A levél reklámlevél: feladó, egy kattintásos leiratkozás.
  * Beállítás: WooCommerce → Mandala kuponok; a levél szövege: Mandala levelek → Születésnapi kupon.
  */
 
@@ -17,19 +20,29 @@ function mandala_birthday_get(string $email): string
 {
     return (string) (((array) get_option(MANDALA_BIRTHDAY_OPTION, []))[strtolower($email)] ?? '');
 }
-function mandala_birthday_set(string $email, string $md): void
+/**
+ * A születésnap mentése. $source (fiok | penztar): a vásárló maga adta meg / törölte → a hozzájárulás (vagy a
+ * visszavonása) a naplóba; üresen (pl. adattörlés) nincs naplózás. $x: user_id, name (consent.php).
+ */
+function mandala_birthday_set(string $email, string $md, string $source = '', array $x = []): void
 {
     $email = strtolower(sanitize_email($email));
     if (!is_email($email)) {
         return;
     }
     $all = (array) get_option(MANDALA_BIRTHDAY_OPTION, []);
+    $old = (string) ($all[$email] ?? '');
     if ($md === '') {
         unset($all[$email]);
     } else {
         $all[$email] = $md;
     }
     update_option(MANDALA_BIRTHDAY_OPTION, $all, false);
+    if ($source !== '' && ($md === '') !== ($old === '') && function_exists('mandala_consent_log')) {
+        $place = $source === 'penztar' ? __('Pénztár', 'mandala') : __('Fiókom → Fiókadatok', 'mandala');
+        $wording = $md !== '' ? $place . ' – ' . sprintf(__('születésnap megadása (nem kötelező mező): „%s”', 'mandala'), mandala_consent_text('birthday')) : '';
+        mandala_consent_log($email, 'birthday', $md !== '', $source, ['wording' => $wording] + $x);
+    }
 }
 function mandala_birthday_count(): int
 {
@@ -59,7 +72,7 @@ function mandala_birthday_fields(string $prefix, string $value, string $label): 
     return '<fieldset class="form-row form-row-wide birthday-field"><legend>' . esc_html($label) . ' <span class="optional">(' . esc_html__('nem kötelező', 'mandala') . ')</span></legend>'
         . '<div class="birthday-selects"><label class="sr-only" for="' . $prefix . '_m">' . esc_html__('Hónap', 'mandala') . '</label><select id="' . $prefix . '_m" name="' . $prefix . '_m">' . $mo . '</select>'
         . '<label class="sr-only" for="' . $prefix . '_d">' . esc_html__('Nap', 'mandala') . '</label><select id="' . $prefix . '_d" name="' . $prefix . '_d">' . $do . '</select></div>'
-        . '<p class="description">' . esc_html__('Születésnapodon kedvezménykupont küldünk. Évet nem kérünk.', 'mandala') . '</p></fieldset>';
+        . '<p class="description">' . esc_html(mandala_consent_text('birthday')) . '</p></fieldset>';
 }
 
 /* ---------- Fiókom → Fiókadatok ---------- */
@@ -76,7 +89,7 @@ add_action('woocommerce_save_account_details', function ($user_id) {
         return;
     }
     $u = get_userdata($user_id);
-    mandala_birthday_set($u->user_email, mandala_birthday_from_post('mandala_bday'));
+    mandala_birthday_set($u->user_email, mandala_birthday_from_post('mandala_bday'), 'fiok', ['user_id' => (int) $user_id, 'name' => mandala_consent_user_name($u)]);
 });
 
 /* ---------- Pénztár ---------- */
@@ -95,7 +108,7 @@ add_action('woocommerce_checkout_order_processed', function ($order_id) {
     $md = mandala_birthday_from_post('mandala_bday');
     $order = wc_get_order($order_id);
     if ($md && $order && !mandala_birthday_get($order->get_billing_email())) {
-        mandala_birthday_set($order->get_billing_email(), $md);
+        mandala_birthday_set($order->get_billing_email(), $md, 'penztar', ['user_id' => (int) $order->get_customer_id(), 'name' => trim($order->get_billing_last_name() . ' ' . $order->get_billing_first_name())]);
     }
 });
 
@@ -145,7 +158,7 @@ function mandala_birthday_send(string $today = ''): int
 
 add_filter('mandala_mail_types', function ($types) {
     $types['birthday'] = [
-        'label' => 'Születésnapi kupon', 'group' => 'Értesítések', 'marketing' => true,
+        'label' => 'Születésnapi kupon', 'group' => 'Értesítések', 'marketing' => true, 'consent' => 'birthday',
         'is_enabled' => fn() => mandala_growth_settings()['birthday'] === 'yes',
         'when' => 'A vásárló születésnapján reggel, ha megadta (Fiókom vagy pénztár). Évente egyszer; be/ki és a kedvezmény: WooCommerce → Mandala kuponok.',
         'vars' => ['keresztnev' => 'A keresztnév', 'kupon' => 'A kuponkód', 'kupon_ertek' => 'A kedvezmény (pl. 15%)'], 'blocks' => ['kupon_doboz' => 'Kupon doboz', 'gomb' => '„Ajándék magamnak” gomb'],

@@ -8,6 +8,7 @@
  *    _mandala_b2b_arrivals = yes), csak a Viszonteladók csoportba kerül (ha be van állítva) – hírlevél-feliratkozás
  *    nélkül is, de a hírlevél csoportokba nem. Visszavonáskor a csoportból kikerül; ha semmilyen hozzájárulás nem maradt,
  *    a MailerLite-ban is leiratkozott lesz. Új, kifejezett hozzájárulásnál resubscribe (a korábban leiratkozott újra aktív).
+ *    A szerepet is követi: jóváhagyáskor (új fiók / viszonteladói szerep) bekerül, a szerep elvételekor kikerül.
  *  - Vásárlási adatok mezőkben a szegmentáláshoz (ha be van kapcsolva): vásárlások száma, költés,
  *    utolsó rendelés, vásárolt kategóriák, viszonteladó-e, honnan iratkozott fel. Rendelés teljesítésekor
  *    frissül; vásárló / viszonteladó csoport is választható.
@@ -259,6 +260,34 @@ add_action('mandala_partner_consent_changed', function ($uid, $purpose, $on, $so
         mandala_ml_queue($u->user_email, $on ? 'consent' : 'withdrawn');
     }
 }, 10, 4);
+// Viszonteladó lett (a jóváhagyás új fiókot nyit, vagy szerepet ad – a jelentkezés partnerlevél-pipája ekkor kerül a
+// fiókra) / már nem az: a Viszonteladók csoport követi. Csak ha van partnerlevél- vagy heti levél-hozzájárulása.
+add_action('user_register', 'mandala_ml_role_sync', 25);
+add_action('add_user_role', 'mandala_ml_role_sync', 20, 2);
+add_action('remove_user_role', 'mandala_ml_role_sync', 20, 2);
+add_action('set_user_role', 'mandala_ml_role_sync', 20, 3);
+function mandala_ml_role_sync($uid, $role = '', $old_roles = []): void
+{
+    $u = get_userdata((int) $uid);
+    if (!$u || !mandala_ml_ready() || (string) mandala_ml_settings()['b2b_group'] === '' || mandala_is_unsubscribed($u->user_email)) {
+        return;
+    }
+    $yes = fn($k) => get_user_meta($u->ID, $k, true) === 'yes';
+    if (!$yes('_mandala_partner_mail') && !$yes('_mandala_b2b_arrivals')) {
+        return;
+    }
+    if (mandala_ml_partner($u->user_email)) {
+        mandala_ml_queue($u->user_email, 'consent');
+        return;
+    }
+    // A viszonteladói szerep lekerült: ki a Viszonteladók csoportból.
+    $roles = (array) apply_filters('mandala_wholesale_roles', ['wholesale_customer']);
+    $lost = current_action() === 'remove_user_role' ? in_array((string) $role, $roles, true) : (current_action() === 'set_user_role' && array_intersect((array) $old_roles, $roles));
+    if ($lost) {
+        mandala_ml_queue($u->user_email, 'withdrawn');
+    }
+}
+
 add_action('woocommerce_order_status_completed', function ($order_id) {
     $order = wc_get_order($order_id);
     if ($order && mandala_ml_ready() && (mandala_ml_is_subscriber($order->get_billing_email()) || mandala_ml_partner($order->get_billing_email()))) {

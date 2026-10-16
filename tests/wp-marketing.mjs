@@ -154,11 +154,20 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
 // ======================= Árcsökkenés-értesítő =======================
 {
   const pid = wp('echo wc_get_product_id_by_sku("MND-FK-0012");');
-  wp(`global $wpdb; $wpdb->replace(mandala_browse_table(), ["token" => str_repeat("a", 32), "email" => "arfigyelo@example.com", "views" => wp_json_encode([[${pid}, time() - 3600, 99999]]), "last_view" => gmdate("Y-m-d H:i:s", time() - 3600), "created" => gmdate("Y-m-d H:i:s")]);`);
+  const browseRow = () => wp(`global $wpdb; $wpdb->replace(mandala_browse_table(), ["token" => str_repeat("a", 32), "email" => "arfigyelo@example.com", "views" => wp_json_encode([[${pid}, time() - 3600, 99999]]), "last_view" => gmdate("Y-m-d H:i:s", time() - 3600), "created" => gmdate("Y-m-d H:i:s")]);`);
+  // Reklámlevél: hírlevél-hozzájárulás nélkül (pl. a Fiókomban visszavonta) nem megy.
+  wp('$n = (array) get_option("mandala_newsletter", []); unset($n["arfigyelo@example.com"]); update_option("mandala_newsletter", $n, false);');
+  browseRow();
+  ok(wp('echo mandala_pricedrop_sweep();') === '0', 'árcsökkenés: hírlevél-hozzájárulás nélkül nem megy');
+  wp('mandala_newsletter_subscribe("arfigyelo@example.com", "weboldal", "teszt");');
+  browseRow();
   const m0 = mails().length;
   ok(wp('echo mandala_pricedrop_sweep();') === '1' && /Olcsóbb lett, amit néztél/.test(mails().slice(m0)), 'árcsökkenés: a megnézett, azóta olcsóbb termékről levél megy');
   wp('delete_transient("mandala_pd_" . md5("arfigyelo@example.com"));');
   ok(wp('echo mandala_pricedrop_sweep();') === '0', 'árcsökkenés: ugyanarról az árról nem megy újra');
+  // Visszavonáskor a megnézett termékek adatai is törlődnek (nincs már cél, amire kellenének).
+  wp('mandala_newsletter_withdraw("arfigyelo@example.com", "fiok");');
+  ok(wp('global $wpdb; echo (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM " . mandala_browse_table() . " WHERE email = %s", "arfigyelo@example.com"));') === '0', 'hírlevél visszavonása: a megnézett termékek adata törlődik');
 }
 
 // ======================= Kilépési ablak (csak kilépéskor mód) =======================

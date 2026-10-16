@@ -134,6 +134,15 @@ külön, alapból üres pipája van, a vásárlás egyiktől sem függ:
 | Hírlevél | lábléc űrlapja, pénztár, felugró ablak, Fiókom → Hírlevél, regisztráció | Fiókom → Hírlevél, a levél alján egy kattintás |
 | Partnerlevél (viszonteladó) | viszonteladói jelentkezés, viszonteladói felület, a Partner CRM-ben rögzített telefonos hozzájárulás | viszonteladói felület, a CRM, a levél alján |
 | Heti új érkezések (viszonteladó) | viszonteladói felület | viszonteladói felület, a levél alján (csak erről a levélről) |
+| Születésnapi kupon | a születésnap megadása (Fiókom → Fiókadatok, pénztár – „Születésnapodon kedvezménykupont küldünk”) | a születésnap törlése, a levél alján |
+
+**A vásárlás nem hozzájárulás** (nincs „soft opt-in”): az emlékeztetők és ajánlók (elhagyott kosár, értékelés kérése,
+újrarendelés, vásárlás utáni ajánló, kedvencek, megnézett / olcsóbb lett termékek, üdvözlő kupon, a reklámnak jelölt
+saját levelek) is reklámlevelek, ezért **csak hírlevél-feliratkozónak** mennek – a többi címre a levélnaplóban
+„nincs hozzájárulás – nem ment” áll. Az elhagyott kosarat a pénztár is csak feliratkozónál rögzíti. Partnerlevél-
+hozzájárulás (B2B) nem elég a webshop B2C leveleihez. Ha ezeket a feliratkozás nélküli vásárlóknak is küldeni akarjátok,
+ahhoz külön, alapból üres pipa kell („Kérek személyre szabott emlékeztetőket…”) – ez a `mandala_marketing_consent`
+szűrővel köthető be.
 
 Minden megadás és visszavonás a hozzájárulás-naplóba kerül: időpont, forrás, a pipa **pontos szövege** és változata,
 IP-cím, név (ha ismert) – ez a bizonyíték (Grt. 6. § (5)). Letöltés: **Eszközök → Mandala űrlapok** → hírlevél-
@@ -143,7 +152,8 @@ maradnak meg (addig kell tudni bizonyítani, hogy a korábbi levelekhez volt hoz
 Minden reklámlevél alján: „Reklámlevél – feladó: Mandala – Asita Cult Kft., 1093 Budapest, Bakáts u. 6.”, hogy miért
 kapja, és egy kattintásos leiratkozó link (belépés nélkül); a fejlécben `List-Unsubscribe` és `List-Unsubscribe-Post`
 (a Gmail / Apple Mail „Leiratkozás” gombja is működik). Az általános leiratkozás minden reklámlevelet leállít
-(hírlevél, emlékeztetők, partnerlevél, heti levél – a Partner CRM és a MailerLite is megkapja). Új, kifejezett
+(hírlevél, emlékeztetők, születésnapi kupon, partnerlevél, heti levél – a Partner CRM és a MailerLite is megkapja; a
+megnézett termékek adata és a születésnap törlődik). Új, kifejezett
 hozzájárulás (pl. újra feliratkozik) leveszi a leiratkozottak listájáról. A hírlevél-feliratkozás egylépcsős (nincs
 megerősítő levél); hozzájárulást kérő levelet nem küldünk (az maga is reklám). Tranzakciós levélbe (rendelés, szállítás,
 utalvány, visszaküldés) nem teszünk reklámot vagy feliratkozásra hívást.

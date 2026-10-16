@@ -3,7 +3,7 @@
 const M = window.MANDALA || {};
 const W = M.welcome;
 // A szövegek a szerverről jönnek (consent.php) – ugyanez kerül a hozzájárulás-naplóba.
-const T = { lead: 'Iratkozz fel a hírlevelünkre – ritkán írunk, akkor is az új érkezésekről Nepálból és Indiából.', accept: 'Elfogadom az %s, bármikor leiratkozhatok.', link: 'adatkezelési tájékoztatót', button: 'Kérem a kupont', ...(W?.text || {}) };
+const T = { lead: 'Iratkozz fel a hírlevelünkre – ritkán írunk, akkor is az új érkezésekről Nepálból és Indiából.', accept: 'Feliratkozom a hírlevélre, és elfogadom az %s. Bármikor leiratkozhatok.', link: 'adatkezelési tájékoztatót', button: 'Kérem a kupont', ...(W?.text || {}) };
 const KEY = 'mandala.welcome';
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const seen = () => { try { return Number(localStorage.getItem(KEY) || 0) > Date.now() - 14 * 864e5; } catch { return true; } };

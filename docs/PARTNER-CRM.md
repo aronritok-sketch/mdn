@@ -80,7 +80,10 @@ discount_level, discount_pct, payment_days, blocked, block_reason }`.
   (B2C, külön cél) nem változik. Az `arrivals_off` aktivitás-esemény megjön.
 - **`partner_mail: 'yes'`** – a CRM-ben rögzített hozzájárulás (pl. telefonon vagy személyesen kérte – Grt. 6. § (8)):
   a partnerlevél bekapcsol, a webshop leveszi a címet a leiratkozottak listájáról, a MailerLite újra aktiválja
-  (`resubscribe`). A heti új érkezések levele nem kapcsol be (azt a partner maga kéri a felületen).
+  (`resubscribe`). A heti új érkezések levele nem kapcsol be (azt a partner maga kéri a felületen). A webshop B2C
+  reklámleveleihez (hírlevél, emlékeztetők) ez nem hozzájárulás – azokhoz hírlevél-feliratkozás kell.
+- A MailerLite Viszonteladók csoportja a viszonteladói szerepet is követi: a jóváhagyáskor (új fiók vagy szerep) a
+  partnerlevél-hozzájárulással rendelkező partner bekerül, a szerep elvételekor kikerül.
 - `source` (nem kötelező, pl. `telefon`, `szemelyesen`, `leiratkozas`) → a webshopban `crm:<source>` forrás;
   `wording` (`yes`-nél): a hozzájárulás pontos szövege, ahogy a CRM-ben rögzítették (pl. „Telefonon kérte a
   partnerleveleket (Kovács Judit, 2026-10-16)”) – üresen „Telefonon vagy személyesen kérte a partnerleveleket (a Partner
@@ -153,7 +156,8 @@ A téma 1.1.202610121823-tól van benne; a terms parancs, az üzenet, a webes fo
 a 2026. októberi 2. hullámtól (1.1.202610160024); az időpontok zónával, a `user_email`-párosítás, az ajánlat
 darabszám-korlátja, a kosárbeli lejárat és az újrahasználat szabálya, a szint százaléka csak a listából és a jóváhagyás
 szerep-hozzáadása az 1.1.202610160526-tól; a `consent` parancs, a hozzájárulás-napló (forrás, szöveg, IP), az
-`arrivals_off` esemény és a fiók-esemény új hozzájárulás-mezői az 1.1.202610162144-tól. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
+`arrivals_off` esemény és a fiók-esemény új hozzájárulás-mezői az 1.1.202610162144-tól; a MailerLite Viszonteladók
+csoportjának szerep-követése (jóváhagyáskor be) az 1.1.202610162322-től. Összekötés nélkül a modul semmit nem gyűjt és nem küld. A titok csak az admin felületen / wp-config.php-ban van, a
 repóban soha.
 
 ## Teszt

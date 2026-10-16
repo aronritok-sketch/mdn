@@ -1,7 +1,8 @@
 <?php
 /**
  * E-mail automatizmusok (Action Scheduler – a WooCommerce része):
- *  - elhagyott kosár: egyetlen emlékeztető a kosár visszaállító linkjével;
+ *  - elhagyott kosár: egyetlen emlékeztető a kosár visszaállító linkjével – reklámlevél, ezért csak hírlevél-
+ *    feliratkozónak (Grt. 6. § (1), nincs „soft opt-in”); más címet a pénztár nem is rögzít;
  *  - használati útmutató a teljesített rendelés után;
  *  - újrarendelés emlékeztető fogyóeszközöknél (füstölő);
  *  - értékelés kérése személyes, ellenőrzött linkkel (lásd reviews.php).
@@ -25,11 +26,14 @@ function mandala_schedule(int $delay_seconds, string $hook, array $args): void
 
 /* ---------- Elhagyott kosár ---------- */
 
-/** A pénztár az e-mail megadásakor jelez (wc-ajax=mandala_capture). */
+/**
+ * A pénztár az e-mail megadásakor jelez (wc-ajax=mandala_capture). Csak hírlevél-feliratkozó kosarát tesszük el: más
+ * címre az emlékeztető úgysem mehet (reklámlevél hozzájárulás nélkül), így az adatra sincs szükség.
+ */
 add_action('wc_ajax_mandala_capture', function () {
     mandala_verify_cart_request();
     $email = strtolower(sanitize_email(wp_unslash($_POST['email'] ?? '')));
-    if (!mandala_automation_on('abandoned') || !is_email($email) || !WC()->cart || WC()->cart->is_empty() || mandala_is_unsubscribed($email)) {
+    if (!mandala_automation_on('abandoned') || !is_email($email) || !WC()->cart || WC()->cart->is_empty() || !mandala_marketing_consent($email)) {
         wp_send_json(['ok' => false]);
     }
     $items = [];
@@ -225,7 +229,7 @@ add_action('mandala_mail_reorder', function ($order_id) {
 
 add_filter('woocommerce_billing_fields', function ($fields) {
     if (mandala_automation_on('abandoned') && isset($fields['billing_email'])) {
-        $fields['billing_email']['description'] = __('Ide küldjük a visszaigazolást és a csomagkövetést. Ha nem fejezed be a rendelést, egyszer emlékeztetünk – ebből egy kattintással leiratkozhatsz.', 'mandala');
+        $fields['billing_email']['description'] = __('Ide küldjük a visszaigazolást és a csomagkövetést. Ha feliratkoztál a hírlevelünkre, és nem fejezed be a rendelést, egyszer emlékeztetünk.', 'mandala');
     }
     return $fields;
 }, 30);

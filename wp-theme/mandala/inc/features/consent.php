@@ -17,6 +17,10 @@
  *    aktív lesz. Vásárlás nem függ tőle: minden pipa külön, alapból üres.
  *  - Leiratkozás egy kattintással, belépés nélkül: mailer.php (?mandala_unsub=…, List-Unsubscribe + List-Unsubscribe-Post).
  *    Az általános leiratkozás minden reklámlevelet leállít (mandala_unsubscribe_all), a heti levélé csak azt.
+ *  - Reklámlevél csak érvényes hozzájárulással megy (mandala_marketing_consent – a mandala_send_mail ellenőrzi): a
+ *    vásárlás önmagában nem hozzájárulás (nincs „soft opt-in”), így az emlékeztetők (elhagyott kosár, újrarendelés,
+ *    ajánló, kedvencek, értékelés kérése) is csak hírlevél-feliratkozónak mennek; a heti új érkezések levele a
+ *    viszonteladónak, aki kérte; a születésnapi kupon annak, aki ezért megadta a születésnapját (napló: birthday).
  * Admin: Eszközök → Mandala űrlapok → CSV (feliratkozók a bizonyítékkal, partnerlevél-hozzájárulások, teljes napló).
  */
 
@@ -28,6 +32,7 @@ const MANDALA_CONSENT_PURPOSES = [
     'newsletter' => 'Hírlevél',
     'partner_mail' => 'Partnerlevél',
     'b2b_arrivals' => 'Heti új érkezések (viszonteladó)',
+    'birthday' => 'Születésnapi kupon',
     'all' => 'Minden reklámlevél (általános leiratkozás)',
 ];
 
@@ -90,12 +95,13 @@ function mandala_consent_text(string $key): string
         'checkout' => __('Feliratkozom a hírlevélre (havonta kétszer, bármikor leiratkozhatok)', 'mandala'),
         'account' => __('Kérem a Mandala hírlevelét (új érkezések, cikkek, kedvezmények – havonta kétszer, bármikor leiratkozhatok)', 'mandala'),
         'popup_lead' => __('Iratkozz fel a hírlevelünkre – ritkán írunk, akkor is az új érkezésekről Nepálból és Indiából.', 'mandala'),
-        'popup_accept' => __('Elfogadom az %s, bármikor leiratkozhatok.', 'mandala'),
+        'popup_accept' => __('Feliratkozom a hírlevélre, és elfogadom az %s. Bármikor leiratkozhatok.', 'mandala'),
         'popup_link' => __('adatkezelési tájékoztatót', 'mandala'),
         'popup_button' => __('Kérem a kupont', 'mandala'),
         'partner_mail' => __('Kérek partnerleveleket (új érkezések, akciók)', 'mandala'),
         'b2b_arrivals' => __('Heti levél az új érkezésekről', 'mandala'),
         'crm' => __('Telefonon vagy személyesen kérte a partnerleveleket (a Partner CRM-ben rögzítve)', 'mandala'),
+        'birthday' => __('Születésnapodon kedvezménykupont küldünk. Évet nem kérünk.', 'mandala'),
     ];
     return (string) apply_filters('mandala_consent_text', $texts[$key] ?? '', $key);
 }
@@ -183,6 +189,34 @@ function mandala_consent_lift(string $email): bool
     return true;
 }
 
+/**
+ * Mehet-e reklámlevél erre a címre (Grt. 6. § (1)): természetes személynek – az egyéni vállalkozónak is – csak
+ * előzetes, kifejezett hozzájárulással; a vásárlás önmagában nem az (nincs „soft opt-in”). $purpose:
+ *  - 'b2b'       a heti új érkezések levele: a viszonteladó a fiókjában kérte (_mandala_b2b_arrivals = yes);
+ *  - 'birthday'  a születésnapi kupon: a születésnapját ezért adta meg (birthday.php, napló: birthday);
+ *  - ''          minden más reklámlevél (emlékeztetők, ajánló, kedvencek, értékelés kérése, üdvözlő kupon, saját
+ *                reklámlevél): a hírlevél-hozzájárulás.
+ * A leiratkozott címre (mandala_unsubscribed) semmi nem megy. A partnerlevél-hozzájárulás (B2B, a CRM / MailerLite
+ * küldi) külön cél: a webshop B2C reklámleveleihez nem elég. Szűrő: mandala_marketing_consent (pl. egy későbbi, saját
+ * pipával kért cél).
+ */
+function mandala_marketing_consent(string $email, string $purpose = ''): bool
+{
+    $email = strtolower(trim($email));
+    if (!is_email($email) || mandala_is_unsubscribed($email)) {
+        return false;
+    }
+    if ($purpose === 'b2b') {
+        $user = get_user_by('email', $email);
+        $ok = $user && get_user_meta($user->ID, '_mandala_b2b_arrivals', true) === 'yes';
+    } elseif ($purpose === 'birthday') {
+        $ok = function_exists('mandala_birthday_get') && mandala_birthday_get($email) !== '';
+    } else {
+        $ok = mandala_newsletter_is_active($email);
+    }
+    return (bool) apply_filters('mandala_marketing_consent', $ok, $email, $purpose);
+}
+
 /* ---------- Hírlevél ---------- */
 
 /** A forráskódok rövid neve a feliratkozók listájában (a MailerLite mandala_forras mezője is ez). */
@@ -242,8 +276,8 @@ function mandala_newsletter_withdraw(string $email, string $source, array $x = [
 }
 
 /**
- * Általános leiratkozás: minden reklámlevél leáll (a leiratkozottak listájára, le a hírlevélről, partnerlevél és heti
- * új érkezések ki – a CRM is megkapja). A rendelésekről szóló levelek továbbra is mennek.
+ * Általános leiratkozás: minden reklámlevél leáll (a leiratkozottak listájára, le a hírlevélről, születésnapi kupon,
+ * partnerlevél és heti új érkezések ki – a CRM is megkapja). A rendelésekről szóló levelek továbbra is mennek.
  * $source: leiratkozo-link | mailerlite | crm | admin. Visszaad: változott-e valami.
  */
 function mandala_unsubscribe_all(string $email, string $source, array $x = []): bool
@@ -267,6 +301,11 @@ function mandala_unsubscribe_all(string $email, string $source, array $x = []): 
         $changed = true;
     }
     $user = get_user_by('email', $email);
+    // A születésnapi kupon is reklámlevél: a hozzájárulás (és vele a születésnap, amire már nincs cél) megszűnik.
+    if (function_exists('mandala_birthday_get') && mandala_birthday_get($email) !== '') {
+        mandala_birthday_set($email, '', $source, ['user_id' => $user ? (int) $user->ID : 0] + $x);
+        $changed = true;
+    }
     if ($user) {
         $partner = false;
         if (get_user_meta($user->ID, '_mandala_b2b_arrivals', true) === 'yes' && function_exists('mandala_b2b_arrivals_set')) {
@@ -393,6 +432,18 @@ add_filter('wp_privacy_personal_data_exporters', function ($exporters) {
 
 /* ---------- Admin: CSV-k (Eszközök → Mandala űrlapok) ---------- */
 
+/**
+ * Egy CSV-sor a látogatók által beírt szövegekkel (név, cég, a pipa szövege): a =, +, -, @ (és tab / CR) kezdetű mező
+ * elé aposztróf kerül, hogy Excelben ne fusson le képletként (CSV-befecskendezés).
+ */
+function mandala_csv_row(array $row): array
+{
+    return array_map(function ($v) {
+        $v = (string) $v;
+        return $v !== '' && strpbrk($v[0], "=+-@\t\r") !== false ? "'" . $v : $v;
+    }, $row);
+}
+
 function mandala_consent_csv_links(): string
 {
     $url = fn($what) => esc_url(wp_nonce_url(admin_url('admin-post.php?action=mandala_consent_csv&what=' . $what), 'mandala_csv'));
@@ -429,11 +480,11 @@ add_action('admin_post_mandala_consent_csv', function () {
             $m = fn($k) => (string) get_user_meta((int) $id, $k, true);
             $p = $proof[$e] ?? [];
             $a = $proof_arr[$e] ?? [];
-            fputcsv($out, [$e, $m('billing_company'), trim($m('billing_last_name') . ' ' . $m('billing_first_name')) ?: $u->display_name,
+            fputcsv($out, mandala_csv_row([$e, $m('billing_company'), trim($m('billing_last_name') . ' ' . $m('billing_first_name')) ?: $u->display_name,
                 $m('_mandala_partner_mail') === 'yes' ? 'kér' : ($m('_mandala_partner_mail') === 'no' ? 'nem kér' : ''), $m('_mandala_partner_mail_at'), $m('_mandala_partner_mail_source') ?: ($p['source'] ?? ''),
                 $m('_mandala_partner_mail_wording') ?: ($p['wording'] ?? ''), $p['version'] ?? '', $p['ip'] ?? '',
                 $m('_mandala_b2b_arrivals') === 'yes' ? 'kér' : ($m('_mandala_b2b_arrivals') === 'no' ? 'nem kér' : ''), $a['created'] ?? '', $a['ip'] ?? '',
-                mandala_is_unsubscribed($e) ? 'igen' : 'nem'], ';', '"', '');
+                mandala_is_unsubscribed($e) ? 'igen' : 'nem']), ';', '"', '');
         }
     } else {
         fputcsv($out, ['id', 'időpont (UTC)', 'email', 'név', 'cél', 'állapot', 'forrás', 'hozzájárulás szövege', 'változat', 'IP', 'fiók'], ';', '"', '');
@@ -441,7 +492,7 @@ add_action('admin_post_mandala_consent_csv', function () {
         for ($last = 0; ; ) {
             $rows = $wpdb->get_results($wpdb->prepare("SELECT * FROM $t WHERE id > %d ORDER BY id LIMIT 2000", $last), ARRAY_A); // phpcs:ignore WordPress.DB.PreparedSQL
             foreach ((array) $rows as $r) {
-                fputcsv($out, [$r['id'], $r['created'], $r['email'], $r['name'], MANDALA_CONSENT_PURPOSES[$r['purpose']] ?? $r['purpose'], $r['granted'] ? 'megadta' : 'visszavonta', $r['source'], $r['wording'], $r['version'], $r['ip'], (int) $r['user_id'] ?: ''], ';', '"', '');
+                fputcsv($out, mandala_csv_row([$r['id'], $r['created'], $r['email'], $r['name'], MANDALA_CONSENT_PURPOSES[$r['purpose']] ?? $r['purpose'], $r['granted'] ? 'megadta' : 'visszavonta', $r['source'], $r['wording'], $r['version'], $r['ip'], (int) $r['user_id'] ?: '']), ';', '"', '');
                 $last = (int) $r['id'];
             }
             if (count((array) $rows) < 2000) {
