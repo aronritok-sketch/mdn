@@ -176,6 +176,10 @@ PRODUCT_CM = {
     '74/0': 15.0,     # Rézkanna 1 l
     '6997/0': 60.0,   # Sál indiános barna
     '6994/0': 60.0,   # Sál indiános bordó
+    '7026/0': 62.0,   # Virágos indás sál 1 (okker-olív)
+    '7031/0': 62.0,   # Virágos indás sál 4 (barna)
+    '7037/0': 62.0,   # Virágos indás sál 6
+    '6105/0': 50.0,   # Cashmere sál narancs
 }
 
 CUT_KEYS = sorted(PRODUCT_CM)
@@ -364,6 +368,8 @@ class Item:
     spec: float = 0.6          # fémes csúcsfény erőssége (réz, sárgaréz: magas; textil: alacsony)
     selflit: bool = False      # saját fényű tárgy (égő gyertya): nem a jelenet fénye világítja, hanem a lángja
     wall: bool = False         # falon lógó tárgy (rattan nap, tükör): nincs padlóárnyék, csak rövid vetett árnyék a falon
+    drop: float = 0.04         # falon / felülnézetben: a vetett árnyék eltolása a tárgy magasságához képest
+    fill: bool = False         # a maszk lyukainak kitöltése (mintás textil)
 
 
 @dataclass
@@ -534,7 +540,19 @@ def build_backdrop(sc: Scene, ctx: Ctx, rng):
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     yy /= h
     xx /= w
-    if kind == 'sweep':
+    if kind == 'flat':
+        # felülnézet (flat lay): a felület textúrája perspektíva nélkül
+        surf = bd.get('surface', 'linen')
+        if surf == 'wood':
+            alb = wood_albedo(h, w, rng, bd.get('wood', '#3A2618'), bd.get('wood_light', '#6A4529'),
+                              plank=bd.get('plank', int(h * 0.3)), grain=bd.get('grain', h * 0.010))
+        elif surf == 'paper':
+            alb = paper_sweep_albedo(h, w, rng, bd.get('top', '#8A431D'), bd.get('bottom', '#9C4E22'), 0.04)
+        else:
+            alb = linen_albedo(h, w, rng, bd.get('cloth', '#E6D9C4'), 0.07, bd.get('thread', 3.0))
+        floor = np.ones((h, w), np.float32)
+        depth = np.zeros((h, w), np.float32)
+    elif kind == 'sweep':
         alb = paper_sweep_albedo(h, w, rng, bd.get('top', '#B5642A'), bd.get('bottom', '#C77A3C'))
         floor = smoothstep(bd.get('bend', 0.55) - 0.12, bd.get('bend', 0.55) + 0.12, yy)
         depth = 1 - floor * smoothstep(0.4, 1.0, yy)
@@ -598,7 +616,7 @@ def build_backdrop(sc: Scene, ctx: Ctx, rng):
         sc._sheen = None
     if bd.get('gobo'):
         g = bd['gobo']
-        gob = leaf_gobo(w, h, rng, g.get('density', 0.5), g.get('leaf', h * 0.05), g.get('branches', 5),
+        gob = leaf_gobo(w, h, rng, g.get('density', 0.5), g.get('leaf', 0.05) * h, g.get('branches', 5),
                         g.get('angle', -25))
         gob = blur_big(gob, h * g.get('soft', 0.012))
         K *= (1 - g.get('strength', 0.75) * gob)
@@ -629,6 +647,19 @@ def item_scale(sc: Scene, it: Item, pr: Product):
     return target_w / pr.alpha.shape[1]
 
 
+def fill_holes(a):
+    """Lapos textil maszkjának lyukai (a sötét mintát a kivágó háttérnek nézheti) – kitöltés."""
+    bw = (a > 0.5).astype(np.uint8)
+    h, w = bw.shape
+    ff = cv2.copyMakeBorder(bw, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0)
+    mask = np.zeros((h + 4, w + 4), np.uint8)
+    cv2.floodFill(ff, mask, (0, 0), 2)
+    holes = (ff[1:-1, 1:-1] == 0).astype(np.float32)
+    k = max(3, int(min(h, w) * 0.01))
+    closed = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8)).astype(np.float32)
+    return np.maximum(a, np.maximum(holes, closed * (blur(a, k) > 0.25)))
+
+
 def prepare_item(sc, it, pr):
     rgb, a = pr.rgb, pr.alpha
     if it.crop:
@@ -643,10 +674,19 @@ def prepare_item(sc, it, pr):
     a = np.clip(cv2.resize(a, (nw, nh), interpolation=interp), 0, 1)
     if it.flip:
         rgb, a = rgb[:, ::-1].copy(), a[:, ::-1].copy()
+    if it.fill:
+        a = fill_holes(a)
     if it.rot:
-        M = cv2.getRotationMatrix2D((nw / 2, nh), it.rot, 1.0)
-        rgb = cv2.warpAffine(rgb, M, (nw, nh), flags=cv2.INTER_LINEAR, borderValue=0)
-        a = cv2.warpAffine(a, M, (nw, nh), flags=cv2.INTER_LINEAR, borderValue=0)
+        # forgatás kibővített vásznon (a sarkok ne vágódjanak le), utána szoros vágás az alfára
+        c, s_ = abs(math.cos(math.radians(it.rot))), abs(math.sin(math.radians(it.rot)))
+        W2, H2 = int(nw * c + nh * s_) + 4, int(nw * s_ + nh * c) + 4
+        M = cv2.getRotationMatrix2D((nw / 2, nh / 2), it.rot, 1.0)
+        M[0, 2] += W2 / 2 - nw / 2
+        M[1, 2] += H2 / 2 - nh / 2
+        rgb = cv2.warpAffine(rgb, M, (W2, H2), flags=cv2.INTER_LINEAR, borderValue=0)
+        a = cv2.warpAffine(a, M, (W2, H2), flags=cv2.INTER_LINEAR, borderValue=0)
+        ys, xs = np.where(a > 0.02)
+        rgb, a = rgb[ys.min():ys.max() + 1, xs.min():xs.max() + 1], a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     return rgb.astype(np.float32), a.astype(np.float32)
 
 
@@ -658,9 +698,15 @@ def relight(rgb, a, L: Light, Kloc, Aloc, exposure=1.0, gobo=None, spec_k=0.6):
     - a tárgy alja felé enyhe takarás (ambient occlusion)"""
     h, w = a.shape
     size = math.sqrt(h * w)
-    hgt = blur(a, size * 0.06)
+    # párna-normál: a maszk távolság-térképéből kupola, annak a meredeksége; a meredekséget a tárgy
+    # 98. percentilisére normáljuk, hogy keskeny részeken (fej, nyél) se legyen éles fény–árnyék váltás
+    dist = cv2.distanceTransform((a > 0.5).astype(np.uint8), cv2.DIST_L2, 5)
+    dome = np.sqrt(np.clip(dist / (size * 0.12), 0, 1))
+    hgt = blur(dome * a, size * 0.025)
     gy, gx = np.gradient(hgt)
-    k = size * 0.6
+    gm = np.hypot(gx, gy)
+    ref = np.percentile(gm[a > 0.5], 98) if (a > 0.5).any() else 1.0
+    k = 0.9 / (ref + 1e-6)
     n = np.dstack([-gx * k, -gy * k, np.ones_like(gx)])
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     L3 = L.L3
@@ -734,9 +780,9 @@ def composite_items(sc: Scene, ctx: Ctx, alb, K, A, depth, floor, rng):
             continue
         big[ya:yb, xa:xb] = a[ya - y0:yb - y0, xa - x0:xb - x0]
         if it.wall:
-            off = ih * 0.04
+            off = ih * it.drop
             sh = np.roll(big, (int(off * 0.6), int(-d[0] * off)), (0, 1))
-            S_cast = np.maximum(S_cast, blur_big(sh, ih * 0.03) * 0.6 * it.shadow)
+            S_cast = np.maximum(S_cast, blur_big(sh, max(2.0, off * 0.8)) * 0.6 * it.shadow)
             continue
         base = (it.floor_y if it.floor_y is not None else it.y) * h
         kx = -d[0] * cot * 0.9
@@ -795,8 +841,7 @@ def composite_items(sc: Scene, ctx: Ctx, alb, K, A, depth, floor, rng):
         Af[ya - y0:yb - y0, xa - x0:xb - x0] = Al
         Kf = blur(Kf, 2)
         # a már lerakott árnyékok a tárgyon (pl. elöl álló tárgy árnyéka a hátsóra)
-        Sl = np.zeros((ih, iw), np.float32)
-        Sl[ya - y0:yb - y0, xa - x0:xb - x0] = S_cast[ya:yb, xa:xb]
+        Sl = np.zeros((ih, iw), np.float32)   # (a hátulról jövő fénynél a vetett árnyék nem esik a tárgyakra)
         if it.selflit:
             # égő gyertya: a viasz a lángtól felülről kap meleg fényt, lefelé halványul
             vv = np.linspace(0, 1, ih, dtype=np.float32)[:, None]
@@ -1009,7 +1054,8 @@ def grade(scene, sc: Scene, rng):
     if gr > 0:
         n = rng.normal(0, 1, (h, w)).astype(np.float32)
         n = 0.7 * n + 0.3 * blur(n, 0.9)
-        s = s + (gr * n * (0.4 + 0.6 * (1 - np.abs(2 * lum[..., 0] - 1))))[..., None]
+        # a mély árnyékban is marad szemcse: ez ditherel, így a WebP nem csíkoz / kockásodik a sötét átmenetekben
+        s = s + (gr * n * (0.75 + 0.25 * (1 - np.abs(2 * lum[..., 0] - 1))))[..., None]
     return np.clip(s, 0, 1)
 
 
@@ -1067,7 +1113,7 @@ def export(img, slot, set_name, out: Path):
     res = []
     for (w, h) in info['sizes']:
         p = out / set_name / f"{info['file']}-{w}.webp"
-        kb, q = save_webp(img, p, (w, h), q=80, max_kb=250 if w >= 1600 else 160)
+        kb, q = save_webp(img, p, (w, h), q=90, max_kb=250 if w >= 1600 else 160)
         res.append((p.name, w, h, round(kb, 1), q))
     return res
 
@@ -1082,6 +1128,7 @@ def main(argv=None):
     ap.add_argument('--cut-only', action='store_true')
     ap.add_argument('--proof', action='store_true', help='JPEG előnézet is az _proof mappába')
     ap.add_argument('--scale', type=float, default=1.0, help='gyors próbához: a mesterméret szorzója (pl. 0.5)')
+    ap.add_argument('--export-only', action='store_true', help='nem renderel újra: a work/masters PNG-iből exportál')
     args = ap.parse_args(argv)
     ctx = Ctx(args.src, args.work)
     if args.cut_only:
@@ -1105,7 +1152,14 @@ def main(argv=None):
             sc = scenes.build(slot, set_name, mw, mh)
             if sc is None:
                 continue
-            img = render(sc, ctx)
+            master = ctx.work / 'masters' / f'{set_name}-{slot}.png'
+            if args.export_only and master.exists():
+                img = np.asarray(Image.open(master), np.float32) / 255
+            else:
+                img = render(sc, ctx)
+                if args.scale == 1.0:
+                    master.parent.mkdir(parents=True, exist_ok=True)
+                    Image.fromarray((img * 255 + 0.5).astype(np.uint8)).save(master)
             res = export(img, slot, set_name, out) if args.scale == 1.0 else []
             if args.proof or args.scale != 1.0:
                 pp = out / '_proof' / f'{set_name}-{slot}.jpg'
