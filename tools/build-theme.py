@@ -434,7 +434,7 @@ def page_home():
     return '\n\n'.join([
         section(row('2-3|1-3',
                     col('2-3',
-                        dyn('mandala/picture', image='hangtalak-gyertyafeny', alt='Nepáli hangtálak gyertyafényben, füstölővel, mandala falikép előtt', frame='hero', eager=True),
+                        dyn('mandala/picture', image='hangtalak-gyertyafeny', alt='Kalapált nepáli hangtálak brokát párnán, ütővel, őszi napfényben az ablak mellett', frame='hero', eager=True),
                         dyn('mandala/hero-mandala'),
                         eyebrow('Közvetlen import Nepálból és Indiából'),
                         h('Lassulj le, <em>érkezz meg.</em>', 1, anchor='hero-title'),

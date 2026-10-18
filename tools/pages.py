@@ -79,7 +79,7 @@ def head(eyebrow, title, text='', crumbs=None, extra=''):
 
 HOME = '''    <!-- iu/section: hős (bgImage + lightText) -->
     <section class="iu-section iu-section-light hero" aria-labelledby="hero-title">
-      <div class="hero-media">''' + pic('hangtalak-gyertyafeny', 'Nepáli hangtálak gyertyafényben, füstölővel, mandala falikép előtt', eager=True) + '''</div>
+      <div class="hero-media">''' + pic('hangtalak-gyertyafeny', 'Kalapált nepáli hangtálak brokát párnán, ütővel, őszi napfényben az ablak mellett', eager=True) + '''</div>
       <div data-hero-mandala></div>
       <div class="iu-row">
         <div class="iu-column iu-column-2-3">
