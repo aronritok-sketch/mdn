@@ -3,6 +3,22 @@
 
 defined('ABSPATH') || exit;
 
+/** Valódi hangtál-e: a hangtál-kategóriába tévedt ütők, párnák, alátétek nem azok. */
+function mandala_hero_pick_is_bowl($id): bool
+{
+    $id = (int) $id;
+    $slugs = wp_get_post_terms($id, 'product_cat', ['fields' => 'slugs']);
+    if (is_wp_error($slugs) || !in_array('hangtalak', $slugs, true)) {
+        return false;
+    }
+    foreach ($slugs as $slug) {
+        if (in_array($slug, ['hangtal-gong-utok', 'hangtal-alatetek'], true) || strpos($slug, 'kiegeszitok') === 0) {
+            return false;
+        }
+    }
+    return !preg_match('/ütő|párna|alátét/iu', (string) get_the_title($id));
+}
+
 mandala_add_block('mandala/hero-pick', [
     'title' => 'Kiemelt termék (hős)',
     'attributes' => [
@@ -19,18 +35,25 @@ mandala_add_block('mandala/hero-pick', [
         }
         $id = !empty($attributes['sku']) ? wc_get_product_id_by_sku($attributes['sku']) : 0;
         if (!$id) {
-            $ids = wc_get_featured_product_ids();
-            $id = $ids ? max($ids) : 0;
+            $ids = array_filter(wc_get_featured_product_ids(), 'mandala_hero_pick_is_bowl');
+            $id = $ids ? (int) max($ids) : 0;
         }
         if (!$id) {
-            // Nincs ilyen cikkszám és kiemelt termék sem: a legkelendőbb, fotós, raktáron lévő hangtál.
-            foreach (wc_get_products(['status' => 'publish', 'category' => ['hangtalak'], 'stock_status' => 'instock', 'limit' => 12, 'return' => 'ids',
+            // Nincs ilyen cikkszám és kiemelt hangtál sem: a legkelendőbb, fotós, raktáron lévő valódi hangtál,
+            // a meghallgatható (hangmintás) darabok előre.
+            $fallback = 0;
+            foreach (wc_get_products(['status' => 'publish', 'category' => ['hangtalak'], 'stock_status' => 'instock', 'limit' => 40, 'return' => 'ids',
                 'meta_key' => 'total_sales', 'orderby' => ['meta_value_num' => 'DESC', 'date' => 'DESC']]) as $cand) {
-                if (get_post_thumbnail_id($cand)) {
+                if (!get_post_thumbnail_id($cand) || !mandala_hero_pick_is_bowl($cand)) {
+                    continue;
+                }
+                if (get_post_meta($cand, '_mandala_audio', true)) {
                     $id = $cand;
                     break;
                 }
+                $fallback = $fallback ?: $cand;
             }
+            $id = $id ?: $fallback;
         }
         $product = $id ? wc_get_product($id) : null;
         if (!$product || $product->get_status() !== 'publish') {
