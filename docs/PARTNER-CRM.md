@@ -143,14 +143,53 @@ A kosártétel adatai: `mandala_offer` (token), `mandala_offer_price`, `mandala_
 PHP: `hash_hmac('sha256', $json, $secret)`; a link: `rtrim(strtr(base64_encode($json), '+/', '-_'), '=') . '.' . $sig`
 (a téma `mandala_offer_param()` függvénye).
 
+## Átvitel: aláírt GET (protokoll v2) – az ELIN miatt
+
+Mindkét oldal az ELIN-en van, és az ELIN tűzfala a szerverek közti POST-ot gyakran 403-mal tiltja (kis törzsnél is
+nagyjából minden második kérést, 1 MB fölött mindig), a GET-et 7500 karakteres lekérdezésig átengedi. 2026-10-19-én a
+webshop egy HTTP 400 után elakadt (85 esemény ment át, a készlet semmi), ezért a téma 1.1.202610230442-tól GET-tel küld
+(a Dropship ugyanezért GET-es: hlprv `docs/dropship/README.md`).
+
+- **Kérés:** `GET {CRM-cím}?hpvz=<Z>&t=<ts>&n=<nonce>&s=<aláírás>` (ha a CRM-címben már van `?` – pl. `?rest_route=` –,
+  akkor `&`-tel). `BODY` = ugyanaz a JSON, mint a POST-nál (`{"events":[…],"acks":[…]}`), `Z` = base64url (kitöltés
+  nélkül) a `gzdeflate(BODY, 9)` nyers DEFLATE-ből. Az aláírás változatlan: `hpv-partner-v1` HMAC a `BODY`-n; az
+  egyszeri nonce és az 5 perces ablak is.
+- **Méret:** a webshop mohón annyi eseményt tesz egy kérésbe, amennyi tömörítve belefér (`Z` ≤ 5500 karakter, mérve). A
+  CRM a 16 000 karakternél hosszabb `Z`-t és az 1 MB-nál nagyobb kibontott csomagot 400-zal elutasítja.
+- **Válasz:** ugyanaz a JSON (`ok, accepted, acked, errors, commands`) + `"transport":"get"`, gyorsítótár nélkül.
+- **Készlet:** eseményenként 40 tétel, és a viszonteladók teljes küldésétől függetlenül megy (eddig a teljes küldés
+  végét várta). A sorban maradt régi, 400 tételes készlet-eseményt a webshop a helyén kisebbekre vágja (a teljes lista
+  `full_start` / `full_end` jelölője az első / utolsó darabon marad).
+- **Tartalék POST:** egyetlen, a GET-be be nem férő (nem készlet-) esemény egyszer a régi POST-tal megy; ha a CRM még a
+  régi (a GET-re `rest_no_route`-tal válaszol), ugyanaz a csomag POST-tal. A CRM a POST-ot továbbra is elfogadja.
+- **Futás:** 10 percenként (Action Scheduler), legfeljebb ~15 mp vagy 80 kérés, a kérések közt 150 ms. Előbb a már
+  sorban álló események mennek (fél időkerettel), csak utána jön a teljes küldés adagja, a készlet és a webes forgalom,
+  végül a küldés a maradék időben – így egy később elhaló lépés (időkorlát, memória) sem akasztja meg a küldést; a
+  végzetes PHP-hiba a lépés nevével a *Háttérhiba* sorba kerül, a zár felszabadul. A nyugták csak
+  sikeres (2xx JSON) válasz után törlődnek. Hibánál egy gyors újrapróba csak a sor elejével, aztán egy üres kérés:
+  ha arra a CRM válaszol, a sor eleje a hibás – **3 egymás utáni futás után félreteszi** (`mandala_crm_dead`, az
+  utolsó 50, okkal), és a sor megy tovább; ha a CRM nem válaszol, semmi nem kerül félre.
+- **Ha a WP-cron / Action Scheduler nem fut** (az ELIN a loopback POST-ot is tilthatja): egy admin- vagy látogatói
+  oldalbetöltés végén – a válasz elküldése után (`fastcgi_finish_request`) – lefut, ha 9 percnél régebben futott; zár
+  véd a kettős futás ellen. A teljes küldés fiókonként halad (egy hibás fiók / rendelés kimarad, a hiba látszik; ha egy
+  fióknál a futás megszakad, a következő átugorja), és vár, amíg a sorban 600-nál több esemény áll.
+
+**Amit az admin lát** (WooCommerce → Partner CRM): *Utolsó háttérfuttatás* (mikor, ütemező / oldalbetöltés; ha nem
+fejeződött be, melyik lépésnél), *Háttérhiba*, *Átvitel* (GET – ha a legutóbbi kérés POST-tal ment, azt is jelzi),
+*Teljes készletlista* (mikor került sorba), *Félretett események* (darab, ok, **Vissza a sorba** gomb), *Utolsó hiba*
+a válaszoló szerverrel és a válasz elejével (pl. `HTTP 403 (nginx): 403 Forbidden …` – így látszik, hogy a tárhely
+tűzfala vagy a CRM válaszolt). A **Kapcsolat próbája most** is az új átvitellel küld. Az őrszem figyelmeztet, ha fél
+órája nem futott a háttérküldés, ha a legutóbbi félbeszakadt (melyik lépésnél, milyen hibával), ha egy órája nem
+volt sikeres kapcsolat, vagy ha van félretett esemény.
+
 ## Beállítás
 
 1. A CRM-ben: Partnerek → Beállítások → **Összekötő kód** → másolás.
 2. A webshopban: **WooCommerce → Partner CRM** → a kód beillesztése → Mentés és kapcsolódás.
-   (Vagy a wp-config.php-ban: `MANDALA_CRM_URL` = a CRM `…/wp-json/hpv/v1/partner/connect` címe, `MANDALA_CRM_SECRET`.)
-3. Az első kapcsolódás után a webshop 10 percenként adagonként (40 viszonteladó a rendeléseivel) átküld mindent,
-   a végén a teljes készletet. Az állapot (utolsó kapcsolat, sor, hiba) ugyanott, és az őrszemben („Partner CRM
-   összekötő”).
+   (Vagy a wp-config.php-ban: `MANDALA_CRM_URL` = a CRM `…/wp-json/ucrm/v1/partner/connect` címe, `MANDALA_CRM_SECRET`.)
+3. Az első kapcsolódás után a webshop 10 percenként adagonként (legfeljebb 40 viszonteladó a rendeléseivel) átküld
+   mindent; a teljes készletet már az első futásban (40 tételes eseményekben). Az állapot (utolsó futás, kapcsolat,
+   sor, félretett események, hiba) ugyanott, és az őrszemben („Partner CRM összekötő”).
 
 A téma 1.1.202610121823-tól van benne; a terms parancs, az üzenet, a webes forgalom, a hozzájárulás és az ajánlat-link
 a 2026. októberi 2. hullámtól (1.1.202610160024); az időpontok zónával, a `user_email`-párosítás, az ajánlat
@@ -162,8 +201,16 @@ repóban soha.
 
 ## Teszt
 
+`php tests/crm-connect-transport.php` (WordPress nélkül, helyettesítőkkel): a `Z` oda-vissza (a CRM kibontásával és
+aláírás-ellenőrzésével), a mohó csomagolás és az 5500-as határ, a készlet szétvágása a jelölőkkel, a tartalék POST, a
+nyugták (csak siker után törlődnek), a mérgezett esemény (3 futás → félre; leállt CRM-nél nem), a hibaszöveg, a zár, a
+40-es készlet-adagok a teljes küldéstől függetlenül, a teljes küldés hibatűrése, a futás sorrendje és kérés-kerete, a
+tartalék ütemező, az őrszem. `HLPRV=/útvonal/hlprv php tests/crm-connect-transport.php`: a GET kérést a CRM valódi
+`core.php`-ja (`hpv_pt_connect_decode_get`, `hpv_pt_verify`) is ellenőrzi.
+
 `tests/wp-features.mjs` → „Partner CRM összekötő”: közös aláírási tesztvektor (a CRM tesztjében is), https-kötelező kód,
-összekötés nélkül nincs gyűjtés, aláírt kérés (a JS-ben újraszámolt HMAC), viszonteladói rendelés tételekkel, belépés,
+összekötés nélkül nincs gyűjtés, aláírt GET kérés (a JS-ben újraszámolt HMAC, a `hpvz` a JS zlib-jével kibontva,
+≤ 5500 karakter), viszonteladói rendelés tételekkel, belépés,
 árlista, jelentkezés (spam-csapda nélkül), teljes küldés (fiókok, készlet eleje / vége, nagyker ár), jóváhagyás → új
 fiók a cégadatokkal, nyugta, admin oldal, őrszem. „Partner CRM: feltételek, üzenet, …”: az ajánlat-link tesztvektora
 és ellenőrzése, terms → nyugta, tiltásnál csak előre utalás, halasztott átutalás, üzenet (ráta-korlát), hozzájárulás,

@@ -7,6 +7,7 @@ import { createRequire } from 'module';
 import { execSync } from 'child_process';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { createHash, createHmac } from 'crypto';
+import { inflateRawSync } from 'zlib';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PWPATH || 'playwright');
 const BASE = (process.env.BASE || 'http://localhost:8080').replace(/\/$/, '');
@@ -1410,7 +1411,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     $GLOBALS["crm_req"] = [];
     add_filter("pre_http_request", function ($pre, $args, $url) {
       if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
-      $GLOBALS["crm_req"][] = ["headers" => $args["headers"], "body" => $args["body"]];
+      $q = []; parse_str((string) parse_url($url, PHP_URL_QUERY), $q); // protokoll v2: a csomag a GET-ben (hpvz)
+      $GLOBALS["crm_req"][] = ["method" => $args["method"], "q" => array_diff_key($q, ["hpvz" => 1]), "z" => (string) ($q["hpvz"] ?? ""), "body" => isset($q["hpvz"]) ? mandala_crm_z_decode($q["hpvz"]) : $args["body"]];
       $cmds = count($GLOBALS["crm_req"]) === 1 ? [["id" => 41, "type" => "approve", "data" => ["email" => "uj-partner@example.com", "first_name" => "Eszter", "last_name" => "Nagy", "company" => "Om Jógastúdió", "city" => "Szeged"]], ["id" => 42, "type" => "ismeretlen", "data" => []]] : [];
       return ["headers" => [], "body" => wp_json_encode(["ok" => true, "accepted" => 1, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
     }, 10, 3);
@@ -1433,14 +1435,16 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     ob_start(); mandala_crm_admin_page(); $page = ob_get_clean();
     echo wp_json_encode(["req" => $GLOBALS["crm_req"], "user" => $u ? ["roles" => $u->roles, "company" => get_user_meta($u->ID, "billing_company", true), "approved" => (bool) get_user_meta($u->ID, "_mandala_crm_approved", true)] : null,
       "queue" => count((array) get_option("mandala_crm_queue", [])), "flag" => wc_get_order($o->get_id())->get_meta("_mandala_wholesale"), "page" => str_contains($page, "összekötve"),
-      "health" => apply_filters("mandala_health_checks", [])["crm"]["ok"] ?? null, "orderId" => $o->get_id(), "vid" => $vid]);
+      "health" => apply_filters("mandala_health_checks", [])["crm"]["status"] ?? null, "orderId" => $o->get_id(), "vid" => $vid]);
     wp_delete_user($u ? $u->ID : 0); $o->delete(true);
     delete_option("mandala_crm"); delete_option("mandala_crm_queue"); delete_option("mandala_crm_acks"); delete_option("mandala_crm_state"); delete_option("mandala_crm_backfill"); delete_option("mandala_crm_stock_fp");`;
   const r = JSON.parse(wp(php));
-  const first = r.req[0] || { headers: {}, body: '{}' };
-  const h = first.headers;
-  const expect = createHmac('sha256', secret).update(`hpv-partner-v1\n${h['X-HPV-Partner-Ts']}\n${h['X-HPV-Partner-Nonce']}\n${createHash('sha256').update(first.body).digest('hex')}`).digest('hex');
-  ok(r.req.length >= 2 && h['X-HPV-Partner-Sig'] === expect && /^[a-f0-9]{32}$/.test(h['X-HPV-Partner-Nonce']), 'CRM: aláírt kérés (a JS-ben újraszámolt HMAC egyezik), egyszeri nonce');
+  const first = r.req[0] || { q: {}, z: '', body: '{}' };
+  const h = first.q;
+  const expect = createHmac('sha256', secret).update(`hpv-partner-v1\n${h.t}\n${h.n}\n${createHash('sha256').update(first.body).digest('hex')}`).digest('hex');
+  ok(r.req.length >= 2 && h.s === expect && /^[a-f0-9]{32}$/.test(h.n), 'CRM: aláírt kérés (a JS-ben újraszámolt HMAC egyezik), egyszeri nonce');
+  ok(r.req.every((q) => q.method === 'GET' && q.z.length > 0 && q.z.length <= 5500 && /^[A-Za-z0-9_-]+$/.test(q.z) && inflateRawSync(Buffer.from(q.z, 'base64url')).toString() === q.body),
+    'CRM: protokoll v2 – minden kérés GET, hpvz = base64url(raw DEFLATE) ≤ 5500 karakter (a JS zlib-je is kibontja)', `${r.req.length} kérés, max ${Math.max(...r.req.map((q) => q.z.length))}`);
   const events = r.req.flatMap((q) => JSON.parse(q.body).events);
   const of = (type) => events.filter((e) => e.type === type);
   const order = of('order').find((e) => e.data.id === r.orderId && !e.data.backfill);
@@ -1456,10 +1460,11 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   const stock = of('stock');
   const ht = stock.flatMap((e) => e.data.items).find((i) => i.sku === 'MND-HT-0490');
   ok(stock.length >= 1 && stock[0].data.full_start && stock[stock.length - 1].data.full_end && ht && ht.wholesale === 29000 && typeof ht.in_stock === 'boolean', 'CRM: teljes készletlista (eleje / vége jelölve), nagyker árral');
+  ok(stock.every((e) => e.data.items.length <= 40), 'CRM: készlet eseményenként legfeljebb 40 tétel', stock.map((e) => e.data.items.length).join(','));
   ok(r.user && r.user.roles.includes('wholesale_customer') && r.user.company === 'Om Jógastúdió' && r.user.approved, 'CRM: jóváhagyás → új viszonteladói fiók a cégadatokkal');
   const acks = r.req.flatMap((q) => JSON.parse(q.body).acks || []);
   ok(acks.some((a) => a.id === 41 && a.ok && a.result.created) && acks.some((a) => a.id === 42 && !a.ok), 'CRM: nyugta a következő kérésben (az ismeretlen parancs hibával)');
-  ok(r.queue === 0 && r.page && r.health === true, 'CRM: a sor kiürült, admin oldal és őrszem: összekötve');
+  ok(r.queue === 0 && r.page && r.health === 'ok', 'CRM: a sor kiürült, admin oldal és őrszem: összekötve');
 }
 
 // ============ Partner CRM: feltételek, üzenet, hozzájárulás, webes forgalom, ajánlat-link (crm-partner.php) ============
@@ -1493,7 +1498,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     $GLOBALS["crm_req"] = [];
     add_filter("pre_http_request", function ($pre, $args, $url) {
       if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
-      $GLOBALS["crm_req"][] = $args["body"];
+      $q = []; parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+      $GLOBALS["crm_req"][] = isset($q["hpvz"]) ? mandala_crm_z_decode($q["hpvz"]) : $args["body"];
       $cmds = count($GLOBALS["crm_req"]) === 1 ? [
         ["id" => 51, "type" => "terms", "data" => ["email" => "b2b@example.com", "discount_level" => "Kiemelt", "payment_days" => 15, "block" => ["on" => true, "reason" => "Lejárt tartozás"]]],
         ["id" => 52, "type" => "terms", "data" => ["email" => "nincs-ilyen@example.com", "payment_days" => 8]],
@@ -1923,7 +1929,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     $GLOBALS["crm_req"] = [];
     add_filter("pre_http_request", function ($pre, $args, $url) {
       if (!str_starts_with((string) $url, "https://crm.test/")) return $pre;
-      $GLOBALS["crm_req"][] = $args["body"];
+      $q = []; parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+      $GLOBALS["crm_req"][] = isset($q["hpvz"]) ? mandala_crm_z_decode($q["hpvz"]) : $args["body"];
       $n = count($GLOBALS["crm_req"]);
       $cmds = $n === 1 ? [["id" => 61, "type" => "consent", "data" => ["email" => "b2b@example.com", "partner_mail" => "no", "source" => "leiratkozas"]]]
         : ($n === 2 ? [["id" => 62, "type" => "consent", "data" => ["user_id" => ${vid}, "email" => "b2b@example.com", "partner_mail" => "yes", "source" => "telefon", "wording" => "Telefonon kérte a partnerleveleket (Kovács Judit, 2026-10-16)", "at" => "2026-10-01T10:00:00+02:00"]],
