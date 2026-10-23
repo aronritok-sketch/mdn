@@ -8,7 +8,10 @@
  * szétvágása (full_start / full_end marad), a régi POST tartalék (túl nagy egyedi esemény, régi CRM), a nyugták csak
  * sikeres válasz után törlődnek, a mérgezett esemény 3 futás után félre kerül (a leállt CRM-nél nem), a hibaszöveg
  * (ki válaszolt), a zár, a készlet 40-es adagokban és a teljes küldéstől függetlenül, a teljes küldés hibatűrése,
- * a tartalék ütemező (oldalbetöltés vége), az őrszem.
+ * a tartalék ütemező (oldalbetöltés vége), az őrszem. A felülvizsgálat (2026-10-23) után: a túl nagy esemény is kap
+ * újrapróbát és elérhetőség-próbát, a hibák közt legalább 8 perc kell (a gyors futás és az admin gomb nem számít),
+ * siker csak ok-os (GET-nél transport: get) válasz, a félbeszakadt futás a következő elején, a napi webes forgalom a
+ * szinkronból, a sor írása MySQL-zárral.
  */
 
 error_reporting(E_ALL);
@@ -34,6 +37,9 @@ $GLOBALS['hooks'] = [];
 $GLOBALS['http_log'] = [];
 $GLOBALS['http'] = null; // fn(string $method, string $url, array $args): array|WP_Error
 $GLOBALS['is_admin'] = false;
+$GLOBALS['can'] = false;
+$GLOBALS['named_locks'] = [];
+$GLOBALS['lock_log'] = [];
 $GLOBALS['users'] = [];
 $GLOBALS['index'] = [];
 
@@ -124,6 +130,10 @@ function wp_doing_cron()
 function is_admin()
 {
     return $GLOBALS['is_admin'];
+}
+function current_user_can($cap)
+{
+    return $GLOBALS['can'] && $cap === 'manage_woocommerce';
 }
 function get_users($a)
 {
@@ -230,7 +240,16 @@ class FakeWpdb
             }
             return 0;
         }
+        if (strpos($sql, 'SELECT RELEASE_LOCK') === 0) {
+            $GLOBALS['lock_log'][] = 'release';
+            unset($GLOBALS['named_locks'][$a[0]]);
+            return 1;
+        }
         throw new RuntimeException('váratlan lekérdezés: ' . $sql);
+    }
+    public function suppress_errors($on = true)
+    {
+        return false;
     }
     public function delete($table, $where)
     {
@@ -243,6 +262,15 @@ class FakeWpdb
     }
     public function get_var($q)
     {
+        // A sor zárja (GET_LOCK): ha más tartja, a valódi MySQL 3 mp után 0-t ad.
+        if (is_array($q) && strpos($q[0], 'SELECT GET_LOCK') === 0) {
+            $GLOBALS['lock_log'][] = 'get:' . $q[1][0];
+            if (!empty($GLOBALS['named_locks'][$q[1][0]])) {
+                return '0';
+            }
+            $GLOBALS['named_locks'][$q[1][0]] = true;
+            return '1';
+        }
         return null;
     }
 }
@@ -345,7 +373,17 @@ function reset_all(): void
     $GLOBALS['users'] = [];
     $GLOBALS['index'] = [];
     $GLOBALS['is_admin'] = false;
+    $GLOBALS['can'] = false;
     $GLOBALS['on_get_users'] = null;
+    $GLOBALS['named_locks'] = [];
+    $GLOBALS['lock_log'] = [];
+}
+/** A sor elejének utolsó hibája 10 perce volt (a következő futás már számít). */
+function age_strike(): void
+{
+    if (isset($GLOBALS['opts']['mandala_crm_head_fail']['at'])) {
+        $GLOBALS['opts']['mandala_crm_head_fail']['at'] -= 600;
+    }
 }
 /** Kevéssé tömöríthető szöveg (hexa) – $seed-del mindig ugyanaz. */
 function noise(int $n, string $seed = ''): string
@@ -491,9 +529,11 @@ $GLOBALS['http'] = function ($m, $url, $a) use ($crm) {
 };
 sync_runs(1);
 $f1 = get_option('mandala_crm_head_fail');
+age_strike();
 ok(count($GLOBALS['received']) === 1 && mandala_crm_queue()[0] === $poison && ($f1['runs'] ?? 0) === 1 && strpos(mandala_crm_state()['error'], 'HTTP 500 (nginx): 500 Internal Server Error') !== false, 'mérgezett: az 1. futás a jó eseményt átviszi, a hibásnál megáll (1/3)', mandala_crm_state()['error']);
 sync_runs(1);
 ok((get_option('mandala_crm_head_fail')['runs'] ?? 0) === 2 && !get_option(MANDALA_CRM_DEAD), 'mérgezett: 2/3 – még a sorban');
+age_strike();
 sync_runs(1);
 $dead = get_option(MANDALA_CRM_DEAD, []);
 ok(count($dead) === 1 && $dead[0]['event'] === $poison && strpos($dead[0]['reason'], 'HTTP 500') !== false && $dead[0]['at'] > 0 && !get_option('mandala_crm_head_fail'), 'mérgezett: a 3. futás után félretéve (okkal, idővel)');
@@ -505,6 +545,30 @@ for ($i = 0; $i < 60; $i++) {
 }
 mandala_crm_bury(activity(999), 'teszt');
 ok(count(get_option(MANDALA_CRM_DEAD)) === 50 && end($GLOBALS['opts'][MANDALA_CRM_DEAD])['event'] === activity(999), 'mérgezett: a félretettekből az utolsó 50 marad');
+
+// Egy perc alatti próbák (két futás, gyors háttérküldés, admin gomb) nem tesznek félre: két hiba közt 8 perc kell.
+reset_all();
+$GLOBALS['opts'][MANDALA_CRM_QUEUE] = [$poison, activity(2)];
+$GLOBALS['opts']['mandala_crm_state'] = ['hello_at' => time()];
+$crm503 = good_crm();
+$GLOBALS['http'] = function ($m, $url, $a) use ($crm503) {
+    $in = req_body([$m, $url, $a]);
+    return $in['events'] ? ['response' => ['code' => 503], 'headers' => ['server' => 'nginx'], 'body' => 'Service Unavailable'] : $crm503($m, $url, $a);
+};
+mandala_crm_sync();
+mandala_crm_sync();
+$err2 = mandala_crm_state()['error'];
+mandala_crm_sync(true);
+$n0 = 0;
+mandala_crm_flush(10, 8.0, $n0, false);
+mandala_crm_flush(10, 8.0, $n0, false);
+$hf = get_option('mandala_crm_head_fail');
+ok(($hf['runs'] ?? 0) === 1 && !get_option(MANDALA_CRM_DEAD) && mandala_crm_queue()[0] === $poison && strpos($err2, 'nem megy át, 1/3') !== false, 'mérgezett: gyors egymás utáni futások, gyors háttérküldés, admin gomb – 1/3 marad', $err2);
+age_strike();
+mandala_crm_flush(10, 8.0, $n0, false);
+ok((get_option('mandala_crm_head_fail')['runs'] ?? 0) === 1, 'mérgezett: az admin gomb (strike = false) 8 perc után sem számít');
+mandala_crm_sync();
+ok((get_option('mandala_crm_head_fail')['runs'] ?? 0) === 2 && !get_option(MANDALA_CRM_DEAD), 'mérgezett: a 8 perccel későbbi ütemezett futás már számít (2/3)');
 
 // Leállt CRM / tűzfal: nem az esemény hibája – nem kerül félre.
 foreach (['kapcsolat' => new WP_Error('http_request_failed', 'cURL error 7: Failed to connect to crm.test port 443'), 'nginx 403' => ['response' => ['code' => 403], 'headers' => ['server' => 'nginx'], 'body' => "<html>\r\n<head><title>403 Forbidden</title></head>\r\n<body>\r\n<center><h1>403 Forbidden</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>"]] as $label => $resp) {
@@ -548,9 +612,27 @@ $methods = array_column($GLOBALS['http_log'], 0);
 ok($methods[0] === 'POST' && $GLOBALS['received'][0] === $huge && $GLOBALS['received'][1] === activity(2) && in_array('GET', $methods, true) && !mandala_crm_queue(), 'túl nagy egyedi esemény: egyszer a régi POST-tal (aláírva), utána GET-tel tovább', implode(',', $methods));
 reset_all();
 $GLOBALS['opts'][MANDALA_CRM_QUEUE] = [$huge, activity(2)];
-$GLOBALS['http'] = fn($m) => $m === 'POST' ? ['response' => ['code' => 403], 'headers' => ['server' => 'nginx'], 'body' => '<h1>403 Forbidden</h1>'] : json_ok();
+$GLOBALS['http'] = fn($m) => $m === 'POST' ? ['response' => ['code' => 403], 'headers' => ['server' => 'nginx'], 'body' => '<h1>403 Forbidden</h1>'] : json_ok(['transport' => 'get']);
 mandala_crm_flush();
-ok(array_column($GLOBALS['http_log'], 0) === ['POST'] && (get_option('mandala_crm_head_fail')['runs'] ?? 0) === 1 && strpos(mandala_crm_state()['error'], 'túl nagy esemény (order), POST: HTTP 403') !== false, 'túl nagy egyedi esemény: ha a POST sem megy, az esemény hibája (1/3), újrapróba nélkül', mandala_crm_state()['error']);
+ok(array_column($GLOBALS['http_log'], 0) === ['POST', 'POST', 'GET'] && (get_option('mandala_crm_head_fail')['runs'] ?? 0) === 1 && strpos(mandala_crm_state()['error'], 'túl nagy esemény (order), POST: HTTP 403') !== false, 'túl nagy egyedi esemény: ha a POST az újrapróbára sem megy, és a CRM elérhető (üres GET), az esemény hibája (1/3)', implode(',', array_column($GLOBALS['http_log'], 0)) . ' – ' . mandala_crm_state()['error']);
+reset_all();
+$GLOBALS['opts'][MANDALA_CRM_QUEUE] = [$huge, activity(2)];
+$GLOBALS['opts']['mandala_crm_state'] = ['hello_at' => time()];
+$GLOBALS['http'] = fn() => new WP_Error('http_request_failed', 'cURL error 7: Failed to connect to crm.test port 443');
+for ($i = 0; $i < 4; $i++) {
+    mandala_crm_sync();
+    age_strike();
+}
+ok(!get_option(MANDALA_CRM_DEAD) && !get_option('mandala_crm_head_fail') && mandala_crm_queue()[0] === $huge, 'túl nagy egyedi esemény: leállt CRM mellett 4 futás után sem kerül félre');
+reset_all();
+$GLOBALS['opts'][MANDALA_CRM_QUEUE] = [$huge, activity(2)];
+$posts = 0;
+$crm = good_crm();
+$GLOBALS['http'] = function ($m, $u, $a) use ($crm, &$posts) {
+    return $m === 'POST' && ++$posts === 1 ? ['response' => ['code' => 403], 'headers' => ['server' => 'nginx'], 'body' => '<h1>403 Forbidden</h1>'] : $crm($m, $u, $a);
+};
+mandala_crm_flush();
+ok(array_column($GLOBALS['http_log'], 0) === ['POST', 'POST', 'GET'] && $GLOBALS['received'] === [$huge, activity(2)] && !get_option('mandala_crm_head_fail') && !mandala_crm_queue(), 'túl nagy egyedi esemény: az ELIN véletlen 403-ja után az újrapróba POST átviszi', implode(',', array_column($GLOBALS['http_log'], 0)));
 reset_all();
 $GLOBALS['opts'][MANDALA_CRM_QUEUE] = [activity(1), activity(2)];
 $crm = good_crm();
@@ -648,6 +730,30 @@ ok(strpos($st['run_error'], 'készlet: ') === 0 && !empty($st['run_error_at']) &
 mandala_crm_unlock();
 $GLOBALS['mandala_crm_running'] = false;
 
+// Oldalbetöltés végén a PHP a végzetes hiba után nem hív shutdown-függvényt: a következő futás eleje írja be.
+reset_all();
+$GLOBALS['http'] = good_crm();
+$GLOBALS['opts']['mandala_crm_state'] = ['hello_at' => time(), 'run_at' => time() - 700, 'run_via' => 'oldalbetöltés', 'run_done' => time() - 1300, 'run_step' => 'készlet', 'run_error' => '', 'run_error_at' => time() - 5000];
+mandala_crm_sync();
+$st = mandala_crm_state();
+ok(strpos($st['run_error'], 'az előző futás (') === 0 && strpos($st['run_error'], 'oldalbetöltés) nem fejeződött be: készlet: időkorlát vagy memória?') !== false && $st['run_error_at'] >= time() - 5 && $st['run_done'] >= $st['run_at'], 'futás: a félbeszakadt előző futás (lépés) a következő elején a Háttérhiba sorba kerül', $st['run_error']);
+$GLOBALS['opts']['mandala_crm_state'] = ['hello_at' => time(), 'run_at' => time() - 700, 'run_via' => 'ütemező', 'run_done' => time() - 1300, 'run_step' => 'készlet', 'run_error' => 'készlet: PHP-hiba: Allowed memory size exhausted', 'run_error_at' => time() - 690];
+mandala_crm_sync();
+$st = mandala_crm_state();
+ok(strpos($st['run_error'], 'ütemező) nem fejeződött be: készlet: PHP-hiba: Allowed memory') !== false, 'futás: ha a végzetes hibát beírta a figyelő, a következő futás azt mutatja', $st['run_error']);
+mandala_crm_sync();
+ok((mandala_crm_state()['run_error'] ?? 'x') === '', 'futás: a befejezett futás után a következő nem jelez');
+
+// A napi webes forgalom (előző + aktuális hónap) a szinkronból is – ha a hajnali ütemezett feladat nem fut.
+reset_all();
+$GLOBALS['http'] = good_crm();
+$GLOBALS['opts']['mandala_crm_state'] = ['hello_at' => time()];
+mandala_crm_sync();
+$todo1 = get_option('mandala_crm_web_stats_todo');
+$GLOBALS['opts']['mandala_crm_web_stats_todo'] = [];
+mandala_crm_sync();
+ok($todo1 === mandala_crm_last_months(2) && get_option('mandala_crm_web_stats_day') === wp_date('Y-m-d') && get_option('mandala_crm_web_stats_todo') === [], 'webes forgalom: a szinkron naponta egyszer sorba teszi az előző és az aktuális hónapot', wp_json_encode($todo1));
+
 /* ---------- 11. Tartalék ütemező (oldalbetöltés vége) ---------- */
 
 reset_all();
@@ -657,6 +763,9 @@ $GLOBALS['opts'][MANDALA_CRM_QUEUE] = [activity(1)];
 mandala_crm_maybe_run();
 ok(mandala_crm_state()['run_at'] < time() - 3000 && count($GLOBALS['received']) === 0, 'tartalék ütemező: a válasz nem zárható le előre (CLI) → látogatói oldalon nem fut');
 $GLOBALS['is_admin'] = true;
+mandala_crm_maybe_run();
+ok(mandala_crm_state()['run_at'] < time() - 3000 && count($GLOBALS['received']) === 0, 'tartalék ütemező: lezárható válasz nélkül az admin-post.php látogatója (nem boltkezelő) nem vár rá');
+$GLOBALS['can'] = true;
 mandala_crm_maybe_run();
 ok(mandala_crm_state()['run_at'] >= time() - 5 && mandala_crm_state()['run_via'] === 'oldalbetöltés' && count($GLOBALS['received']) === 1, 'tartalék ütemező: adminban lefut (rövid kerettel), ha 9 percnél régebben futott');
 $GLOBALS['opts'][MANDALA_CRM_QUEUE] = [activity(2)];
@@ -689,7 +798,30 @@ $GLOBALS['opts']['mandala_crm_state'] = ['run_at' => time() - 600, 'run_done' =>
 $h = $health();
 ok($h['status'] === 'warn' && strpos($h['msg'], 'nem fejeződött be (készlet): készlet: PHP-hiba') !== false, 'őrszem: a félbeszakadt futás (lépés, hiba) → figyelmeztetés', $h['msg']);
 
-/* ---------- 13. Hibaszöveg ---------- */
+/* ---------- 13. Siker csak a CRM válasza ---------- */
+
+foreach (['200 {}' => ['{}', 'GET'], '200 []' => ['[]', 'GET'], 'ok, transport nélkül (GET)' => ['{"ok":true,"accepted":1,"commands":[]}', 'GET'], 'ok nélkül (POST)' => ['{"accepted":1}', 'POST']] as $label => [$raw, $which]) {
+    reset_all();
+    $GLOBALS['opts'][MANDALA_CRM_QUEUE] = $which === 'POST' ? [$huge] : [activity(1)];
+    $GLOBALS['opts']['mandala_crm_acks'] = [['id' => 7, 'ok' => true, 'result' => []]];
+    $GLOBALS['http'] = fn() => ['response' => ['code' => 200], 'headers' => ['server' => 'proxy'], 'body' => $raw];
+    $r = mandala_crm_flush(1);
+    ok($r === false && count(mandala_crm_queue()) === 1 && count(get_option('mandala_crm_acks')) === 1 && strpos(mandala_crm_state()['error'], 'HTTP 200 (proxy), nem a CRM válasza') !== false, "siker: a 2xx JSON nem elég ($label) – a sor és a nyugta marad", mandala_crm_state()['error']);
+}
+
+/* ---------- 14. A sor írása zárral ---------- */
+
+reset_all();
+mandala_crm_enqueue('hello', ['x' => 1]);
+mandala_crm_queue_splice(1, mandala_crm_sig(mandala_crm_queue()[0]));
+$log = $GLOBALS['lock_log'];
+ok(count($log) === 4 && preg_match('/^get:mandala_crm_q_[0-9a-f]{12}$/', $log[0]) && $log[1] === 'release' && $log[2] === $log[0] && $log[3] === 'release' && !$GLOBALS['named_locks'] && !mandala_crm_queue(), 'sor: a hozzáadás és a levétel MySQL-zárral (GET_LOCK / RELEASE_LOCK), a zár mindig fel', implode(', ', $log));
+$GLOBALS['named_locks'][substr($log[0], 4)] = true; // egy másik kérés tartja, 3 mp után sem kapjuk meg
+$GLOBALS['lock_log'] = [];
+mandala_crm_enqueue('hello', ['x' => 2]);
+ok(count(mandala_crm_queue()) === 1 && $GLOBALS['lock_log'] === [$log[0]], 'sor: ha a zár nem kapható meg, zár nélkül ír (mint eddig), és nem old fel idegen zárat');
+
+/* ---------- 15. Hibaszöveg ---------- */
 
 ok(mandala_crm_http_error(400, '<html><head><title>400 Bad Request</title></head><body><center><h1>400 Bad Request</h1></center><hr><center>nginx</center></body></html>', null, 'ELIN.hu') === 'HTTP 400 (ELIN.hu): 400 Bad Request 400 Bad Request nginx'
     && mandala_crm_http_error(401, '', ['code' => 'hpv_pt_bad_signature', 'message' => 'Az összekötő kérése nem hiteles (bad_signature).'], '') === 'HTTP 401: Az összekötő kérése nem hiteles (bad_signature). [hpv_pt_bad_signature]'

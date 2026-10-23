@@ -50,6 +50,7 @@ const MANDALA_CRM_Z_MAX = 5500;                     // a GET-be tett tömöríte
 const MANDALA_CRM_BODY_MAX = 1000000;               // a kibontott csomag – a CRM 1 MB-nál többet nem bont ki
 const MANDALA_CRM_STOCK_CHUNK = 40;                 // készlet-tétel eseményenként
 const MANDALA_CRM_BACKFILL_QUEUE = 600;             // a teljes küldés csak ennyi sorban álló esemény alatt tölt a sorba
+const MANDALA_CRM_STRIKE_GAP = 480;                 // a mérgezett esemény két hibája közt legalább ennyi mp (külön futás)
 
 /** A CRM címe és a közös titok: [url, secret] vagy null. */
 function mandala_crm_config(): ?array
@@ -219,16 +220,41 @@ function mandala_crm_queue(): array
     return is_array($q) ? array_values($q) : [];
 }
 
+/**
+ * A sor olvasása és visszaírása rövid MySQL-zárral (GET_LOCK, legfeljebb 3 mp várakozás): a kettő közé ne férjen be egy
+ * másik kérés (látogató, futás) írása – az elveszne. Ha a zár nem kapható meg, zár nélkül fut (mint eddig).
+ */
+function mandala_crm_queue_locked(callable $fn)
+{
+    global $wpdb;
+    $name = is_object($wpdb) ? 'mandala_crm_q_' . substr(md5((defined('DB_NAME') ? DB_NAME : '') . $wpdb->prefix), 0, 12) : '';
+    $got = false;
+    if ($name !== '') {
+        $quiet = $wpdb->suppress_errors(true);
+        $got = (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 3)', $name)) === '1';
+        $wpdb->suppress_errors($quiet);
+    }
+    try {
+        return $fn();
+    } finally {
+        if ($got) {
+            $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $name));
+        }
+    }
+}
+
 /** A sor elejéről $count esemény le (helyükre $replace) – csak ha az eleje még az, amit elküldtünk ($head_sig). */
 function mandala_crm_queue_splice(int $count, string $head_sig, array $replace = []): bool
 {
-    $q = mandala_crm_queue();
-    if (!$q || mandala_crm_sig($q[0]) !== $head_sig) {
-        return false;
-    }
-    array_splice($q, 0, $count, $replace);
-    update_option(MANDALA_CRM_QUEUE, array_values($q), false);
-    return true;
+    return mandala_crm_queue_locked(function () use ($count, $head_sig, $replace) {
+        $q = mandala_crm_queue();
+        if (!$q || mandala_crm_sig($q[0]) !== $head_sig) {
+            return false;
+        }
+        array_splice($q, 0, $count, $replace);
+        update_option(MANDALA_CRM_QUEUE, array_values($q), false);
+        return true;
+    });
 }
 
 function mandala_crm_enqueue(string $type, array $data): void
@@ -242,11 +268,13 @@ function mandala_crm_enqueue_many(array $events): void
     if (!$events || !mandala_crm_config()) {
         return; // nincs összekötve: nem gyűjtünk
     }
-    $q = array_merge(mandala_crm_queue(), array_values($events));
-    if (count($q) > MANDALA_CRM_MAX_QUEUE) {
-        $q = array_slice($q, -MANDALA_CRM_MAX_QUEUE);
-    }
-    update_option(MANDALA_CRM_QUEUE, $q, false);
+    mandala_crm_queue_locked(function () use ($events) {
+        $q = array_merge(mandala_crm_queue(), array_values($events));
+        if (count($q) > MANDALA_CRM_MAX_QUEUE) {
+            $q = array_slice($q, -MANDALA_CRM_MAX_QUEUE);
+        }
+        update_option(MANDALA_CRM_QUEUE, $q, false);
+    });
 }
 
 /** Fontos esemény (jelentkezés, új viszonteladó): ne várjon 10 percet – egy háttérfeladat most küldi. */
@@ -279,11 +307,14 @@ function mandala_crm_snippet(string $raw, int $len = 120): string
     return function_exists('mb_substr') ? mb_substr($t, 0, $len) : substr($t, 0, $len);
 }
 
-/** Hibaszöveg egy HTTP-válaszból: kód, a válaszoló szerver (Server fejléc) és a válasz eleje / a WordPress hibaüzenete. */
+/**
+ * Hibaszöveg egy HTTP-válaszból: kód, a válaszoló szerver (Server fejléc) és a válasz eleje / a WordPress hibaüzenete.
+ * 2xx-nél: nem JSON, vagy JSON, de nem a CRM válasza (nincs benne ok – GET-nél transport: get).
+ */
 function mandala_crm_http_error(int $code, string $raw, ?array $data, string $server = ''): string
 {
     $snip = $data && !empty($data['message']) ? (string) $data['message'] . (!empty($data['code']) ? ' [' . $data['code'] . ']' : '') : mandala_crm_snippet($raw);
-    $head = 'HTTP ' . $code . ($server !== '' ? ' (' . $server . ')' : '') . ($code >= 200 && $code < 300 ? ', nem JSON' : '');
+    $head = 'HTTP ' . $code . ($server !== '' ? ' (' . $server . ')' : '') . ($code >= 200 && $code < 300 ? ($data === null ? ', nem JSON' : ', nem a CRM válasza') : '');
     return $snip !== '' ? $head . ': ' . $snip : $head;
 }
 
@@ -321,7 +352,8 @@ function mandala_crm_request(array $cfg, string $body, ?string $z): array
     $raw = (string) wp_remote_retrieve_body($res);
     $data = json_decode($raw, true);
     $data = is_array($data) ? $data : null;
-    if ($code >= 200 && $code < 300 && $data !== null) {
+    // Siker csak a CRM válasza: 2xx, JSON, ok – GET-nél transport: get is (egy köztes szerver 200-as {}-ja ne vigye le a sort).
+    if ($code >= 200 && $code < 300 && $data !== null && !empty($data['ok']) && ($z === null || ($data['transport'] ?? '') === 'get')) {
         return [$code, $data, ''];
     }
     $server = wp_remote_retrieve_header($res, 'server');
@@ -331,11 +363,10 @@ function mandala_crm_request(array $cfg, string $body, ?string $z): array
 /**
  * Egy kérés a CRM-nek: a nyugták és a sor eleje – mohón annyi esemény (legfeljebb $max), amennyi tömörítve belefér a
  * GET-be ($max = 0: csak a nyugták, üres sornál „szívverés” – a parancsok a válaszban jönnek). Ha a sor eleje egymagában
- * sem fér bele: a többtételes készlet-esemény a sorban szétvágva; más esemény egyszer a régi POST-tal. Siker esetén le a
+ * sem fér bele: a többtételes készlet-esemény a sorban szétvágva; más esemény a régi POST-tal. Siker esetén le a
  * sorról, a nyugták törölve, a parancsok végrehajtva (a nyugtájuk a következő kérésben megy).
  *
- * @return array|WP_Error a CRM válasza; hibánál a WP_Error adata: ['n' => a kérés eseményei, 'code' => HTTP-kód,
- *                        'culprit' => true, ha biztosan a sor eleje a hibás (a POST-tal próbált túl nagy esemény)]
+ * @return array|WP_Error a CRM válasza; hibánál a WP_Error adata: ['n' => a kérés eseményei, 'code' => HTTP-kód]
  */
 function mandala_crm_post(int $max = 300)
 {
@@ -381,14 +412,17 @@ function mandala_crm_post(int $max = 300)
     return $data;
 }
 
-/** Egyetlen, a GET-be be nem férő esemény: egyszer a régi POST-tal (ha az sem megy, a sor elejének hibája). */
+/**
+ * Egyetlen, a GET-be be nem férő esemény: a régi POST-tal. A hibáját a sor kiküldése úgy kezeli, mint bármelyik
+ * eseményét (gyors újrapróba, aztán üres kérés: csak elérhető CRM mellett számít a sor elejének hibájaként).
+ */
 function mandala_crm_post_single(array $cfg, array $head)
 {
     [$code, $data, $err] = mandala_crm_request($cfg, mandala_crm_body([$head], []), null);
     if ($err !== '') {
         $err = 'túl nagy esemény (' . (string) ($head['type'] ?? '?') . '), POST: ' . $err;
         mandala_crm_state(['error' => $err, 'error_at' => time()]);
-        return new WP_Error('mandala_crm', $err, ['n' => 1, 'code' => $code, 'culprit' => true]);
+        return new WP_Error('mandala_crm', $err, ['n' => 1, 'code' => $code]);
     }
     mandala_crm_accepted([$head], 1, 0, (array) $data, 'post');
     return $data;
@@ -424,13 +458,15 @@ function mandala_crm_accepted(array $queue, int $n, int $m, array $data, string 
 /**
  * A sor kiküldése: időkorlátos ciklus (alapból 80 kérés vagy 15 mp, a kérések közt 150 ms), mindig legalább egy kérés
  * (a CRM parancsai a válaszban jönnek). Hibánál egy gyors újrapróba csak a sor elejével; ha az sem megy, egy üres kérés
- * dönti el, hogy a CRM elérhető-e – ha igen, a sor eleje a hibás (3 egymás utáni futás után félreteszi, és a sor megy
- * tovább). Különben a futás megáll, a hiba (ki válaszolt, mit) az állapotban.
+ * dönti el, hogy a CRM elérhető-e – ha igen, a sor eleje a hibás (3, egymástól legalább 8 percre eső futás után
+ * félreteszi, és a sor megy tovább). Különben a futás megáll, a hiba (ki válaszolt, mit) az állapotban.
  *
  * @param int|null $used ide kerül, hány kérést indított (az újrapróbák nélkül) – a futás kérés-keretéhez
+ * @param bool $strike számíthat-e a sor elejének hibájaként (az ütemezett / oldalbetöltéses futás igen; a gyors
+ *                     háttérküldés és az admin gombjai nem – azok csak küldenek)
  * @return bool nem volt hiba (az idő / a kérésszám lejárta nem hiba)
  */
-function mandala_crm_flush(int $max_requests = 80, float $seconds = 15.0, ?int &$used = null): bool
+function mandala_crm_flush(int $max_requests = 80, float $seconds = 15.0, ?int &$used = null, bool $strike = true): bool
 {
     $t0 = microtime(true);
     $pause = max(0, (int) apply_filters('mandala_crm_pause_ms', 150)); // a kérések közti szünet
@@ -448,17 +484,14 @@ function mandala_crm_flush(int $max_requests = 80, float $seconds = 15.0, ?int &
         if (!is_wp_error($r)) {
             continue;
         }
-        $d = (array) $r->get_error_data();
-        if (empty($d['culprit'])) {
-            usleep($pause * 2000);
-            $r = mandala_crm_post(1); // gyors újrapróba – csak a sor elejével
-            if (!is_wp_error($r)) {
-                continue;
-            }
-            $d = (array) $r->get_error_data();
+        usleep($pause * 2000);
+        $r = mandala_crm_post(1); // gyors újrapróba – csak a sor elejével (a túl nagy esemény: még egy POST)
+        if (!is_wp_error($r)) {
+            continue;
         }
+        $d = (array) $r->get_error_data();
         $ok = false;
-        if ((!empty($d['culprit']) || ((int) ($d['n'] ?? 0) > 0 && !is_wp_error(mandala_crm_post(0)))) && mandala_crm_head_failed($r->get_error_message())) {
+        if ($strike && (int) ($d['n'] ?? 0) > 0 && !is_wp_error(mandala_crm_post(0)) && mandala_crm_head_failed($r->get_error_message())) {
             continue; // a mérgezett esemény félretéve: a sor megy tovább
         }
         break;
@@ -469,7 +502,8 @@ function mandala_crm_flush(int $max_requests = 80, float $seconds = 15.0, ?int &
 /* ---------- Mérgezett esemény: ami 3 futáson át nem megy át, félre ---------- */
 
 /**
- * A sor eleje ebben a futásban nem ment át, pedig a CRM elérhető: a 3. egymás utáni futás után félreteszi.
+ * A sor eleje ebben a futásban nem ment át, pedig a CRM elérhető: a 3. hiba után félreteszi. Két hiba közt legalább
+ * MANDALA_CRM_STRIKE_GAP (8 perc) kell – így a 3 hiba 3 külön futás (a 10 perces ütem), nem egy perc alatti próbák.
  *
  * @return bool félretette-e
  */
@@ -481,12 +515,16 @@ function mandala_crm_head_failed(string $msg): bool
     }
     $sig = mandala_crm_sig($q[0]);
     $f = (array) get_option('mandala_crm_head_fail', []);
-    $runs = ($f['sig'] ?? '') === $sig ? (int) ($f['runs'] ?? 0) + 1 : 1;
-    if ($runs >= 3) {
-        mandala_crm_bury($q[0], $msg);
-        delete_option('mandala_crm_head_fail');
-    } else {
-        update_option('mandala_crm_head_fail', ['sig' => $sig, 'runs' => $runs, 'at' => time()], false);
+    $same = ($f['sig'] ?? '') === $sig;
+    $runs = $same ? (int) ($f['runs'] ?? 0) : 0;
+    if (!$same || (int) ($f['at'] ?? 0) <= time() - MANDALA_CRM_STRIKE_GAP) {
+        $runs++;
+        if ($runs >= 3) {
+            mandala_crm_bury($q[0], $msg);
+            delete_option('mandala_crm_head_fail');
+        } else {
+            update_option('mandala_crm_head_fail', ['sig' => $sig, 'runs' => $runs, 'at' => time()], false);
+        }
     }
     mandala_crm_state(['error' => 'a sor eleje (' . (string) ($q[0]['type'] ?? '?') . ') nem megy át, ' . $runs . '/3' . ($runs >= 3 ? ' – félretéve' : '') . ': ' . $msg, 'error_at' => time()]);
     return $runs >= 3;
@@ -901,11 +939,23 @@ function mandala_crm_web_stats_step(int $max = 2): int
     return $done;
 }
 
-// Naponta hajnalban: az előző és az aktuális hónap (a késve teljesülő / visszatérített rendelések miatt az előző is).
+/**
+ * Naponta egyszer: az előző és az aktuális hónap újra (a késve teljesülő / visszatérített rendelések miatt az előző is).
+ * A hajnali Action Scheduler-feladat és a 10 perces szinkron is hívja – ha az ütemező nem fut, a szinkron viszi.
+ */
+function mandala_crm_web_stats_daily(): void
+{
+    $day = wp_date('Y-m-d');
+    if (get_option('mandala_crm_web_stats_day') !== $day) {
+        update_option('mandala_crm_web_stats_day', $day, false);
+        mandala_crm_web_stats_add(mandala_crm_last_months(2));
+    }
+}
+
 mandala_recurring('mandala_crm_web_stats_daily', DAY_IN_SECONDS, fn() => (new DateTimeImmutable('tomorrow 03:20', wp_timezone()))->getTimestamp());
 add_action('mandala_crm_web_stats_daily', function () {
     if (mandala_crm_config()) {
-        mandala_crm_web_stats_add(mandala_crm_last_months(2));
+        mandala_crm_web_stats_daily();
         mandala_crm_web_stats_step();
     }
 });
@@ -1012,8 +1062,9 @@ add_action('mandala_crm_sync', function ($soon = false) {
  * időkerete, összesen legfeljebb 80 kérés; 10 mp alatt könnyített futás – webes forgalom nélkül). Ha az első küldés
  * hibára futott, a második elmarad (a CRM épp nem fogad; a mérgezett esemény futásonként egyszer számít). Zárral
  * (egyszerre egy), minden lépés külön védve: egy hibás lépés nem állítja meg a küldést. Az állapotban: run_at (a futás
- * kezdete), run_step (épp melyik lépés – ha a futás megszakad, ez marad), run_done, run_error (a végzetes PHP-hiba is).
- * $soon: csak a küldés (fontos esemény után).
+ * kezdete), run_step (épp melyik lépés – ha a futás megszakad, ez marad), run_done, run_error (a végzetes PHP-hiba is;
+ * ha az előző futás nem fejeződött be, a következő elején ez kerül bele). $soon: csak a küldés (fontos esemény után; a
+ * sor elejének hibája ilyenkor nem számít a félretételhez).
  *
  * @return bool lefutott-e (false: nincs összekötve, vagy épp fut egy másik)
  */
@@ -1031,9 +1082,9 @@ function mandala_crm_sync(bool $soon = false, float $seconds = 15.0, string $via
     $t0 = microtime(true);
     $used = 0;
     $sent = true;
-    $send = function (int $requests, float $secs) use (&$used, &$sent) {
+    $send = function (int $requests, float $secs) use (&$used, &$sent, $soon) {
         $sent = false;
-        $sent = mandala_crm_flush($requests, $secs, $used);
+        $sent = mandala_crm_flush($requests, $secs, $used, !$soon);
     };
     $errors = [];
     $step = function (string $name, callable $fn) use (&$errors) {
@@ -1056,7 +1107,18 @@ function mandala_crm_sync(bool $soon = false, float $seconds = 15.0, string $via
         if ($soon) {
             mandala_crm_state(['soon_at' => time()]);
         } else {
-            mandala_crm_state(['run_at' => time(), 'run_via' => $via, 'run_error' => '']);
+            // Az előző futás nem fejeződött be (időkorlát, memória): oldalbetöltés végén a PHP a végzetes hiba után már
+            // egy shutdown-függvényt sem hív (mandala_crm_sync_died), ezért itt kerül a Háttérhiba sorba.
+            $prev = mandala_crm_state();
+            $prev_at = (int) ($prev['run_at'] ?? 0);
+            $died = '';
+            if ($prev_at > (int) ($prev['run_done'] ?? 0)) {
+                $died = 'az előző futás (' . wp_date('m-d H:i', $prev_at) . (!empty($prev['run_via']) ? ', ' . $prev['run_via'] : '') . ') nem fejeződött be: '
+                    . ((int) ($prev['run_error_at'] ?? 0) >= $prev_at && !empty($prev['run_error'])
+                        ? $prev['run_error'] // a mandala_crm_sync_died() beírta (lépés: hiba)
+                        : (!empty($prev['run_step']) ? $prev['run_step'] . ': ' : '') . 'időkorlát vagy memória?');
+            }
+            mandala_crm_state(['run_at' => time(), 'run_via' => $via, 'run_error' => $died] + ($died !== '' ? ['run_error_at' => time()] : []));
             $light = $seconds < 10;
             if (mandala_crm_queue() || get_option('mandala_crm_acks', [])) {
                 $step('küldés', fn() => $send(40, $seconds / 2));
@@ -1064,7 +1126,10 @@ function mandala_crm_sync(bool $soon = false, float $seconds = 15.0, string $via
             $step('teljes küldés', fn() => mandala_crm_backfill_step(40, $light ? 2.0 : 6.0));
             $step('készlet', fn() => mandala_crm_queue_stock((int) get_option('mandala_crm_stock_full_at', 0) < time() - DAY_IN_SECONDS));
             if (!$light && !get_option('mandala_crm_backfill')) {
-                $step('webes forgalom', fn() => mandala_crm_web_stats_step());
+                $step('webes forgalom', function () {
+                    mandala_crm_web_stats_daily(); // ha a hajnali ütemezett feladat nem futott
+                    return mandala_crm_web_stats_step();
+                });
             }
             $step('hello', function () {
                 if ((int) (mandala_crm_state()['hello_at'] ?? 0) < time() - HOUR_IN_SECONDS) {
@@ -1084,7 +1149,11 @@ function mandala_crm_sync(bool $soon = false, float $seconds = 15.0, string $via
     return true;
 }
 
-/** Ha a futás végzetes PHP-hibával állt le (időkorlát, memória): a hiba a lépéssel az állapotba (run_error), a zár fel. */
+/**
+ * Ha a futás végzetes PHP-hibával állt le (időkorlát, memória): a hiba a lépéssel az állapotba (run_error), a zár fel.
+ * Csak az ütemezett futásnál fut le: oldalbetöltés végén (a shutdown horogban) a PHP a végzetes hiba után már egy
+ * shutdown-függvényt sem hív – ott a következő futás eleje írja be, a zár a lejártakor (5 perc) szabadul.
+ */
 function mandala_crm_sync_died(): void
 {
     if (empty($GLOBALS['mandala_crm_running'])) {
@@ -1102,7 +1171,8 @@ function mandala_crm_sync_died(): void
 /**
  * Tartalék ütemező: ha az Action Scheduler / WP-cron nem fut (az ELIN a loopback POST-ot is tilthatja), egy admin- vagy
  * látogatói oldalbetöltés végén – a válasz elküldése után – lefut a szinkron, ha 9 percnél régebben futott. Ha a válasz
- * nem zárható le előre (nincs fastcgi_finish_request / litespeed_finish_request), csak adminban, 5 mp-es kerettel.
+ * nem zárható le előre (nincs fastcgi_finish_request / litespeed_finish_request), csak a bolt kezelőjének admin-oldalán
+ * (manage_woocommerce), 5 mp-es kerettel – az admin-post.php látogatói űrlapjai (visszaküldés, árlista) ne várjanak rá.
  * REST, AJAX, cron és WP-CLI kérésnél nem.
  */
 add_action('shutdown', 'mandala_crm_maybe_run', 1000);
@@ -1115,7 +1185,7 @@ function mandala_crm_maybe_run(): void
         return;
     }
     $finish = function_exists('fastcgi_finish_request') ? 'fastcgi_finish_request' : (function_exists('litespeed_finish_request') ? 'litespeed_finish_request' : '');
-    if ($finish === '' && !is_admin()) {
+    if ($finish === '' && !(is_admin() && current_user_can('manage_woocommerce'))) {
         return;
     }
     if ($finish !== '') {
@@ -1245,13 +1315,15 @@ add_action('admin_post_mandala_crm_save', function () {
         wp_die('Nincs jogosultság.');
     }
     $msg = '';
-    // Próba / első kapcsolódás: a háttérfutással egyszerre nem (zár), rövid időkerettel.
+    // Próba / első kapcsolódás: a háttérfutással egyszerre nem (zár), rövid időkerettel; a sor elejének hibája itt nem
+    // számít a félretételhez (két gyors kattintás ne tegyen félre eseményt).
     $try = function (int $requests, float $seconds): string {
         if (!mandala_crm_lock()) {
             return 'busy';
         }
         try {
-            return mandala_crm_flush($requests, $seconds) ? 'ok' : 'error';
+            $used = 0;
+            return mandala_crm_flush($requests, $seconds, $used, false) ? 'ok' : 'error';
         } finally {
             mandala_crm_unlock();
         }

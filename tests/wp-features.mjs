@@ -1414,7 +1414,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
       $q = []; parse_str((string) parse_url($url, PHP_URL_QUERY), $q); // protokoll v2: a csomag a GET-ben (hpvz)
       $GLOBALS["crm_req"][] = ["method" => $args["method"], "q" => array_diff_key($q, ["hpvz" => 1]), "z" => (string) ($q["hpvz"] ?? ""), "body" => isset($q["hpvz"]) ? mandala_crm_z_decode($q["hpvz"]) : $args["body"]];
       $cmds = count($GLOBALS["crm_req"]) === 1 ? [["id" => 41, "type" => "approve", "data" => ["email" => "uj-partner@example.com", "first_name" => "Eszter", "last_name" => "Nagy", "company" => "Om Jógastúdió", "city" => "Szeged"]], ["id" => 42, "type" => "ismeretlen", "data" => []]] : [];
-      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "accepted" => 1, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "accepted" => 1, "commands" => $cmds] + (isset($q["hpvz"]) ? ["transport" => "get"] : [])), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
     }, 10, 3);
     $vid = get_user_by("login", "viszontelado")->ID;
     // Viszonteladó rendelése (a téma jelöli és sorba teszi).
@@ -1504,7 +1504,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
         ["id" => 51, "type" => "terms", "data" => ["email" => "b2b@example.com", "discount_level" => "Kiemelt", "payment_days" => 15, "block" => ["on" => true, "reason" => "Lejárt tartozás"]]],
         ["id" => 52, "type" => "terms", "data" => ["email" => "nincs-ilyen@example.com", "payment_days" => 8]],
       ] : [];
-      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds] + (isset($q["hpvz"]) ? ["transport" => "get"] : [])), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
     }, 10, 3);
     update_option("mandala_crm_levels", mandala_crm_parse_levels("Alap nagyker = 0\\nKiemelt = 5 %"), false);
     mandala_crm_enqueue("hello", mandala_crm_hello());
@@ -1935,7 +1935,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
       $cmds = $n === 1 ? [["id" => 61, "type" => "consent", "data" => ["email" => "b2b@example.com", "partner_mail" => "no", "source" => "leiratkozas"]]]
         : ($n === 2 ? [["id" => 62, "type" => "consent", "data" => ["user_id" => ${vid}, "email" => "b2b@example.com", "partner_mail" => "yes", "source" => "telefon", "wording" => "Telefonon kérte a partnerleveleket (Kovács Judit, 2026-10-16)", "at" => "2026-10-01T10:00:00+02:00"]],
           ["id" => 63, "type" => "consent", "data" => ["email" => "uj-telefonos-${T}@example.com", "partner_mail" => "yes"]], ["id" => 64, "type" => "consent", "data" => ["email" => "b2b@example.com", "partner_mail" => "talan"]]] : []);
-      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds]), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
+      return ["headers" => [], "body" => wp_json_encode(["ok" => true, "commands" => $cmds] + (isset($q["hpvz"]) ? ["transport" => "get"] : [])), "response" => ["code" => 200, "message" => "OK"], "cookies" => [], "filename" => null];
     }, 10, 3);
     mandala_crm_post();
     $after_no = [get_user_meta(${vid}, "_mandala_partner_mail", true), get_user_meta(${vid}, "_mandala_b2b_arrivals", true)];

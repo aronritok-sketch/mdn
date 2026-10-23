@@ -156,22 +156,34 @@ webshop egy HTTP 400 után elakadt (85 esemény ment át, a készlet semmi), ez�
   egyszeri nonce és az 5 perces ablak is.
 - **Méret:** a webshop mohón annyi eseményt tesz egy kérésbe, amennyi tömörítve belefér (`Z` ≤ 5500 karakter, mérve). A
   CRM a 16 000 karakternél hosszabb `Z`-t és az 1 MB-nál nagyobb kibontott csomagot 400-zal elutasítja.
-- **Válasz:** ugyanaz a JSON (`ok, accepted, acked, errors, commands`) + `"transport":"get"`, gyorsítótár nélkül.
+- **Válasz:** ugyanaz a JSON (`ok, accepted, acked, errors, commands`) + `"transport":"get"`, gyorsítótár nélkül. A
+  webshop csak ezt fogadja el sikernek (2xx, JSON, `ok`, GET-nél `transport: get`): egy köztes szerver 200-as `{}`-ja
+  nem viszi le a sort (*Utolsó hiba*: „HTTP 200 (…), nem a CRM válasza”).
+- **Adatvédelem:** a csomag a címben megy, így a tárhely (ELIN, nginx) access logjában tömörítve, de visszafejthetően
+  megmarad (e-mail, adószám, rendelés). A naplózott cím 5 perc után nem játszható vissza; a naplók megőrzéséről a
+  tárhely dönt.
 - **Készlet:** eseményenként 40 tétel, és a viszonteladók teljes küldésétől függetlenül megy (eddig a teljes küldés
   végét várta). A sorban maradt régi, 400 tételes készlet-eseményt a webshop a helyén kisebbekre vágja (a teljes lista
   `full_start` / `full_end` jelölője az első / utolsó darabon marad).
-- **Tartalék POST:** egyetlen, a GET-be be nem férő (nem készlet-) esemény egyszer a régi POST-tal megy; ha a CRM még a
-  régi (a GET-re `rest_no_route`-tal válaszol), ugyanaz a csomag POST-tal. A CRM a POST-ot továbbra is elfogadja.
+- **Tartalék POST:** egyetlen, a GET-be be nem férő (nem készlet-) esemény a régi POST-tal megy (hibánál ugyanúgy
+  újrapróba és elérhetőség-próba, mint a többinél); ha a CRM még a régi (a GET-re `rest_no_route`-tal válaszol),
+  ugyanaz a csomag POST-tal. A CRM a POST-ot továbbra is elfogadja.
 - **Futás:** 10 percenként (Action Scheduler), legfeljebb ~15 mp vagy 80 kérés, a kérések közt 150 ms. Előbb a már
   sorban álló események mennek (fél időkerettel), csak utána jön a teljes küldés adagja, a készlet és a webes forgalom,
   végül a küldés a maradék időben – így egy később elhaló lépés (időkorlát, memória) sem akasztja meg a küldést; a
-  végzetes PHP-hiba a lépés nevével a *Háttérhiba* sorba kerül, a zár felszabadul. A nyugták csak
-  sikeres (2xx JSON) válasz után törlődnek. Hibánál egy gyors újrapróba csak a sor elejével, aztán egy üres kérés:
-  ha arra a CRM válaszol, a sor eleje a hibás – **3 egymás utáni futás után félreteszi** (`mandala_crm_dead`, az
-  utolsó 50, okkal), és a sor megy tovább; ha a CRM nem válaszol, semmi nem kerül félre.
+  végzetes PHP-hiba a lépés nevével a *Háttérhiba* sorba kerül, a zár felszabadul (oldalbetöltés végén a PHP ezt már
+  nem tudja beírni: ott a következő futás eleje jelzi, hogy az előző melyik lépésnél szakadt meg). A nyugták csak
+  sikeres válasz után törlődnek. Hibánál egy gyors újrapróba csak a sor elejével, aztán egy üres kérés:
+  ha arra a CRM válaszol, a sor eleje a hibás – **3 futás után félreteszi** (`mandala_crm_dead`, az utolsó 50, okkal),
+  és a sor megy tovább. A 3 hiba közt legalább 8-8 perc kell, és csak az ütemezett / oldalbetöltéses futás számít (a
+  fontos esemény utáni gyors küldés és az admin gombjai nem – két gyors kattintás nem tesz félre semmit); ha a CRM nem
+  válaszol, semmi nem kerül félre. A sor írása (új esemény, levétel) rövid MySQL-zárral megy (`GET_LOCK`), hogy a
+  futás és egy látogató egyszerre írása ne vesszen el.
 - **Ha a WP-cron / Action Scheduler nem fut** (az ELIN a loopback POST-ot is tilthatja): egy admin- vagy látogatói
-  oldalbetöltés végén – a válasz elküldése után (`fastcgi_finish_request`) – lefut, ha 9 percnél régebben futott; zár
-  véd a kettős futás ellen. A teljes küldés fiókonként halad (egy hibás fiók / rendelés kimarad, a hiba látszik; ha egy
+  oldalbetöltés végén – a válasz elküldése után (`fastcgi_finish_request`) – lefut, ha 9 percnél régebben futott; ha a
+  válasz nem zárható le előre, csak a bolt kezelőjének admin-oldalán (5 mp-es kerettel; látogató nem vár rá); zár
+  véd a kettős futás ellen. A napi webes forgalom (előző + aktuális hónap) is a szinkronból megy, ha a hajnali
+  ütemezett feladat nem futott. A teljes küldés fiókonként halad (egy hibás fiók / rendelés kimarad, a hiba látszik; ha egy
   fióknál a futás megszakad, a következő átugorja), és vár, amíg a sorban 600-nál több esemény áll.
 
 **Amit az admin lát** (WooCommerce → Partner CRM): *Utolsó háttérfuttatás* (mikor, ütemező / oldalbetöltés; ha nem
@@ -203,9 +215,10 @@ repóban soha.
 
 `php tests/crm-connect-transport.php` (WordPress nélkül, helyettesítőkkel): a `Z` oda-vissza (a CRM kibontásával és
 aláírás-ellenőrzésével), a mohó csomagolás és az 5500-as határ, a készlet szétvágása a jelölőkkel, a tartalék POST, a
-nyugták (csak siker után törlődnek), a mérgezett esemény (3 futás → félre; leállt CRM-nél nem), a hibaszöveg, a zár, a
-40-es készlet-adagok a teljes küldéstől függetlenül, a teljes küldés hibatűrése, a futás sorrendje és kérés-kerete, a
-tartalék ütemező, az őrszem. `HLPRV=/útvonal/hlprv php tests/crm-connect-transport.php`: a GET kérést a CRM valódi
+nyugták (csak siker után törlődnek; a nem-CRM 2xx JSON nem siker), a mérgezett esemény (3 futás, egymástól 8 percre →
+félre; leállt CRM-nél, gyors futásnál, admin gombnál nem; a túl nagy esemény is újrapróbával), a hibaszöveg, a zár és a
+sor MySQL-zárja, a 40-es készlet-adagok a teljes küldéstől függetlenül, a teljes küldés hibatűrése, a futás sorrendje
+és kérés-kerete, a félbeszakadt előző futás jelzése, a napi webes forgalom a szinkronból, a tartalék ütemező, az őrszem. `HLPRV=/útvonal/hlprv php tests/crm-connect-transport.php`: a GET kérést a CRM valódi
 `core.php`-ja (`hpv_pt_connect_decode_get`, `hpv_pt_verify`) is ellenőrzi.
 
 `tests/wp-features.mjs` → „Partner CRM összekötő”: közös aláírási tesztvektor (a CRM tesztjében is), https-kötelező kód,
