@@ -163,9 +163,14 @@ export function contextState(state) {
   }
   return state;
 }
+/** Hirdetés-követő paraméterek: a szűrő címfrissítése nem veheti ki őket, a mérés (Meta _fbc, Google gclid, UTM) ezekből dolgozik. */
+const TRACKING = /^(utm_[a-z_]+|fbclid|gclid|gbraid|wbraid|msclkid|ttclid|_gl)$/;
 /** Kategória esetén a kategória saját (SEO) címe, különben a bolt oldala; a többi szűrő paraméterben. */
 export function shopUrl(state, qs) {
   const q = new URLSearchParams(qs);
+  for (const [k, v] of new URLSearchParams(location.search)) {
+    if (TRACKING.test(k) && !q.has(k)) q.set(k, v);
+  }
   const target = (state.sub && URLS[state.sub]) || (state.cat && URLS[state.cat]) || M.shop || location.pathname;
   if (URLS[state.sub] || (!state.sub && URLS[state.cat])) { q.delete('cat'); q.delete('sub'); }
   const path = new URL(target, location.href).pathname;
