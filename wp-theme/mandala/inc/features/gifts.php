@@ -219,18 +219,19 @@ add_filter('mandala_product_index_row', function ($row, WC_Product $product) {
     return $row;
 }, 10, 2);
 
+// $_REQUEST: a GET-es kosárba tétel (ELIN 403 tartalék, elin.php) is viszi az utalvány adatait.
 add_filter('woocommerce_add_to_cart_validation', function ($ok, $product_id) {
     $product = wc_get_product($product_id);
     if (!mandala_is_voucher($product)) {
         return $ok;
     }
-    $amount = absint($_POST['mandala_voucher_amount'] ?? 0); // phpcs:ignore WordPress.Security.NonceVerification
+    $amount = absint($_REQUEST['mandala_voucher_amount'] ?? 0); // phpcs:ignore WordPress.Security.NonceVerification
     if (!in_array($amount, mandala_voucher_amounts(), true)) {
         wc_add_notice(__('Válaszd ki az utalvány összegét.', 'mandala'), 'error');
         return false;
     }
-    $email = sanitize_email(wp_unslash($_POST['mandala_voucher_to_email'] ?? '')); // phpcs:ignore WordPress.Security.NonceVerification
-    if (!empty($_POST['mandala_voucher_to_email']) && !is_email($email)) { // phpcs:ignore WordPress.Security.NonceVerification
+    $email = sanitize_email(wp_unslash($_REQUEST['mandala_voucher_to_email'] ?? '')); // phpcs:ignore WordPress.Security.NonceVerification
+    if (!empty($_REQUEST['mandala_voucher_to_email']) && !is_email($email)) { // phpcs:ignore WordPress.Security.NonceVerification
         wc_add_notice(__('A címzett e-mail-címe nem tűnik érvényesnek.', 'mandala'), 'error');
         return false;
     }
@@ -238,12 +239,12 @@ add_filter('woocommerce_add_to_cart_validation', function ($ok, $product_id) {
 }, 10, 2);
 
 add_filter('woocommerce_add_cart_item_data', function ($data, $product_id) {
-    if (mandala_is_voucher(wc_get_product($product_id)) && isset($_POST['mandala_voucher_amount'])) { // phpcs:ignore WordPress.Security.NonceVerification
+    if (mandala_is_voucher(wc_get_product($product_id)) && isset($_REQUEST['mandala_voucher_amount'])) { // phpcs:ignore WordPress.Security.NonceVerification
         $data['mandala_voucher'] = [
-            'amount' => absint($_POST['mandala_voucher_amount']), // phpcs:ignore
-            'to_name' => sanitize_text_field(wp_unslash($_POST['mandala_voucher_to_name'] ?? '')), // phpcs:ignore
-            'to_email' => sanitize_email(wp_unslash($_POST['mandala_voucher_to_email'] ?? '')), // phpcs:ignore
-            'message' => sanitize_textarea_field(wp_unslash($_POST['mandala_voucher_message'] ?? '')), // phpcs:ignore
+            'amount' => absint($_REQUEST['mandala_voucher_amount']), // phpcs:ignore
+            'to_name' => sanitize_text_field(wp_unslash($_REQUEST['mandala_voucher_to_name'] ?? '')), // phpcs:ignore
+            'to_email' => sanitize_email(wp_unslash($_REQUEST['mandala_voucher_to_email'] ?? '')), // phpcs:ignore
+            'message' => sanitize_textarea_field(wp_unslash($_REQUEST['mandala_voucher_message'] ?? '')), // phpcs:ignore
         ];
         $data['unique_key'] = md5(wp_json_encode($data['mandala_voucher']) . microtime());
     }
@@ -252,6 +253,8 @@ add_filter('woocommerce_add_cart_item_data', function ($data, $product_id) {
 add_filter('woocommerce_add_to_cart_redirect', function ($url, $product = null) {
     return $product instanceof WC_Product && mandala_is_voucher($product) ? wc_get_cart_url() : $url;
 }, 10, 2);
+// A termékoldal AJAX-szal teszi kosárba (product.js) – utána ugyanígy a kosár oldalra visz.
+add_filter('mandala_cart_form_redirect', fn($url, $product) => mandala_is_voucher($product) ? wc_get_cart_url() : $url, 10, 2);
 
 add_action('woocommerce_before_calculate_totals', function (WC_Cart $cart) {
     foreach ($cart->get_cart() as $item) {

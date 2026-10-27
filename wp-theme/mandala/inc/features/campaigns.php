@@ -95,16 +95,74 @@ add_action('wp_loaded', function () {
         return;
     }
     $code = wc_format_coupon_code(sanitize_text_field(wp_unslash($_GET['kupon']))); // phpcs:ignore
-    if ($code && wc_get_coupon_id_by_code($code)) {
+    if ($code === '') {
+        return;
+    }
+    mandala_nocache('kupon'); // a visszajelzés vásárlónként más – ez az oldal ne kerüljön gyorsítótárba
+    $coupon = wc_get_coupon_id_by_code($code) ? new WC_Coupon($code) : null;
+    $problem = mandala_link_coupon_problem($coupon, $code);
+    if ($problem === '') {
         if (!WC()->session->has_session()) {
             WC()->session->set_customer_session_cookie(true); // vendég: üres kosárnál is megmaradjon
         }
         WC()->session->set('mandala_link_coupon', $code);
         if (WC()->cart && !WC()->cart->is_empty() && !WC()->cart->has_discount($code)) {
-            WC()->cart->apply_coupon($code);
+            // A WooCommerce saját üzenetei helyett a miénk (a következő oldalon se jelenjenek meg külön).
+            $mute = ['woocommerce_add_error', 'woocommerce_add_success', 'woocommerce_add_message'];
+            array_map(fn($f) => add_filter($f, '__return_empty_string', 99), $mute);
+            $applied = WC()->cart->apply_coupon($code);
+            array_map(fn($f) => remove_filter($f, '__return_empty_string', 99), $mute);
+            if (!$applied && !WC()->cart->has_discount($code)) {
+                // A kód a munkamenetben marad: amint a kosárba olyan termék kerül, amire érvényes, magától levonódik.
+                $problem = sprintf(__('A %s kódot elmentettük, de a kosaradban lévő termékekre nem érvényes – ha olyat teszel mellé, amire igen, magától levonjuk.', 'mandala'), $code);
+            }
         }
     }
+    $GLOBALS['mandala_coupon_notice'] = $problem === ''
+        ? ['ok' => true, 'text' => sprintf(__('A %1$s kód a kosaradba került: %2$s', 'mandala'), $code, mandala_coupon_amount_label($coupon))]
+        : ['ok' => false, 'text' => $problem];
 }, 25);
+
+/**
+ * Miért nem váltható be a kuponlink kódja – a vásárlónak szóló mondat (üres: beváltható). A kosártól függő
+ * feltételeket (termékek, minimum összeg) a WooCommerce a kosárban nézi.
+ */
+function mandala_link_coupon_problem(?WC_Coupon $coupon, string $code): string
+{
+    if (!$coupon || !$coupon->get_id()) {
+        return sprintf(__('A %s kódot nem találjuk – lehet, hogy elírás. A kínálatot így is nyugodtan böngészheted.', 'mandala'), $code);
+    }
+    $expires = $coupon->get_date_expires();
+    if ($expires && $expires->getTimestamp() < time()) {
+        return sprintf(__('A %s kód már lejárt, ezért most nem tudjuk levonni.', 'mandala'), $code);
+    }
+    if ($coupon->get_usage_limit() > 0 && $coupon->get_usage_count() >= $coupon->get_usage_limit()) {
+        return sprintf(__('A %s kód már elfogyott, ezért most nem tudjuk levonni.', 'mandala'), $code);
+    }
+    return '';
+}
+
+/** A kedvezmény röviden: „−10%”, „−2 000 Ft”, „−500 Ft / termék”, ingyenes szállításnál „ingyenes szállítás”. */
+function mandala_coupon_amount_label(?WC_Coupon $coupon): string
+{
+    if (!$coupon) {
+        return '';
+    }
+    $amount = (float) $coupon->get_amount();
+    $type = $coupon->get_discount_type();
+    if ($amount <= 0) {
+        return $coupon->get_free_shipping() ? __('ingyenes szállítás', 'mandala') : __('kedvezmény', 'mandala');
+    }
+    $num = fn($n) => number_format($n, floor($n) == $n ? 0 : 1, ',', ' ');
+    return $type === 'percent' ? '−' . $num($amount) . '%' : '−' . $num($amount) . ' Ft' . ($type === 'fixed_product' ? ' / ' . __('termék', 'mandala') : '');
+}
+
+add_filter('mandala_js_data', function ($data) {
+    if (!empty($GLOBALS['mandala_coupon_notice'])) {
+        $data['couponNotice'] = $GLOBALS['mandala_coupon_notice'];
+    }
+    return $data;
+});
 add_action('woocommerce_before_calculate_totals', function ($cart) {
     static $busy = false;
     if ($busy || is_admin() || $cart->is_empty()) {

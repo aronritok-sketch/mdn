@@ -246,6 +246,51 @@ Az Árukereső Megbízható Bolt, a GA4 és a Meta miatt az **adatkezelési táj
 - **Háttérfeladatok**: Eszközök → Ütemezett műveletek (a „mandala” csoport).
 - **PHP hibák**: `wp-content/debug.log` (ha a `WP_DEBUG_LOG` be van kapcsolva).
 - A tárhely tűzfala ne tiltsa a `wc-ajax`, `/wp-json/` és `admin-ajax.php` POST kéréseit (a tesztszerveren ez előfordult).
+  Élesben is előfordul – lásd 6a.
+
+---
+
+## 6a. ELIN 403 – mit lát a vásárló, mit csinál a téma
+
+Az ELIN tárhely nginx-tűzfala **IP-cím szerint** elutasít POST kéréseket („403 Forbidden” oldal), a GET-eket mindig
+átengedi (2026-10-27-i vizsgálat: amerikai felhős címeink ~70%-a tiltva; a magyar vásárlók többsége átmegy, de nem mind).
+
+| Hol | Mit látott a vásárló (javítás előtt) | Mit csinál most a téma |
+|---|---|---|
+| Kártya „Kosárba” (kategória, kereső, kedvencek, gyors kosárba) | semmi nem történt, üzenet sem | ugyanaz GET-tel (`?wc-ajax=add_to_cart&…&mfb=1`), a fejléc kosara frissül, „Kosárba tettük” üzenet; ha az sem megy, oldalbetöltés `?add-to-cart=…&mfb=1`, utána tiszta cím (frissítésre nem kerül be újra) |
+| Termékoldal (előfizethető, utalvány, változatos) | fehér „403 Forbidden” oldal | AJAX-szal megy (a mezőkkel: előfizetés, utalvány), tiltásnál ugyanaz GET-tel – az előfizetés és az utalvány adatai is megmaradnak |
+| Pénztár – szállítás / fizetés frissítése | nem jöttek a szállítási módok, szürke takarás örökre, a Teya-váltás „beragadt” | a takarás lekerül, üzenet a szállítási módok helyén: „Most nem értük el a pénztárt… Újrapróbálom”, másik internet (wifi helyett mobilnet), telefon, e-mail |
+| Pénztár – rendelés leadása | a WooCommerce általános hibája | „A rendelést most nem tudtuk elküldeni. Még nem jött létre…” (5xx-nél: „nézd meg a postafiókod, mielőtt újra elküldöd”), a gomb mindig használható |
+| Minikosár mennyiség, ajándékcsomag, viszonteladói gyorsrendelő | csendes hiba | ugyanaz GET-tel (nonce-szal) |
+| Kupon a pénztárban | csendes hiba | „Most nem értük el a pénztárt, a kupont nem tudtuk beváltani” |
+
+- **Dupla kosárba tétel ellen:** tiltásnál (403) a kérés el sem érte a WordPresst. Szerverhibánál (5xx) vagy hálózati
+  hibánál a téma előbb GET-tel lekéri a kosarat (fragmentek), és ha a kosár lenyomata változott, nem teszi be újra.
+- **Mérés:** minden tiltásnál a böngésző egy kis GET kérést küld (`mandala/v1/blocked`, oldalanként végpontonként
+  egyszer). **WooCommerce → Mandala állapot**: az utolsó 14 nap naponta – látogatók, tiltott kérések végpontonként,
+  különböző hálózatok (/24, pontos IP nélkül), és hány kosárba tételt mentett meg a GET tartalék. Alatta a
+  leggyakrabban tiltott hálózatok listája – ezt lehet elküldeni az ELIN-nek. Az őrszem figyelmeztet, ha egy nap
+  legalább 5 kosárba tétel / pénztár-kérés tiltva volt.
+- **Látogatószám:** a saját látogatás-számláló GET-tel megy (eddig POST volt, így a tiltott látogatók nem számítottak).
+- **Teya (kártya):** a fizetés visszaigazolása a Teya szerverének POST-ja – ezt is tilthatja a tűzfal. Ha a vásárló a
+  sikeres fizetés után visszatér, de a rendelés „Függőben” maradt: rendelés-jegyzet, az őrszem és a Mandala állapot
+  oldal listázza („nézd meg a Teya felületén, és ha sikeres, állítsd „Feldolgozás alatt”-ra”), a WooCommerce nem
+  törli fizetetlenként, és a mérés (dataLayer purchase, HelloProVision Ads hub, Meta CAPI, a PixelYourSite helyett
+  Meta / GA4 purchase) rendelésenként egyszer lefut.
+- **A csomagpont-térkép** (`window.initOpenMap is not a function`): a függvényt a Pont bővítmény a sikeres frissítéssel
+  hozza; ha a frissítés elmaradt, a téma csendes helyőrzőt tesz a helyére (a sikeres újrapróbáláskor a valódi jön).
+- **Kérés az ELIN felé:** a POST-szűrés lazítása a `/?wc-ajax=…`, `/wp-json/…`, `/wc-api/wc_gateway_borgun`
+  (Teya értesítés) és a termékoldalak címein – a fenti lista hálózataival.
+
+**Hozzájárulás (PixelYourSite):** a Google Consent Mode a választásig „denied” (a PixelYourSite magától „granted”-et
+küldött), a „Csak a szükségesek” után is az marad; a Meta pixel csak marketing-hozzájárulással töltődik be (előtte
+PageView sem megy). Kikapcsolható: WooCommerce → Mandala mérés → „PixelYourSite a süti sáv szerint”.
+A visszatért, „Függőben” maradt kártyás rendelésnél a téma csak akkor küld Meta / GA4 vásárlást, ha a PixelYourSite
+azon az oldalon maga nem küld (a PixelYourSite **WooCommerce → Purchase** státusz-beállításától függ) – kétszer így sem
+számol; a Meta eseményazonosítója (`wc-<rendelés>`) ugyanaz, mint a HelloProVision Ads hubé, a Meta összevonja őket.
+
+**Kuponlink** (`?kupon=hot10`): a landing oldalon rövid üzenet – „A hot10 kód a kosaradba került: −10%”, vagy
+semleges üzenet, ha lejárt / elfogyott / nem létezik / a kosár termékeire nem érvényes.
 
 ---
 
@@ -259,6 +304,8 @@ BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-features.m
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-marketing.mjs  # marketingeszközök
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-oldsettings.mjs # régi bolt beállításainak átvétele
 BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-olddata.mjs     # régi bolt adatainak átvétele
+BASE=http://localhost:8080 WP="wp --path=/var/www/html" node tests/wp-resilience.mjs  # ELIN 403, hozzájárulás, kuponlink, Teya-visszatérés
+node tests/resilience.mjs                                                             # ugyanez egységtesztként, WordPress nélkül
 ```
 
 Témafrissítés készítése: `python3 tools/build-theme.py --content` → `dist/`.

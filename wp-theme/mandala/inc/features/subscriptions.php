@@ -86,10 +86,11 @@ add_action('mandala_cart_form_fields', function (WC_Product $product) {
     }
     echo '<p class="sub-note text-small">' . esc_html__('Bármikor kihagyhatod, szüneteltetheted vagy lemondhatod – minden szállítás előtt 3 nappal emlékeztetünk.', 'mandala') . '</p></fieldset>';
 });
+// $_REQUEST: a GET-es kosárba tétel (ELIN 403 tartalék, elin.php) is viszi az előfizetést.
 add_filter('woocommerce_add_cart_item_data', function ($data, $product_id) {
-    $m = absint($_POST['mandala_sub'] ?? 0); // phpcs:ignore
+    $m = absint($_REQUEST['mandala_sub'] ?? 0); // phpcs:ignore
     if ($m) {
-        $int = absint($_POST['mandala_sub_interval'] ?? $m); // phpcs:ignore
+        $int = absint($_REQUEST['mandala_sub_interval'] ?? $m); // phpcs:ignore
         $p = wc_get_product($product_id);
         if ($p && mandala_sub_available($p) && in_array($int, mandala_sub_intervals(), true)) {
             $data['mandala_sub'] = $int;

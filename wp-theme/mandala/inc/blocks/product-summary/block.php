@@ -69,7 +69,7 @@ mandala_add_block('mandala/product-summary', [
     </form>
   </div>
   <?php elseif ($product->is_type('simple') && $product->is_purchasable()) : ?>
-  <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype="multipart/form-data" data-cart-form data-product-id="<?php echo (int) $id; ?>"<?php echo apply_filters('mandala_cart_form_native', false, $product) ? ' data-native' : ''; ?>>
+  <form class="cart" action="<?php echo esc_url(apply_filters('woocommerce_add_to_cart_form_action', $product->get_permalink())); ?>" method="post" enctype="multipart/form-data" data-cart-form data-product-id="<?php echo (int) $id; ?>"<?php echo apply_filters('mandala_cart_form_native', false, $product) ? ' data-native' : ''; ?><?php echo ($after = (string) apply_filters('mandala_cart_form_redirect', '', $product)) !== '' ? ' data-redirect="' . esc_url($after) . '"' : ''; ?>>
     <?php do_action('mandala_cart_form_fields', $product); ?>
     <?php if (apply_filters('mandala_cart_show_qty', true, $product)) : ?>
     <div class="quantity" data-qty><button type="button" data-step="-1" aria-label="<?php esc_attr_e('Eggyel kevesebb', 'mandala'); ?>"><?php echo $icon('minus'); // phpcs:ignore ?></button>

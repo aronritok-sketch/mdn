@@ -105,7 +105,8 @@ async function checkout(page, { email, payment = 'bacs', before } = {}) {
   ok(await page.isVisible('.sub-choice'), 'előfizetés: „Egyszeri / Előfizetés” választó a füstölő oldalán');
   await page.check('.sub-choice input[name="mandala_sub"]:not([value="0"])');
   await page.click('.single_add_to_cart_button');
-  await page.waitForLoadState('networkidle');
+  // Az előfizetéses űrlap is AJAX-szal megy (a teljes oldalas POST-ot az ELIN tűzfala tilthatja): a minikosár nyílik ki.
+  await page.waitForSelector('#minicart.is-open', { timeout: 15000 }).catch(() => {});
   await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
   const text = await page.textContent('.woocommerce-cart-form');
   const base = Number(wp('echo wc_get_product(wc_get_product_id_by_sku("MND-FK-0012"))->get_price();'));

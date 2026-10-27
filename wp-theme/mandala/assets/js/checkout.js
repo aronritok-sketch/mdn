@@ -3,6 +3,7 @@
 // hibaösszesítő, mobil összesítő. A frissítéseket a WooCommerce checkout.js végzi.
 import { $, $$, esc, icon, fmt } from './env.js';
 import { bindValidation, validateForm, showFieldState, countryOf } from './validate.js';
+import { endpointOf, isElinBlock, isFailure, checkoutTroubleHtml, contactOf, wcPost } from './net.js';
 
 const form = $('form.checkout.mandala-checkout');
 const jq = window.jQuery;
@@ -95,8 +96,14 @@ if (form) {
     if (!code) { input?.focus(); return; }
     const params = window.wc_checkout_params || {};
     const body = new URLSearchParams({ security: params.apply_coupon_nonce || '', coupon_code: code, billing_email: $('#billing_email')?.value || '' });
-    const res = await fetch(String(params.wc_ajax_url || M.wcAjax).replace('%%endpoint%%', 'apply_coupon'), { method: 'POST', credentials: 'same-origin', body });
-    const text = await res.text();
+    // A WooCommerce apply_coupon végpontja csak POST-ot olvas: tiltásnál (ELIN 403) a GET ismétlés nem váltja be –
+    // ilyenkor érthető üzenetet adunk (a wcPost jelzi a tiltást).
+    const res = await wcPost('apply_coupon', body);
+    const text = res?.ok ? await res.text() : '';
+    if (!res?.ok || !text) {
+      err.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem értük el a pénztárt, a kupont nem tudtuk beváltani. Próbáld újra egy perc múlva.</span>`;
+      return;
+    }
     if (/woocommerce-error|is-error/.test(text)) {
       const msg = new DOMParser().parseFromString(text, 'text/html').body.textContent.trim() || 'Ez a kupon nem érvényes.';
       err.innerHTML = `${icon('alert', 'ico ico-s')}<span>${esc(msg)}</span>`;
@@ -132,6 +139,66 @@ if (form) {
     if (box && anchor) { anchor.after(box); box.classList.add('point-picker'); }
   };
   movePoint();
+
+  // ---------- Ha a pénztár nem válaszol (ELIN 403 / szerverhiba / hálózat) ----------
+  // A WooCommerce checkout.js-ének az update_order_review-nál nincs hibaága: a szürke takarás örökre rajta maradna,
+  // a szállítási módok nem jelennének meg, és a vásárló semmit nem tudna meg. Levesszük a takarást, a gombot
+  // használhatóvá tesszük, és megmondjuk, mit tehet (újra, másik internet, telefon, e-mail).
+  const unstick = () => {
+    jq?.('.woocommerce-checkout-payment, .woocommerce-checkout-review-order-table, #mandala-shipping, #section-shipping, form.checkout').each(function () { if (jq.fn.unblock) jq(this).unblock(); });
+    $$('.blockUI', form).forEach((el) => el.remove());
+    form.classList.remove('processing');
+    const place = $('#place_order');
+    if (place) { place.disabled = false; place.classList.remove('is-loading'); }
+  };
+  function showTrouble(kind, blocked) {
+    unstick();
+    $$('.mandala-net-notice').forEach((el) => el.remove());
+    const box = document.createElement('div');
+    box.className = 'woocommerce-error mandala-net-notice';
+    box.setAttribute('role', 'alert');
+    box.tabIndex = -1;
+    box.dataset.kind = kind;
+    box.innerHTML = `${icon('alert')}${checkoutTroubleHtml({ kind, blocked, contact: contactOf(M) })}`;
+    if (kind === 'order') {
+      // A WooCommerce általános hibaüzenete helyett a miénk, a pénztár tetején (ahová a WooCommerce is görget).
+      $$('.woocommerce-NoticeGroup-checkout').forEach((g) => { if (!g.querySelector('[role="alert"] ul')) g.remove(); });
+      form.prepend(box);
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      box.focus({ preventScroll: true });
+    } else {
+      // A szállítási módok helyén – ott, ahol a vásárló épp vár valamire; gépelés közben nem görgetünk el.
+      const anchor = $('#section-shipping fieldset') || $('#section-shipping') || form.firstElementChild;
+      anchor ? anchor.append(box) : form.prepend(box);
+    }
+  }
+  // A csomagpont-térkép (Pont bővítmény) a frissítés után window.initOpenMap()-et hív; a függvényt a sikeres frissítés
+  // hozza. Ha a frissítés elmaradt, „window.initOpenMap is not a function” hiba állna meg minden további szkriptet –
+  // ilyenkor csendes helyőrző, amíg a bővítmény a valódit be nem állítja (a jQuery hibaeseménye az ajaxComplete előtt fut).
+  const guardOpenMap = () => {
+    if (typeof window.initOpenMap === 'function') return;
+    let real = null;
+    try {
+      Object.defineProperty(window, 'initOpenMap', { configurable: true, get: () => real || (() => {}), set: (f) => { real = typeof f === 'function' ? f : null; } });
+    } catch { /* */ }
+  };
+  jq?.(document).ajaxError((_e, xhr, settings) => {
+    const ep = endpointOf(settings?.url);
+    if (!['update_order_review', 'checkout'].includes(ep) || xhr?.statusText === 'abort' || !isFailure(xhr?.status)) return;
+    const blocked = isElinBlock(xhr.status, xhr.getResponseHeader?.('content-type') || '', xhr.responseText || '');
+    if (ep === 'update_order_review') guardOpenMap();
+    showTrouble(ep === 'checkout' ? 'order' : 'review', blocked || xhr.status === 403);
+  });
+  form.addEventListener('click', (e) => {
+    const retry = e.target.closest('[data-net-retry]');
+    if (!retry) return;
+    e.preventDefault();
+    retry.closest('.mandala-net-notice')?.remove();
+    if (retry.dataset.netRetry === 'order') $('#place_order')?.click();
+    else update();
+  });
+  // Ha a frissítés újra sikerül, a régi üzenet felesleges.
+  $body?.on('updated_checkout', () => $$('.mandala-net-notice[data-kind="review"]').forEach((el) => el.remove()));
 
   // Frissítés után: állapotok visszaállítása
   $body?.on('updated_checkout', () => {

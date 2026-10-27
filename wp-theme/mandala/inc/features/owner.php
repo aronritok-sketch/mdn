@@ -75,17 +75,18 @@ function mandala_stat_is_bot(): bool
 
 /* ---------- Mérés ---------- */
 
-// Oldal- és termékmegtekintés: a böngészőből (az oldal-gyorsítótár mellett is pontos), sendBeacon-nel.
+// Oldal- és termékmegtekintés: a böngészőből (az oldal-gyorsítótár mellett is pontos), GET kéréssel – a tárhely
+// tűzfala (ELIN) egyes látogatók POST-jait tiltja, a sendBeacon POST-ja így nem számolta őket (elin.php).
 add_action('wp_footer', function () {
     if (is_admin() || is_user_logged_in() && current_user_can('edit_posts')) {
         return; // a bolt munkatársai ne torzítsák
     }
     $type = function_exists('is_product') && is_product() ? 'product' : 'page';
-    echo '<script>(function(){try{var u=' . wp_json_encode(rest_url('mandala/v1/hit')) . ',b=JSON.stringify({t:"' . $type . '"});navigator.sendBeacon?navigator.sendBeacon(u,new Blob([b],{type:"application/json"})):fetch(u,{method:"POST",body:b,keepalive:true,headers:{"Content-Type":"application/json"}});}catch(e){}})();</script>'; // phpcs:ignore
+    echo '<script>(function(){try{var u=new URL(' . wp_json_encode(rest_url('mandala/v1/hit')) . ',location.href);u.searchParams.set("t","' . $type . '");u.searchParams.set("_",Date.now().toString(36));fetch(u.href,{keepalive:true,credentials:"omit",cache:"no-store"}).catch(function(){});}catch(e){}})();</script>'; // phpcs:ignore
 }, 99);
 add_action('rest_api_init', function () {
     register_rest_route('mandala/v1', '/hit', [
-        'methods' => 'POST',
+        'methods' => 'GET, POST', // POST: a régi, gyorsítótárban maradt oldalakról
         'permission_callback' => '__return_true', // névtelen számláló, személyes adat nélkül
         'callback' => function (WP_REST_Request $r) {
             if (mandala_stat_is_bot()) {

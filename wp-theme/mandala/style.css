@@ -1565,3 +1565,12 @@ body:has(.sticky-atc.is-visible) .chat-launcher { bottom: calc(var(--space-4) + 
 
 /* Csalásvédelem: a robotcsapda mező (ember nem látja, képernyőolvasó sem) */
 .mandala-hp { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+/* ELIN 403 / szerverhiba a pénztárban: teendő-üzenet újrapróbálással (checkout.js, net.js) */
+.woocommerce-error.mandala-net-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; margin: var(--space-4) 0 0; }
+.mandala-net-notice > .ico { margin-top: 3px; }
+.mandala-net-notice > span { color: var(--c-ink); line-height: 1.55; }
+.woocommerce-error.mandala-net-notice strong { display: inline; color: var(--c-error); }
+.mandala-net-notice a { white-space: nowrap; }
+.mandala-net-notice [data-net-retry] { grid-column: 2; justify-self: start; }
+.toast span a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

@@ -5,6 +5,7 @@ import { $, $$, esc, icon, fmt, loadProducts, wishlist, storage, refreshReveal, 
 import { getCorpus } from './search-engine.js';
 import { suggestHtml } from './search-ui.js';
 import { bindValidation, validateForm } from './validate.js';
+import { isElinBlock, isFailure, endpointOf, cartHash, addToCartUrl, getAddToCart, isCartParam, probeCart, recoverAddToCart, reportBlocked, wcAjaxUrl, wcPost } from './net.js';
 
 const M = window.MANDALA || {};
 const jq = () => window.jQuery;
@@ -51,12 +52,12 @@ export function modal({ id, title, body }) {
 }
 
 // ---------- Értesítés ----------
-export function toast(html, { action = '', timeout = 4200 } = {}) {
+export function toast(html, { action = '', timeout = 4200, ico = 'check' } = {}) {
   let wrap = $('.toasts');
   if (!wrap) { wrap = document.createElement('div'); wrap.className = 'toasts'; wrap.setAttribute('role', 'status'); wrap.setAttribute('aria-live', 'polite'); document.body.append(wrap); }
   const t = document.createElement('div');
   t.className = 'toast';
-  t.innerHTML = `${icon('check')}<span>${html}</span>${action}`;
+  t.innerHTML = `${icon(ico)}<span>${html}</span>${action}`;
   wrap.append(t);
   requestAnimationFrame(() => t.classList.add('is-in'));
   const kill = () => { t.classList.remove('is-in'); setTimeout(() => t.remove(), 300); };
@@ -153,30 +154,95 @@ searchInput?.addEventListener('keydown', (e) => {
 // ---------- Minikosár (WooCommerce fragmentek) ----------
 const minicart = $('#minicart');
 export const openCart = () => { if (minicart && !minicart.classList.contains('is-open')) openLayer(minicart); };
-function applyFragments(fragments) {
+function applyFragments(fragments, hash) {
   if (!fragments) return;
   Object.entries(fragments).forEach(([sel, htmlStr]) => { $$(sel).forEach((el) => { el.outerHTML = htmlStr; }); });
+  // A WooCommerce cart-fragments.js tárolója is frissüljön (különben a következő oldal a régit mutatná).
+  const p = window.wc_cart_fragments_params;
+  try {
+    if (p?.fragment_name) sessionStorage.setItem(p.fragment_name, JSON.stringify(fragments));
+    if (p?.cart_hash_key && hash !== undefined) { sessionStorage.setItem(p.cart_hash_key, hash); localStorage.setItem(p.cart_hash_key, hash); }
+  } catch { /* privát mód */ }
   jq()?.(document.body).trigger('wc_fragments_refreshed');
 }
 async function setQty(key, qty) {
   const body = new URLSearchParams({ key, qty: String(qty), security: M.cartNonce || '' });
-  const res = await fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_set_qty'), { method: 'POST', credentials: 'same-origin', body });
-  if (!res.ok) return;
-  const data = await res.json();
-  applyFragments(data.fragments);
+  const res = await wcPost('mandala_set_qty', body);
+  const data = res?.ok ? await res.json().catch(() => null) : null;
+  if (!data?.fragments) {
+    $$('.quantity.is-loading').forEach((b) => b.classList.remove('is-loading'));
+    toast(`Most nem sikerült módosítani a mennyiséget – próbáld újra, vagy nézd meg a <a href="${esc(M.cart || '/')}">kosarad</a>.`, { ico: 'alert', timeout: 7000 });
+    return;
+  }
+  applyFragments(data.fragments, data.cart_hash);
   if (data.cart_hash) try { sessionStorage.setItem('wc_cart_hash', data.cart_hash); } catch { /* */ }
 }
-async function addToCart(id, qty = 1) {
+
+/** Sikeres kosárba tétel utáni közös teendők (minikosár, WooCommerce esemény, mérés). */
+function afterAdded(data, id, qty, source) {
+  applyFragments(data.fragments, data.cart_hash);
+  jq()?.(document.body).trigger('added_to_cart', [data.fragments, data.cart_hash, null]);
+  document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[Number(id), Number(qty)]], source } }));
+}
+
+/**
+ * Kosárba tétel AJAX-szal (wc-ajax=add_to_cart). $extra: az űrlap további mezői (előfizetés, utalvány…) – a szerver
+ * kosár-szűrői a kérésből olvassák. Ha a tárhely tűzfala (ELIN 403) vagy a szerver hibája miatt nem megy, a
+ * GET tartalék (net.js) teszi be; ilyenkor { pending: true } a válasz (az oldal épp átnavigál).
+ */
+async function addToCart(id, qty = 1, extra = null, source = 'product') {
+  const before = cartHash();
   const body = new URLSearchParams({ product_id: String(id), quantity: String(qty) });
-  const res = await fetch(String(M.wcAjax).replace('%%endpoint%%', 'add_to_cart'), { method: 'POST', credentials: 'same-origin', body });
+  if (extra) for (const [k, v] of extra.entries()) { if (typeof v === 'string' && !['add-to-cart', 'quantity', 'product_id'].includes(k)) body.append(k, v); }
+  let res = null;
+  try { res = await fetch(wcAjaxUrl('add_to_cart'), { method: 'POST', credentials: 'same-origin', body }); } catch { res = null; }
+  if (!res || isFailure(res.status)) {
+    const text = res ? await res.text().catch(() => '') : '';
+    const blocked = !!res && isElinBlock(res.status, res.headers.get('content-type') || '', text);
+    if (blocked) reportBlocked('add_to_cart');
+    const outcome = await recoverAddToCart({ status: res?.status || 0, blocked, before, retry: () => getAddToCart({ id, qty, fields: extra }),
+      fallbackUrl: addToCartUrl({ id, qty, fields: extra }), navigate: (u) => location.assign(u), onAdded: (data) => afterAdded(data, id, qty, source) });
+    return outcome === 'navigate' ? { pending: true } : { recovered: true };
+  }
   const data = await res.json().catch(() => null);
   if (!data || data.error) { if (data?.product_url) location.href = data.product_url; return null; }
-  applyFragments(data.fragments);
-  jq()?.(document.body).trigger('added_to_cart', [data.fragments, data.cart_hash, null]);
-  document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[Number(id), Number(qty)]], source: 'product' } }));
+  afterAdded(data, id, qty, source);
   return data;
 }
 export { addToCart, applyFragments };
+
+// A WooCommerce saját AJAX-kérései (kártyák kosárba gombja, gyors kosárba, kedvencek, fragmentek, pénztár) jQuery-vel
+// mennek: a hibájukat itt fogjuk el. A pénztár üzenetét a checkout.js adja; itt a jelzés és a kosárba tétel pótlása.
+// A kártya gombja és a kosár lenyomata a kattintáskor (termékenként – két gyors kattintás se keveredjen össze).
+const pendingCardAdds = new Map();
+jq()?.(document.body).on('adding_to_cart', (_e, $btn, data) => {
+  const id = String(data?.product_id || $btn?.[0]?.dataset.product_id || '');
+  if (id) pendingCardAdds.set(id, { btn: $btn?.[0] || null, before: cartHash() });
+});
+jq()?.(document).ajaxError(async (_e, xhr, settings) => {
+  const url = String(settings?.url || '');
+  const method = String(settings?.type || settings?.method || 'GET').toUpperCase();
+  if (method !== 'POST' || xhr?.statusText === 'abort' || !isFailure(xhr?.status)) return;
+  try { if (new URL(url, location.href).origin !== location.origin) return; } catch { return; }
+  const ep = endpointOf(url) || (/\/(kosar|cart)\b/.test(url) ? 'cart' : '');
+  const blocked = isElinBlock(xhr.status, xhr.getResponseHeader?.('content-type') || '', xhr.responseText || '');
+  if (blocked) reportBlocked(ep);
+  if (ep === 'add_to_cart') {
+    // A sikertelen kérés saját adataiból (a jQuery a küldött adatot szövegként adja át).
+    const sent = new URLSearchParams(typeof settings.data === 'string' ? settings.data : '');
+    const id = Number(sent.get('product_id') || [...pendingCardAdds.keys()].at(-1) || 0);
+    if (!id) return;
+    const { btn = null, before = cartHash() } = pendingCardAdds.get(String(id)) || {};
+    pendingCardAdds.delete(String(id));
+    const qty = Number(sent.get('quantity') || btn?.dataset.quantity || 1);
+    await recoverAddToCart({ status: xhr.status, blocked, before, retry: () => getAddToCart({ id, qty }), fallbackUrl: addToCartUrl({ id, qty }), navigate: (u) => location.assign(u),
+      onAdded: (fr) => { btn?.classList.remove('loading'); applyFragments(fr.fragments, fr.cart_hash); jq()?.(document.body).trigger('added_to_cart', [fr.fragments, fr.cart_hash, btn ? jq()(btn) : null]); } });
+  } else if (ep === 'get_refreshed_fragments') {
+    // A fejléc kosara a tiltott POST helyett GET-tel frissül.
+    const fr = await probeCart();
+    if (fr?.fragments) applyFragments(fr.fragments, fr.cart_hash);
+  }
+});
 
 // A kártyák AJAX kosárba tétele a WooCommerce add-to-cart.js-én fut; mi az értesítést adjuk.
 jq()?.(document.body).on('added_to_cart', (_e, _f, _h, $button) => {
@@ -229,8 +295,10 @@ function saveCookie(choice) {
   const prefs = choice === 'all' ? { stats: true, marketing: true } : choice === 'custom'
     ? { stats: $('[name="stats"]', bar).checked, marketing: $('[name="marketing"]', bar).checked } : { stats: false, marketing: false };
   storage.set(COOKIE_KEY, { ...prefs, date: new Date().toISOString() });
-  // Google Consent Mode v2 (ha van mérőkód), és esemény a saját integrációknak.
-  window.gtag?.('consent', 'update', { analytics_storage: prefs.stats ? 'granted' : 'denied', ad_storage: prefs.marketing ? 'granted' : 'denied', ad_user_data: prefs.marketing ? 'granted' : 'denied', ad_personalization: prefs.marketing ? 'granted' : 'denied' });
+  // Google Consent Mode v2 minden adatrétegbe (dataLayer, a PixelYourSite / Google for WooCommerce dataLayerPYS-e),
+  // a PixelYourSite beállítása, és – ha most engedte – a marketing pixelek betöltése (analytics.php: mandalaConsent).
+  if (window.mandalaConsent) window.mandalaConsent(prefs);
+  else window.gtag?.('consent', 'update', { analytics_storage: prefs.stats ? 'granted' : 'denied', ad_storage: prefs.marketing ? 'granted' : 'denied', ad_user_data: prefs.marketing ? 'granted' : 'denied', ad_personalization: prefs.marketing ? 'granted' : 'denied' });
   document.dispatchEvent(new CustomEvent('mandala:consent', { detail: prefs }));
   bar.classList.remove('is-open');
   setTimeout(() => bar.remove(), 350);
@@ -419,6 +487,33 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !openLayers.length && $('[data-open-search]')) { e.preventDefault(); $('[data-open-search]').click(); }
 });
+
+// ---------- GET tartalék és kuponlink: visszajelzés betöltéskor ----------
+// A GET-es kosárba tétel (net.js) után a szerver tiszta címre irányít (?mandala_added=ID); ha nem tudott (pl. elfogyott),
+// az mfb=1 jel marad a címben. A kuponlink (?kupon=KOD) eredményét a szerver adja (M.couponNotice, campaigns.php).
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const addedId = Number(qs.get('mandala_added') || M.fbAdded || 0);
+  const triedFallback = qs.has('mfb');
+  const coupon = M.couponNotice;
+  if (!addedId && !triedFallback && !coupon && !qs.has('kupon')) return;
+  const clean = new URL(location.href);
+  [...clean.searchParams.keys()].filter((k) => isCartParam(k) || k === 'kupon').forEach((k) => clean.searchParams.delete(k));
+  try { history.replaceState(history.state, '', clean.pathname + clean.search + clean.hash); } catch { /* */ }
+  if (addedId) {
+    const qty = Number(qs.get('mandala_qty') || 1);
+    const name = $(`[data-product_id="${addedId}"]`)?.closest('li.product')?.querySelector('.loop-product-title')?.textContent.trim()
+      || ($(`form[data-cart-form][data-product-id="${addedId}"]`) ? $('.product_title')?.textContent.trim() : '') || '';
+    toast(`<strong>Kosárba tettük${name ? ':' : '.'}</strong> ${esc(name)}`, { action: '<button type="button" class="iu-button" data-open-cart>Kosár</button>', timeout: 6000 });
+    $('.cart-toggle')?.classList.add('bump');
+    // A mérés (track.js) a többi modul után töltődik: az eseményt az oldal betöltése után küldjük.
+    addEventListener('load', () => document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[addedId, qty]], source: 'fallback' } })), { once: true });
+  } else if (triedFallback && !$('.woocommerce-error')) {
+    const c = M.contact || {};
+    toast(`Ezt most nem tudtuk a kosárba tenni. Nézd meg a termék oldalán, mennyi van belőle, vagy hívj minket: <a href="tel:${esc(String(c.phone || '+36 30 892 8385').replace(/[^\d+]/g, ''))}">${esc(c.phone || '+36 30 892 8385')}</a>.`, { ico: 'alert', timeout: 9000 });
+  }
+  if (coupon?.text) toast(esc(coupon.text), { ico: coupon.ok ? 'check' : 'info', timeout: 9000 });
+})();
 
 updateWishUI();
 cookieBar();
