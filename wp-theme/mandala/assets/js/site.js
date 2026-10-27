@@ -178,6 +178,12 @@ async function setQty(key, qty) {
   if (data.cart_hash) try { sessionStorage.setItem('wc_cart_hash', data.cart_hash); } catch { /* */ }
 }
 
+/** Ha nem derült ki, bekerült-e a termék (a kosár sem kérdezhető le): ne próbáljuk újra – nézze meg a kosarát. */
+export function cartUnknownToast() {
+  toast(`<strong>Nem tudjuk biztosan, bekerült-e a kosárba</strong> – most akadozik a kapcsolat. Nézd meg a kosarad, mielőtt újra próbálod.`,
+    { ico: 'alert', timeout: 9000, action: `<a class="iu-button" href="${esc(M.cart || '/')}">Kosár</a>` });
+}
+
 /** Sikeres kosárba tétel utáni közös teendők (minikosár, WooCommerce esemény, mérés). */
 function afterAdded(data, id, qty, source) {
   applyFragments(data.fragments, data.cart_hash);
@@ -188,7 +194,9 @@ function afterAdded(data, id, qty, source) {
 /**
  * Kosárba tétel AJAX-szal (wc-ajax=add_to_cart). $extra: az űrlap további mezői (előfizetés, utalvány…) – a szerver
  * kosár-szűrői a kérésből olvassák. Ha a tárhely tűzfala (ELIN 403) vagy a szerver hibája miatt nem megy, a
- * GET tartalék (net.js) teszi be; ilyenkor { pending: true } a válasz (az oldal épp átnavigál).
+ * GET tartalék (net.js) teszi be. Válasz: a WooCommerce adatai; { pending: true }, ha az oldal épp átnavigál (GET
+ * tartalék, vagy a WooCommerce hibája: a termék oldala mutatja az okát); { unknown: true }, ha nem derült ki,
+ * bekerült-e (üzenet már ment); null, ha a válasz értelmezhetetlen.
  */
 async function addToCart(id, qty = 1, extra = null, source = 'product') {
   const before = cartHash();
@@ -201,11 +209,13 @@ async function addToCart(id, qty = 1, extra = null, source = 'product') {
     const blocked = !!res && isElinBlock(res.status, res.headers.get('content-type') || '', text);
     if (blocked) reportBlocked('add_to_cart');
     const outcome = await recoverAddToCart({ status: res?.status || 0, blocked, before, retry: () => getAddToCart({ id, qty, fields: extra }),
-      fallbackUrl: addToCartUrl({ id, qty, fields: extra }), navigate: (u) => location.assign(u), onAdded: (data) => afterAdded(data, id, qty, source) });
-    return outcome === 'navigate' ? { pending: true } : { recovered: true };
+      fallbackUrl: () => addToCartUrl({ id, qty, fields: extra }), navigate: (u) => location.assign(u), onAdded: (data) => afterAdded(data, id, qty, source), onUnknown: cartUnknownToast });
+    return outcome === 'navigate' ? { pending: true } : outcome === 'unknown' ? { unknown: true } : { recovered: true };
   }
   const data = await res.json().catch(() => null);
-  if (!data || data.error) { if (data?.product_url) location.href = data.product_url; return null; }
+  if (!data) return null;
+  // A WooCommerce elutasította (készlet, hiányzó utalvány-adat…): az okát a termék oldala mutatja (munkamenet-üzenet).
+  if (data.error) { if (data.product_url) { location.href = data.product_url; return { pending: true }; } return null; }
   afterAdded(data, id, qty, source);
   return data;
 }
@@ -235,8 +245,9 @@ jq()?.(document).ajaxError(async (_e, xhr, settings) => {
     const { btn = null, before = cartHash() } = pendingCardAdds.get(String(id)) || {};
     pendingCardAdds.delete(String(id));
     const qty = Number(sent.get('quantity') || btn?.dataset.quantity || 1);
-    await recoverAddToCart({ status: xhr.status, blocked, before, retry: () => getAddToCart({ id, qty }), fallbackUrl: addToCartUrl({ id, qty }), navigate: (u) => location.assign(u),
-      onAdded: (fr) => { btn?.classList.remove('loading'); applyFragments(fr.fragments, fr.cart_hash); jq()?.(document.body).trigger('added_to_cart', [fr.fragments, fr.cart_hash, btn ? jq()(btn) : null]); } });
+    await recoverAddToCart({ status: xhr.status, blocked, before, retry: () => getAddToCart({ id, qty }), fallbackUrl: () => addToCartUrl({ id, qty }), navigate: (u) => location.assign(u),
+      onAdded: (fr) => { btn?.classList.remove('loading'); applyFragments(fr.fragments, fr.cart_hash); jq()?.(document.body).trigger('added_to_cart', [fr.fragments, fr.cart_hash, btn ? jq()(btn) : null]); },
+      onUnknown: () => { btn?.classList.remove('loading'); cartUnknownToast(); } });
   } else if (ep === 'get_refreshed_fragments') {
     // A fejléc kosara a tiltott POST helyett GET-tel frissül.
     const fr = await probeCart();
@@ -509,8 +520,10 @@ document.addEventListener('keydown', (e) => {
     // A mérés (track.js) a többi modul után töltődik: az eseményt az oldal betöltése után küldjük.
     addEventListener('load', () => document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[addedId, qty]], source: 'fallback' } })), { once: true });
   } else if (triedFallback && !$('.woocommerce-error')) {
+    // Az okot nem tudjuk (a WooCommerce nem adott üzenetet) – ne találgassunk; a termékoldalon ne küldjük a termékoldalra.
     const c = M.contact || {};
-    toast(`Ezt most nem tudtuk a kosárba tenni. Nézd meg a termék oldalán, mennyi van belőle, vagy hívj minket: <a href="tel:${esc(String(c.phone || '+36 30 892 8385').replace(/[^\d+]/g, ''))}">${esc(c.phone || '+36 30 892 8385')}</a>.`, { ico: 'alert', timeout: 9000 });
+    const onProduct = !!$('form[data-cart-form], form.variations_form, .mandala-variable-cart form.cart');
+    toast(`Ezt most nem tudtuk a kosárba tenni. Próbáld újra${onProduct ? '' : ' a termék oldaláról'}, vagy hívj minket, és segítünk: <a href="tel:${esc(String(c.phone || '+36 30 892 8385').replace(/[^\d+]/g, ''))}">${esc(c.phone || '+36 30 892 8385')}</a>.`, { ico: 'alert', timeout: 9000 });
   }
   if (coupon?.text) toast(esc(coupon.text), { ico: coupon.ok ? 'check' : 'info', timeout: 9000 });
 })();

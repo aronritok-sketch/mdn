@@ -1,6 +1,7 @@
 // Viszonteladói gyorsrendelő (Fiókom → Viszonteladói felület): a termékindex a belépett
 // viszonteladónak nagyker árakkal érkezik; szűrés, mennyiségek, tömeges kosárba tétel.
 import { $, $$, esc, icon, fmt, norm, loadProducts } from './env.js';
+import { wcPost, contactHtml, contactOf } from './net.js';
 
 const M = window.MANDALA || {};
 const root = $('[data-b2b]');
@@ -62,8 +63,10 @@ if (root) {
     add.classList.add('is-loading'); add.disabled = true;
     const body = new URLSearchParams({ security: M.cartNonce || '', items: JSON.stringify([...qty]) });
     try {
-      const res = await fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_bulk_add'), { method: 'POST', credentials: 'same-origin', body });
-      const data = await res.json();
+      // Tiltásnál (ELIN 403) GET-tel ismétli (net.js); a lista a címben megy (termék-azonosítók és darabszámok).
+      const res = await wcPost('mandala_bulk_add', body);
+      const data = res ? await res.json() : null;
+      if (!data) throw new Error('nincs válasz');
       if (data.ok) {
         document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [...qty], source: 'b2b_quick_order' } }));
         qty.clear(); render(); total();
@@ -71,7 +74,7 @@ if (root) {
         $$('[data-cart-count]').forEach((el) => { el.hidden = !data.count; el.textContent = data.count; });
       } else msg.innerHTML = `${icon('alert', 'ico ico-s')}<span>${esc(data.error || 'Most nem sikerült – próbáld újra.')}</span>`;
     } catch {
-      msg.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem sikerült – próbáld újra.</span>`;
+      msg.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem sikerült a kosárba tenni – próbáld újra. Ha akkor sem megy, válts másik internetre (például wifi helyett mobilnetre), vagy szólj nekünk: ${contactHtml(contactOf(M))}</span>`;
     }
     add.classList.remove('is-loading');
     total();

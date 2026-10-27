@@ -386,7 +386,7 @@ body:has(.sticky-atc.is-visible) .chat-launcher { bottom: calc(var(--space-4) + 
 .mandala-hp { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
 
 /* ELIN 403 / szerverhiba a pénztárban: teendő-üzenet újrapróbálással (checkout.js, net.js) */
-.woocommerce-error.mandala-net-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; margin: var(--space-4) 0 0; }
+.woocommerce-error.mandala-net-notice, .woocommerce-message.mandala-net-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; margin: var(--space-4) 0 0; }
 .mandala-net-notice > .ico { margin-top: 3px; }
 .mandala-net-notice > span { color: var(--c-ink); line-height: 1.55; }
 .woocommerce-error.mandala-net-notice strong { display: inline; color: var(--c-error); }

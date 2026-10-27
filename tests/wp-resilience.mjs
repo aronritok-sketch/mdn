@@ -43,23 +43,26 @@ const browser = await chromium.launch();
  * Új böngésző; block: a tiltott POST-ok mintája (pl. /wc-ajax=add_to_cart/), getBlock: a tiltott GET-eké (a végső
  * tartalék próbájához). consent: a mentett sütiválasztás (null: még nem választott).
  */
-async function newPage({ block = null, getBlock = null, consent = { stats: false } } = {}) {
+async function newPage({ block = null, getBlock = null, lose = null, consent = { stats: false } } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, userAgent: UA });
   if (consent) await ctx.addInitScript((c) => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify(c)); } catch {} }, consent);
   const page = await ctx.newPage();
-  const net = { blocked: [], beacons: [] };
-  const rules = { block, getBlock };
-  await ctx.route('**/*', (route) => {
+  const net = { blocked: [], beacons: [], requests: [] };
+  // lose: a kérés eléri a szervert (lefut), de a válasza elvész – a böngésző 500-at kap (mobilnet, szerverhiba a végén).
+  const rules = { block, getBlock, lose };
+  await ctx.route('**/*', async (route) => {
     const r = route.request();
     const u = r.url();
+    net.requests.push(`${r.method()} ${u}`);
     if (/\/mandala\/v1\/blocked/.test(u)) net.beacons.push(Object.fromEntries(new URL(u).searchParams));
     const hit = (r.method() === 'POST' && rules.block && rules.block.test(u)) || (r.method() === 'GET' && rules.getBlock && rules.getBlock.test(u));
     if (hit) { net.blocked.push(`${r.method()} ${u}`); return route.fulfill({ status: 403, contentType: 'text/html', headers: { server: 'ELIN.hu' }, body: NGINX_403 }); }
+    if (r.method() === 'POST' && rules.lose && rules.lose.test(u)) { await route.fetch().catch(() => null); return route.fulfill({ status: 500, contentType: 'text/html', body: 'Internal Server Error' }); }
     return route.continue();
   });
   page.on('pageerror', (e) => errors.push(`PAGEERROR ${page.url()} ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`CONSOLE ${page.url()} ${m.text()}`); });
-  page.on('response', (r) => { if (r.status() >= 500) errors.push(`HTTP ${r.status()} ${r.url()}`); });
+  page.on('response', (r) => { if (r.status() >= 500 && !(rules.lose && rules.lose.test(r.url()))) errors.push(`HTTP ${r.status()} ${r.url()}`); });
   return { page, ctx, net, rules };
 }
 const cartCount = (page) => page.evaluate(() => Number(document.querySelector('[data-cart-count]')?.textContent || 0));
@@ -114,12 +117,33 @@ try {
     await ctx.close();
   }
 
+  // ======================= 3b. Utalvány: a POST tiltva, a címzett adatai GET-tel is megmaradnak – de nem a címben =======================
+  {
+    const { page, ctx, net } = await newPage({ block: /wc-ajax=add_to_cart/ });
+    await page.goto(wp('echo get_permalink(wc_get_product_id_by_sku("MND-UTALVANY"));'), { waitUntil: 'networkidle' });
+    await page.click('.voucher-amounts .chip:has-text("10 000")');
+    await page.fill('#voucher-to-name', 'Elin Kata');
+    await page.fill('#voucher-to-email', 'elin.kata@example.com');
+    await page.fill('#voucher-message', 'Válassz magadnak valami szépet!');
+    await Promise.all([page.waitForURL(/kosar/, { timeout: 15000 }).catch(() => {}), page.click('.product-summary .single_add_to_cart_button')]);
+    await page.waitForLoadState('networkidle');
+    const cart = await page.textContent('form.woocommerce-cart-form').catch(() => '');
+    ok(cart.includes('elin.kata@example.com') && cart.includes('10 000'), 'utalvány tiltott POST-tal: GET-tel a kosárba került, a címzettel és az összeggel');
+    const gets = net.requests.filter((x) => /^GET .*(add_to_cart|add-to-cart)/.test(x));
+    ok(gets.length > 0 && !gets.some((x) => /elin\.kata|Elin|szépet|szepet/i.test(decodeURIComponent(x))), 'utalvány: a címzett neve, e-mailje, üzenete nincs a GET címben (tárhely napló, mérőkódok)', gets.join(' | ').slice(0, 200));
+    ok(!(await ctx.cookies()).some((c) => c.name === 'mandala_fbf'), 'utalvány: a rövid életű süti a felhasználás után törlődik');
+    await ctx.close();
+  }
+
   // ======================= 4. Végső tartalék: a GET ismétlés sem megy → oldalbetöltés, utána tiszta cím =======================
   {
     const { page, ctx, rules } = await newPage({ block: /wc-ajax=add_to_cart/, getBlock: /wc-ajax=add_to_cart/ });
     await page.goto(`${BASE}/kategoria/szakralis-targyak/hangtalak/?orderby=price`, { waitUntil: 'networkidle' });
     const before = await cartCount(page);
+    // A GET ismétlés hibája után a téma még megnézi a kosarat (dupla ellen), csak utána tölt oldalt.
+    const loaded = page.waitForRequest((r) => r.isNavigationRequest() && /add-to-cart=/.test(r.url()), { timeout: 20000 }).catch(() => null);
     await page.locator('li.product .loop-product-button a.ajax_add_to_cart').first().click();
+    await loaded;
     await page.waitForURL(/mandala_added=|orderby=price$/, { timeout: 20000 }).catch(() => {});
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -168,6 +192,32 @@ try {
     await ctx.close();
   }
 
+  // ======================= 5b. Pénztár: a rendelés létrejön, de a válasz elvész – nincs második rendelés =======================
+  {
+    const { page, ctx, rules } = await newPage();
+    await page.goto(link(sku('MND-HT-0490')), { waitUntil: 'networkidle' });
+    await page.click('.product-summary .single_add_to_cart_button');
+    await page.waitForSelector('#minicart.is-open', { timeout: 15000 }).catch(() => {});
+    await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+    for (const [sel, v] of [['#billing_email', 'elin.elveszett@example.com'], ['#billing_phone', '+36 30 123 4567'], ['#billing_last_name', 'Kovács'], ['#billing_first_name', 'Anna'], ['#billing_postcode', '1052'], ['#billing_city', 'Budapest'], ['#billing_address_1', 'Váci utca 1.']]) {
+      await page.fill(sel, v);
+    }
+    await page.evaluate(() => window.jQuery(document.body).trigger('update_checkout'));
+    await waitUpdate(page);
+    if (await page.$('#shipping_method li[data-kind="pickup"] label')) { await page.click('#shipping_method li[data-kind="pickup"] label'); await waitUpdate(page); }
+    if (await page.$('#payment_method_bacs')) { await page.check('#payment_method_bacs'); await waitUpdate(page); }
+    await page.check('#terms');
+    const count = () => Number(wp('echo count(wc_get_orders(["limit" => -1, "return" => "ids", "billing_email" => "elin.elveszett@example.com"]));'));
+    const orders0 = count();
+    rules.lose = /wc-ajax=checkout/;
+    await page.click('#place_order');
+    await page.waitForURL(/order-received|rendeles-fogadva/, { timeout: 20000 }).catch(() => {});
+    ok(count() === orders0 + 1, 'elveszett válasz: a rendelés egyszer jött létre', `${orders0} → ${count()}`);
+    ok(/order-received|rendeles-fogadva/.test(page.url()), 'elveszett válasz: a téma kiderítette (GET), hogy megérkezett, és a visszaigazoló oldalra vitt – nem kell újra leadni', page.url());
+    rules.lose = null;
+    await ctx.close();
+  }
+
   // ======================= 6. Kuponlink (?kupon=) visszajelzéssel =======================
   {
     wp('foreach (["hot10" => [10, null], "lejart10" => [10, time() - DAY_IN_SECONDS]] as $c => [$a, $exp]) { $id = wc_get_coupon_id_by_code($c); $k = new WC_Coupon($id ?: 0); $k->set_code($c); $k->set_discount_type("percent"); $k->set_amount($a); $k->set_date_expires($exp); $k->save(); }');
@@ -178,7 +228,9 @@ try {
     await page.goto(`${BASE}/termekek/?kupon=lejart10`, { waitUntil: 'networkidle' });
     ok(/lejart10 kód már lejárt/.test(await toastText(page)), 'kuponlink: lejárt kódnál semleges üzenet', (await toastText(page)).trim());
     await page.goto(`${BASE}/termekek/?kupon=nincsilyen`, { waitUntil: 'networkidle' });
-    ok(/nincsilyen kódot nem találjuk/.test(await toastText(page)), 'kuponlink: ismeretlen kódnál semleges üzenet');
+    ok(/kuponkódot nem találjuk/.test(await toastText(page)) && !/nincsilyen/.test(await toastText(page)), 'kuponlink: ismeretlen kódnál semleges üzenet (a kódot nem írjuk vissza)');
+    await page.goto(`${BASE}/termekek/?kupon=${encodeURIComponent('hívd a 06 90 123 456 számot')}`, { waitUntil: 'networkidle' });
+    ok(!/06 90|hívd/.test(await toastText(page)), 'kuponlink: a link szövege nem jelenhet meg a boltunk nevében', (await toastText(page)).trim().slice(0, 100));
     // Kosárba tétel után a hot10 kedvezménye a kosárban (a meglévő kampány-logika).
     await page.goto(link(sku('MND-HT-0490')), { waitUntil: 'networkidle' });
     await page.click('.product-summary .single_add_to_cart_button');
@@ -188,7 +240,11 @@ try {
     // Csak más termékre érvényes kód, a kosárban lévőre nem: elmentjük, és megmondjuk.
     wp('$id = wc_get_coupon_id_by_code("csakfustolo"); $k = new WC_Coupon($id ?: 0); $k->set_code("csakfustolo"); $k->set_discount_type("percent"); $k->set_amount(5); $k->set_product_ids([wc_get_product_id_by_sku("MND-FK-0012")]); $k->save();');
     await page.goto(`${BASE}/termekek/?kupon=csakfustolo`, { waitUntil: 'networkidle' });
-    ok(/csakfustolo kódot elmentettük, de a kosaradban lévő termékekre nem érvényes/.test(await toastText(page)), 'kuponlink: a kosár termékeire nem érvényes kódnál semleges üzenet', (await toastText(page)).trim().slice(0, 140));
+    ok(/csakfustolo kódot elmentettük, de most még nem vonható le: .+ Ha teljesül a feltétele, magától levonjuk/.test(await toastText(page)), 'kuponlink: a kosárra még nem érvényes kódnál a WooCommerce oka (nem csak „nem érvényes”)', (await toastText(page)).trim().slice(0, 160));
+    // A munkamenetben őrzött kód automatikus levonása csendben próbálkozik: a „nem alkalmazható” hiba nem jön minden oldalon.
+    await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
+    ok(!/csakfustolo/i.test(await page.textContent('.woocommerce-error, .woocommerce-notices-wrapper').catch(() => '')), 'kuponlink: a még nem érvényes kód nem ad hibaüzenetet minden kosár-újraszámolásnál');
     await ctx.close();
   }
 
@@ -224,6 +280,19 @@ try {
     await page.reload({ waitUntil: 'networkidle' });
     s = await read(page);
     ok(s.fbq && s.pys.slice(1).every((x) => /granted/.test(x) || /^default/.test(x)), 'elfogadás után a következő oldalon már az elején engedélyezve', s.pys.join(' '));
+    // Visszavonás ugyanazon az oldalon: a már betöltött Meta pixel „revoke”-ot kap.
+    await page.evaluate(() => window.mandalaConsent({ stats: false, marketing: false }));
+    s = await read(page);
+    ok(s.events.includes('consent:revoke'), 'visszavonás: a betöltött Meta pixel azonnal leáll (fbq consent revoke)', s.events.join(','));
+    await ctx.close();
+
+    // A PixelYourSite AJAX-os GDPR-lekérése (ajax_enabled) se kapcsolhassa vissza a Metát hozzájárulás nélkül.
+    ({ page, ctx } = await newPage({ consent: { stats: true, marketing: false } }));
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    // Mint a PixelYourSite AJAX-válasza (pys_get_gdpr_filters_values): felülírja a jelzőt, majd újra betölti a pixeleket.
+    const forced = await page.evaluate(() => { const g = window.pysOptions?.gdpr; if (!g) return 'nincs pysOptions'; g.facebook_disabled_by_api = false; window.pys?.Utils?.loadPixels(); return String(g.facebook_disabled_by_api); });
+    s = await read(page);
+    ok(forced === 'true' && !s.fbq, 'hozzájárulás nélkül a szerver válasza sem kapcsolja be a Meta pixelt (a jelző csak olvasható)', forced);
     await ctx.close();
   }
 
@@ -264,6 +333,12 @@ try {
     await ctx.close();
     const html = wp('ob_start(); mandala_status_page(); echo ob_get_clean();');
     ok(/Mandala állapot/.test(html) && /Tiltott kérés/.test(html) && /Leggyakrabban tiltott hálózatok/.test(html) && /127\.0\.0\.0\/24|::\/48/.test(html), 'admin: Mandala állapot – 14 napos táblázat, tiltott hálózatok (/24)');
+    // A jelzés IP-címe: a kapcsolaté; a továbbított fejlécet csak helyi proxy mögött, a lánc jobb széléről.
+    ok(wp('$_SERVER["REMOTE_ADDR"] = "34.120.5.6"; $_SERVER["HTTP_X_FORWARDED_FOR"] = "8.8.8.8"; $_SERVER["HTTP_X_REAL_IP"] = "8.8.4.4"; echo mandala_blk_ip();') === '34.120.5.6', 'jelzés: nyilvános kapcsolatnál a hamisítható fejlécek nem számítanak');
+    ok(wp('$_SERVER["REMOTE_ADDR"] = "127.0.0.1"; $_SERVER["HTTP_X_FORWARDED_FOR"] = "8.8.8.8, 34.120.5.6"; echo mandala_blk_ip();') === '34.120.5.6', 'jelzés: helyi proxy mögött a lánc jobb széle (a böngésző által írt rész nem)');
+    // Napi tárolás: egy jelzés csak a mai listát írja; a napok óraátállításkor sem csúsznak.
+    ok(wp('echo (int) (count((array) get_option("mandala_blk_nets_" . wp_date("Ymd"), [])) > 0);') === '1', 'jelzés: a hálózatok napi opcióban (egy jelzés nem írja újra a 14 napot)');
+    ok(wp('$d = mandala_blk_days(14); echo count(array_unique($d)), " ", $d[0] === wp_date("Y-m-d") ? "ok" : "rossz";') === '14 ok', 'Mandala állapot: 14 különböző naptári nap, ma elöl');
     const h = JSON.parse(wp('$c = mandala_health_checks(false); echo wp_json_encode($c["elin"] ?? null);'));
     ok(h && /tiltott|tiltott kérés|tiltott kosárba/i.test(h.msg), 'őrszem: a tiltások száma az ellenőrzések között', h?.msg || '');
   }

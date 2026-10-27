@@ -258,39 +258,73 @@ Az ELIN tárhely nginx-tűzfala **IP-cím szerint** elutasít POST kéréseket (
 | Hol | Mit látott a vásárló (javítás előtt) | Mit csinál most a téma |
 |---|---|---|
 | Kártya „Kosárba” (kategória, kereső, kedvencek, gyors kosárba) | semmi nem történt, üzenet sem | ugyanaz GET-tel (`?wc-ajax=add_to_cart&…&mfb=1`), a fejléc kosara frissül, „Kosárba tettük” üzenet; ha az sem megy, oldalbetöltés `?add-to-cart=…&mfb=1`, utána tiszta cím (frissítésre nem kerül be újra) |
-| Termékoldal (előfizethető, utalvány, változatos) | fehér „403 Forbidden” oldal | AJAX-szal megy (a mezőkkel: előfizetés, utalvány), tiltásnál ugyanaz GET-tel – az előfizetés és az utalvány adatai is megmaradnak |
-| Pénztár – szállítás / fizetés frissítése | nem jöttek a szállítási módok, szürke takarás örökre, a Teya-váltás „beragadt” | a takarás lekerül, üzenet a szállítási módok helyén: „Most nem értük el a pénztárt… Újrapróbálom”, másik internet (wifi helyett mobilnet), telefon, e-mail |
-| Pénztár – rendelés leadása | a WooCommerce általános hibája | „A rendelést most nem tudtuk elküldeni. Még nem jött létre…” (5xx-nél: „nézd meg a postafiókod, mielőtt újra elküldöd”), a gomb mindig használható |
-| Minikosár mennyiség, ajándékcsomag, viszonteladói gyorsrendelő | csendes hiba | ugyanaz GET-tel (nonce-szal) |
-| Kupon a pénztárban | csendes hiba | „Most nem értük el a pénztárt, a kupont nem tudtuk beváltani” |
+| Termékoldal (előfizethető, utalvány, változatos, csoportos) | fehér „403 Forbidden” oldal | AJAX-szal megy (a mezőkkel: előfizetés, utalvány, változat), tiltásnál ugyanaz GET-tel – az előfizetés és az utalvány adatai is megmaradnak; egyszerre egy beküldés (dupla kattintásra sem kerül be kétszer) |
+| Pénztár – szállítás / fizetés frissítése | nem jöttek a szállítási módok, szürke takarás örökre, a Teya-váltás „beragadt” | a takarás lekerül, üzenet a szállítási módok helyén: „Most nem értük el a pénztárt… Újrapróbálom”, másik internet (wifi helyett mobilnet), telefon, e-mail. Ha épp a rendelés megy (a vásárló a fizetési mód váltása után rögtön a gombra kattintott), a gombhoz nem nyúl, az üzenet a rendelés hibája után jön |
+| Pénztár – rendelés leadása | a WooCommerce általános hibája | tiltásnál: „A rendelést most nem tudtuk elküldeni. Még nem jött létre…”; ha nem jött válasz (5xx, megszakadt mobilnet): a téma GET-tel megnézi, létrejött-e (`wc-ajax=mandala_order_state`) – ha igen, „A rendelésed megérkezett – ne add le újra”, és a visszaigazoló oldalra visz; az „Újrapróbálom” is előbb ellenőriz, és csak akkor küldi újra, ha biztosan nem jött létre (dupla rendelés ellen) |
+| Pénztár – sokáig nyitva hagyott oldal | „Most nem értük el…” (újrapróbálás nem segített) | a WordPress lejárt ellenőrző kódja („-1”): „Ez az oldal már régóta nyitva van, ezért frissíteni kell” – „Frissítem az oldalt” gomb |
+| Minikosár mennyiség, ajándékcsomag, viszonteladói gyorsrendelő, pénztár e-mail mentése (elhagyott kosár) | csendes hiba | ugyanaz GET-tel (nonce-szal); ha az sem megy, üzenet telefonnal, e-maillel |
+| Kupon a pénztárban | csendes hiba | ugyanaz GET-tel (a „GET → POST híd” a WooCommerce kupon-kezelőjének adja át; az e-mail-cím nélkül – a kupon e-mail-korlátozását a rendelés úgyis nézi); ha az sem megy: „A kupont most nem tudtuk beváltani…”, másik internet, telefon, e-mail |
 
 - **Dupla kosárba tétel ellen:** tiltásnál (403) a kérés el sem érte a WordPresst. Szerverhibánál (5xx) vagy hálózati
-  hibánál a téma előbb GET-tel lekéri a kosarat (fragmentek), és ha a kosár lenyomata változott, nem teszi be újra.
+  hibánál a téma előbb GET-tel lekéri a kosarat (fragmentek), és ha a kosár lenyomata változott, nem teszi be újra. Ha a
+  GET ismétlésre sem jön válasz, oldalbetöltés előtt újra megnézi a kosarat. Ha a kosár két próbával sem kérdezhető le,
+  nem próbálja újra: „Nem tudjuk biztosan, bekerült-e a kosárba… nézd meg a kosarad” (Kosár gomb).
+- **Személyes adat nem kerül a címbe:** az utalvány címzettje, e-mailje, üzenete, az ajándékkártya szövege és a pénztár
+  e-mail-mentése a GET tartaléknál egy rövid életű sütiben megy (`mandala_fbf`, 10 perc, a kérés `mfs` jelével
+  párosítva, a szerver egyszer olvassa és törli) – így nem kerül a tárhely naplójába és a mérőkódok oldalmegtekintésébe.
+  (Ha nem férne a sütibe – ~3,8 KB felett –, a címben megy: a kosárba tétel fontosabb.)
 - **Mérés:** minden tiltásnál a böngésző egy kis GET kérést küld (`mandala/v1/blocked`, oldalanként végpontonként
   egyszer). **WooCommerce → Mandala állapot**: az utolsó 14 nap naponta – látogatók, tiltott kérések végpontonként,
   különböző hálózatok (/24, pontos IP nélkül), és hány kosárba tételt mentett meg a GET tartalék. Alatta a
   leggyakrabban tiltott hálózatok listája – ezt lehet elküldeni az ELIN-nek. Az őrszem figyelmeztet, ha egy nap
-  legalább 5 kosárba tétel / pénztár-kérés tiltva volt.
+  legalább 5 kosárba tétel / pénztár-kérés tiltva volt. A hálózatot a kapcsolat címéből számoljuk (`REMOTE_ADDR`; a
+  továbbított fejléceket csak helyi proxy mögött, a lánc jobb széléről), így kitalált címekkel nem lehet elhasználni a
+  napi keretet (hálózatonként 200, naponta 300 hálózat). Napi opcióban tárolódik (`mandala_blk_nets_ÉÉÉÉHHNN`), 14 napig.
 - **Látogatószám:** a saját látogatás-számláló GET-tel megy (eddig POST volt, így a tiltott látogatók nem számítottak).
-- **Teya (kártya):** a fizetés visszaigazolása a Teya szerverének POST-ja – ezt is tilthatja a tűzfal. Ha a vásárló a
-  sikeres fizetés után visszatér, de a rendelés „Függőben” maradt: rendelés-jegyzet, az őrszem és a Mandala állapot
-  oldal listázza („nézd meg a Teya felületén, és ha sikeres, állítsd „Feldolgozás alatt”-ra”), a WooCommerce nem
-  törli fizetetlenként, és a mérés (dataLayer purchase, HelloProVision Ads hub, Meta CAPI, a PixelYourSite helyett
-  Meta / GA4 purchase) rendelésenként egyszer lefut.
+- **Teya (kártya) – ezen a téma nem tud segíteni, csak az ELIN:** a Teya a fizetés után a vásárlót **böngészős
+  POST-tal** küldi vissza a köszönőoldalra (`/penztar/order-received/…`), a Teya bővítménye ebből igazolja a fizetést.
+  Ha a vásárló címét tiltja a tűzfal, **a sikeres fizetés után fehér „403 Forbidden” oldalt lát** (a pénz levonva, a
+  rendelés „Függőben”). A Teya szerverének értesítése (`/wc-api/WC_Gateway_Borgun/`, szintén POST) igazolhatja
+  helyette – ha a Teya szerverét nem tiltja a tűzfal; akkor a vásárló a visszaigazoló levelet is megkapja.
+  Amit a téma tesz: a **Mandala állapot** oldal listázza az utolsó 30 nap „Függőben” kártyás rendeléseit, amelyeknél a
+  vásárló nem tért vissza (megszakította, vagy a visszatérését is tiltotta a tűzfal) – nézd meg őket a Teya felületén,
+  és ha sikeres, állítsd „Feldolgozás alatt”-ra. Ha a vásárló később GET-tel nyitja meg a köszönőoldalt, és a rendelés
+  még „Függőben”: rendelés-jegyzet, őrszem-figyelmeztetés (30 napig), a WooCommerce nem törli fizetetlenként, és a
+  mérés (dataLayer purchase, HelloProVision Ads hub, Meta CAPI, a PixelYourSite helyett Meta / GA4 purchase)
+  rendelésenként egyszer lefut.
 - **A csomagpont-térkép** (`window.initOpenMap is not a function`): a függvényt a Pont bővítmény a sikeres frissítéssel
   hozza; ha a frissítés elmaradt, a téma csendes helyőrzőt tesz a helyére (a sikeres újrapróbáláskor a valódi jön).
-- **Kérés az ELIN felé:** a POST-szűrés lazítása a `/?wc-ajax=…`, `/wp-json/…`, `/wc-api/wc_gateway_borgun`
-  (Teya értesítés) és a termékoldalak címein – a fenti lista hálózataival.
+- **Kérés az ELIN felé:** a POST-szűrés kikapcsolása a boltra – vagy legalább ezeken a címeken, a fenti lista
+  hálózataival:
+  - `/?wc-ajax=…` (kosárba tétel, pénztár frissítése, **rendelés leadása**, kupon);
+  - `/penztar/` és `/penztar/order-received/…` (**a Teya ide küldi vissza POST-tal a fizető vásárlót**);
+  - `/wc-api/WC_Gateway_Borgun/` (a Teya szerverének értesítése a fizetésről);
+  - `/87sdtzugas76fgcw8atedw/…` – **az élő oldal REST-címe** (nem `/wp-json/`; a 10-27-i vizsgálatban a
+    `pys-facebook/v1/event` és a `mandala/v1/hit` is 403-at kapott itt);
+  - `/termek/…` (termékoldalak), `/kosar/` (kosár frissítése), `/fiokom/` (belépés), `/wp-admin/admin-ajax.php`.
 
 **Hozzájárulás (PixelYourSite):** a Google Consent Mode a választásig „denied” (a PixelYourSite magától „granted”-et
-küldött), a „Csak a szükségesek” után is az marad; a Meta pixel csak marketing-hozzájárulással töltődik be (előtte
-PageView sem megy). Kikapcsolható: WooCommerce → Mandala mérés → „PixelYourSite a süti sáv szerint”.
+küldött), a „Csak a szükségesek” után is az marad; a Meta (TikTok, Pinterest, Bing, Reddit, OpenAI) pixel csak
+marketing-hozzájárulással töltődik be (előtte PageView sem megy). A tiltó jelzők csak olvashatók: ha valaki a
+PixelYourSite-ban bekapcsolja az AJAX-os GDPR-lekérést, a szerver válasza sem kapcsolja vissza a Metát. Visszavonáskor
+(később „Csak a szükségesek”) a már betöltött Meta pixel azon az oldalon is leáll (`fbq('consent','revoke')`).
+Kikapcsolható: WooCommerce → Mandala mérés → „PixelYourSite a süti sáv szerint”.
+**A Google címkéi** (a PixelYourSite GA4 / Google Ads, a Google for WooCommerce `AW-17657807841` címkéje) a választás
+előtt is betöltődnek, „denied” állapotban: sütit nem írnak, csak sütimentes jelzést küldenek (gcs=G100 – a Google
+Consent Mode „haladó” módja, a Google szerint megengedett, és a konverziómodellezéshez kell). Ha a választás előtt
+egyáltalán nem futhat Google címke, azt a PixelYourSite és a Google for WooCommerce beállításában kell kérni („alap” mód).
+A téma `dataLayer` purchase-e a GTM-nek szól – az élő oldalon ma nincs GTM, ott csak a jövőbeni bekötéshez kell.
 A visszatért, „Függőben” maradt kártyás rendelésnél a téma csak akkor küld Meta / GA4 vásárlást, ha a PixelYourSite
 azon az oldalon maga nem küld (a PixelYourSite **WooCommerce → Purchase** státusz-beállításától függ) – kétszer így sem
-számol; a Meta eseményazonosítója (`wc-<rendelés>`) ugyanaz, mint a HelloProVision Ads hubé, a Meta összevonja őket.
+számol. A Meta eseményazonosítója a szerveroldali páré: a téma Conversions API-jával `order_<rendelés>`, nélküle a
+HelloProVision Ads hubé, `wc-<rendelés>` – a Meta összevonja őket. A téma CAPI-ja és a hub Meta-küldése egyszerre ne
+legyen bekapcsolva (két szerveres vásárlás lenne).
 
 **Kuponlink** (`?kupon=hot10`): a landing oldalon rövid üzenet – „A hot10 kód a kosaradba került: −10%”, vagy
-semleges üzenet, ha lejárt / elfogyott / nem létezik / a kosár termékeire nem érvényes.
+semleges üzenet, ha lejárt / elfogyott / nem létezik. Ha a kosárra most még nem vonható le (termék, minimum összeg),
+a WooCommerce oka is látszik, és a kód a munkamenetben marad: amint teljesül a feltétele, csendben levonódik (a „nem
+alkalmazható” hiba nem jön minden kosár-újraszámolásnál). Ismeretlen kódot nem írunk vissza (a link szövege bármi
+lehet), és csak kódszerű, legfeljebb 40 karakteres szöveget fogadunk el.
 
 ---
 

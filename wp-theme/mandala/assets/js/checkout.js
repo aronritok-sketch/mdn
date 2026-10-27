@@ -3,7 +3,7 @@
 // hibaösszesítő, mobil összesítő. A frissítéseket a WooCommerce checkout.js végzi.
 import { $, $$, esc, icon, fmt } from './env.js';
 import { bindValidation, validateForm, showFieldState, countryOf } from './validate.js';
-import { endpointOf, isElinBlock, isFailure, checkoutTroubleHtml, contactOf, wcPost } from './net.js';
+import { endpointOf, isElinBlock, isFailure, checkoutTroubleHtml, orderPlacedHtml, contactOf, contactHtml, cartHash, orderState, sleep, wcPost } from './net.js';
 
 const form = $('form.checkout.mandala-checkout');
 const jq = window.jQuery;
@@ -96,12 +96,12 @@ if (form) {
     if (!code) { input?.focus(); return; }
     const params = window.wc_checkout_params || {};
     const body = new URLSearchParams({ security: params.apply_coupon_nonce || '', coupon_code: code, billing_email: $('#billing_email')?.value || '' });
-    // A WooCommerce apply_coupon végpontja csak POST-ot olvas: tiltásnál (ELIN 403) a GET ismétlés nem váltja be –
-    // ilyenkor érthető üzenetet adunk (a wcPost jelzi a tiltást).
-    const res = await wcPost('apply_coupon', body);
+    // Tiltásnál (ELIN 403) a wcPost ugyanezt GET-tel küldi – az elin.php hídja a WooCommerce apply_coupon kezelőjének
+    // adja át. Az e-mail-cím nem megy a címbe: a kupon e-mail-korlátozását a WooCommerce a rendeléskor úgyis nézi.
+    const res = await wcPost('apply_coupon', body, { omit: ['billing_email'] });
     const text = res?.ok ? await res.text() : '';
     if (!res?.ok || !text) {
-      err.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem értük el a pénztárt, a kupont nem tudtuk beváltani. Próbáld újra egy perc múlva.</span>`;
+      err.innerHTML = `${icon('alert', 'ico ico-s')}<span>A kupont most nem tudtuk beváltani – nem értük el a pénztárt. Próbáld újra; ha akkor sem megy, válts másik internetre (például wifi helyett mobilnetre), vagy szólj nekünk: ${contactHtml(contactOf(M))}</span>`;
       return;
     }
     if (/woocommerce-error|is-error/.test(text)) {
@@ -151,7 +151,7 @@ if (form) {
     const place = $('#place_order');
     if (place) { place.disabled = false; place.classList.remove('is-loading'); }
   };
-  function showTrouble(kind, blocked) {
+  function showTrouble(kind, blocked, expired = false) {
     unstick();
     $$('.mandala-net-notice').forEach((el) => el.remove());
     const box = document.createElement('div');
@@ -159,7 +159,7 @@ if (form) {
     box.setAttribute('role', 'alert');
     box.tabIndex = -1;
     box.dataset.kind = kind;
-    box.innerHTML = `${icon('alert')}${checkoutTroubleHtml({ kind, blocked, contact: contactOf(M) })}`;
+    box.innerHTML = `${icon('alert')}${checkoutTroubleHtml({ kind, blocked, expired, contact: contactOf(M) })}`;
     if (kind === 'order') {
       // A WooCommerce általános hibaüzenete helyett a miénk, a pénztár tetején (ahová a WooCommerce is görget).
       $$('.woocommerce-NoticeGroup-checkout').forEach((g) => { if (!g.querySelector('[role="alert"] ul')) g.remove(); });
@@ -182,19 +182,82 @@ if (form) {
       Object.defineProperty(window, 'initOpenMap', { configurable: true, get: () => real || (() => {}), set: (f) => { real = typeof f === 'function' ? f : null; } });
     } catch { /* */ }
   };
-  jq?.(document).ajaxError((_e, xhr, settings) => {
+  // A rendelés leadásakor a kosár lenyomata: ha a válasz elveszett, ehhez képest nézzük, átment-e a rendelés.
+  let sentHash = '';
+  // A válasz nélkül maradt rendelés (5xx / hálózat): létrejött-e? A munkamenet rendelését és a kosarat GET-tel nézzük
+  // (a WooCommerce a „Függőben” / „Sikertelen” rendelést újraküldéskor újrahasználja, a többit nem – dupla rendelés lenne).
+  // Visszaad: { placed, url } | 'open' (nem jött létre, újraküldhető) | 'unknown' (nem kérdezhető le).
+  async function orderOutcome() {
+    for (const ms of [0, 1500]) {
+      if (ms) await sleep(ms);
+      const st = await orderState();
+      if (!st) continue;
+      if (st.placed) return { placed: true, url: st.url || '' };
+      if (sentHash && !st.cart_hash) return { placed: true, url: '' }; // a kosár kiürült: a rendelés átment
+      return 'open';
+    }
+    return 'unknown';
+  }
+  function showPlaced(url) {
+    $$('.mandala-net-notice').forEach((el) => el.remove());
+    const box = document.createElement('div');
+    box.className = 'woocommerce-message mandala-net-notice';
+    box.setAttribute('role', 'status');
+    box.tabIndex = -1;
+    box.dataset.kind = 'placed';
+    box.innerHTML = `${icon('check')}${orderPlacedHtml({ url })}`;
+    form.prepend(box);
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const place = $('#place_order');
+    if (place) place.disabled = true; // ne lehessen még egyszer leadni
+    if (url) setTimeout(() => location.assign(url), 1200);
+  }
+  jq?.(document).ajaxError(async (_e, xhr, settings) => {
     const ep = endpointOf(settings?.url);
     if (!['update_order_review', 'checkout'].includes(ep) || xhr?.statusText === 'abort' || !isFailure(xhr?.status)) return;
     const blocked = isElinBlock(xhr.status, xhr.getResponseHeader?.('content-type') || '', xhr.responseText || '');
-    if (ep === 'update_order_review') guardOpenMap();
-    showTrouble(ep === 'checkout' ? 'order' : 'review', blocked || xhr.status === 403);
+    // A WordPress saját 403-ja „-1” szöveggel: lejárt az ellenőrző kód (sokáig nyitva hagyott oldal) – frissíteni kell.
+    const expired = !blocked && Number(xhr.status) === 403 && /^\s*-1\s*$/.test(String(xhr.responseText || ''));
+    if (ep === 'update_order_review') {
+      guardOpenMap();
+      // Épp megy a rendelés (a fizetési mód váltása frissítést indít, és a vásárló rögtön a gombra kattint): a gombhoz és
+      // az űrlaphoz most nem nyúlunk (újra kattintható gomb = második rendelés), és átirányításkor (Teya) nem villan
+      // üzenet. Ha a rendelés hibával tér vissza, utána jön az üzenet.
+      if (form.classList.contains('processing')) {
+        $body?.off('checkout_error.mandalaNet').one('checkout_error.mandalaNet', () => setTimeout(() => {
+          if (!form.classList.contains('processing') && !$('.mandala-net-notice[data-kind="order"], .mandala-net-notice[data-kind="placed"]')) showTrouble('review', blocked || (xhr.status === 403 && !expired), expired);
+        }, 0));
+        return;
+      }
+      showTrouble('review', blocked || (xhr.status === 403 && !expired), expired);
+      return;
+    }
+    const sure = blocked || (xhr.status === 403 && !expired); // a kérés el sem érte a boltot: nincs rendelés
+    showTrouble('order', sure, expired);
+    if (sure || expired) return;
+    const out = await orderOutcome();
+    if (out?.placed && $('.mandala-net-notice[data-kind="order"]')) showPlaced(out.url);
   });
-  form.addEventListener('click', (e) => {
+  form.addEventListener('click', async (e) => {
     const retry = e.target.closest('[data-net-retry]');
     if (!retry) return;
     e.preventDefault();
+    const kind = retry.dataset.netRetry;
+    if (kind === 'reload') { location.reload(); return; }
+    if (kind === 'order' && retry.dataset.check) {
+      // Válasz nélküli rendelés: újraküldés előtt megnézzük, nem jött-e létre mégis.
+      retry.disabled = true;
+      const out = await orderOutcome();
+      retry.disabled = false;
+      if (out?.placed) { showPlaced(out.url); return; }
+      if (out === 'unknown') {
+        const lead = retry.closest('.mandala-net-notice')?.querySelector('span');
+        if (lead) lead.innerHTML = `<strong>Még mindig nem érjük el a boltot.</strong> Ne add le újra, amíg nem tudjuk, megérkezett-e: várj egy percet, nézd meg a postafiókod, és próbáld újra – vagy szólj nekünk: ${contactHtml(contactOf(M))}`;
+        return;
+      }
+    }
     retry.closest('.mandala-net-notice')?.remove();
-    if (retry.dataset.netRetry === 'order') $('#place_order')?.click();
+    if (kind === 'order') $('#place_order')?.click();
     else update();
   });
   // Ha a frissítés újra sikerül, a régi üzenet felesleges.
@@ -214,7 +277,7 @@ if (form) {
     if (e.target !== form) return;
     const errors = validateForm(form);
     let group = $('.woocommerce-NoticeGroup-checkout', form);
-    if (!errors.length) { group?.remove(); return; }
+    if (!errors.length) { group?.remove(); sentHash = cartHash(); return; }
     e.preventDefault();
     e.stopImmediatePropagation();
     if (!group) { form.insertAdjacentHTML('afterbegin', '<div class="woocommerce-NoticeGroup woocommerce-NoticeGroup-checkout" tabindex="-1"></div>'); group = $('.woocommerce-NoticeGroup-checkout', form); }
@@ -239,7 +302,8 @@ if (form) {
     const v = emailEl.value.trim();
     if (v === captured || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || !M.wcAjax) return;
     captured = v;
-    fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_capture'), { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ email: v, name: $('#billing_first_name')?.value || '', security: M.cartNonce || '' }) }).catch(() => {});
+    // Tiltásnál GET-tel ismétli (az e-mail és a név sütiben megy, nem a címben – net.js).
+    wcPost('mandala_capture', new URLSearchParams({ email: v, name: $('#billing_first_name')?.value || '', security: M.cartNonce || '' })).catch(() => {});
   });
 
   syncShipping();

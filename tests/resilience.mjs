@@ -43,6 +43,25 @@ ok(net.cartHash() === 'h1' && net.cartHash({ cookie: '' }) === '', 'kosár-lenyo
 }
 
 {
+  // Személyes adat (utalvány címzettje, üzenet) nem a címben: rövid életű sütiben, a kérés jelével (mfs).
+  const doc = { cookie: '' };
+  globalThis.document = doc;
+  const fields = new URLSearchParams({ mandala_voucher_amount: '10000', mandala_voucher_to_name: 'Kiss Éva', mandala_voucher_to_email: 'eva@example.com', mandala_voucher_message: 'Boldog szülinapot!' });
+  const u = new URL(net.addToCartUrl({ id: 99, qty: 1, fields, base: 'https://mandala.test/termek/utalvany/' }));
+  const m = doc.cookie.match(/^mandala_fbf=([^;]+);.*Path=\/;.*Max-Age=600/);
+  const stash = m ? JSON.parse(decodeURIComponent(m[1])) : null;
+  ok(u.searchParams.get('mandala_voucher_amount') === '10000' && !/eva@example|Kiss|szülinap|szulinap/i.test(decodeURIComponent(u.href)), 'GET cím: az utalvány címzettje, e-mailje, üzenete nincs a címben', u.search);
+  ok(stash && stash.t === u.searchParams.get('mfs') && stash.f.mandala_voucher_to_email === 'eva@example.com' && stash.f.mandala_voucher_message === 'Boldog szülinapot!' && !('mandala_voucher_amount' in stash.f), 'GET cím: a személyes mezők sütiben, a jel (mfs) párosítja', doc.cookie.slice(0, 60));
+  const big = net.stashPrivate(new URLSearchParams({ mandala_voucher_message: 'x'.repeat(5000) }), { doc: { cookie: '' } });
+  ok(!big.token && big.pub.some(([k]) => k === 'mandala_voucher_message'), 'GET cím: ha nem fér a sütibe, a mező a címben marad (a kosárba tétel fontosabb)');
+  // Csoportos termék: a mennyiségek termékenként (quantity[ID]) – nincs mellettük egyetlen „quantity”, ami felülírná őket.
+  const g = new URL(net.addToCartUrl({ id: 20, qty: 1, fields: new URLSearchParams({ 'add-to-cart': '20', 'quantity[21]': '2', 'quantity[22]': '1' }), base: 'https://mandala.test/termek/csomag/' })).searchParams;
+  ok(g.get('add-to-cart') === '20' && g.get('quantity[21]') === '2' && g.get('quantity[22]') === '1' && !g.has('quantity') && !g.has('mfs'), 'GET cím: csoportos termék termékenkénti mennyiségekkel');
+  ok(net.isCartParam('quantity[21]') && net.isCartParam('mfs'), 'GET cím: a csoportos mennyiség és a süti-jel is lekerül a címből betöltés után');
+  globalThis.document = { cookie: 'foo=1; woocommerce_cart_hash=h1; woocommerce_items_in_cart=1' };
+}
+
+{
   let seen = '';
   const data = await net.getAddToCart({ id: 42, qty: 3, fields: new URLSearchParams({ mandala_sub: '2', 'add-to-cart': '42' }), fetchImpl: async (u, o) => { seen = u; return { ok: true, json: async () => ({ fragments: { a: 'b' }, cart_hash: 'h2', method: o?.method || 'GET' }) }; } });
   const q = new URL(seen).searchParams;
@@ -53,20 +72,22 @@ ok(net.cartHash() === 'h1' && net.cartHash({ cookie: '' }) === '', 'kosár-lenyo
 
 {
   const run = async (opts) => {
-    const log = { probe: 0, retry: 0, nav: null, added: null };
+    const log = { probe: 0, retry: 0, nav: null, added: null, unknown: 0 };
+    // probe: egy érték (minden próbára ugyanaz) vagy lista (próbánként; a lista vége után null).
+    const probes = Array.isArray(opts.probe) ? [...opts.probe] : null;
     const out = await net.recoverAddToCart({
       before: 'h1', fallbackUrl: 'FALLBACK', wait: async () => {},
-      probe: async () => { log.probe++; return opts.probe ?? null; },
+      probe: async () => { log.probe++; return probes ? (probes.length ? probes.shift() : null) : (opts.probe ?? null); },
       retry: async () => { log.retry++; return opts.retry ?? null; },
-      navigate: (u) => { log.nav = u; }, onAdded: (d) => { log.added = d; },
+      navigate: (u) => { log.nav = u; }, onAdded: (d) => { log.added = d; }, onUnknown: () => { log.unknown++; },
       ...opts.args,
     });
     return { out, ...log };
   };
   let r = await run({ args: { status: 403, blocked: true }, retry: { fragments: { x: 1 }, cart_hash: 'h2' } });
   ok(r.out === 'retried' && r.probe === 0 && r.retry === 1 && !r.nav && r.added?.cart_hash === 'h2', 'tiltás: nincs kosár-ellenőrzés (biztosan nem ment be), GET ismétlés beteszi');
-  r = await run({ args: { status: 403, blocked: true }, retry: null });
-  ok(r.out === 'navigate' && r.nav === 'FALLBACK', 'tiltás + a GET ismétlés sem megy: oldalbetöltés a GET címre');
+  r = await run({ args: { status: 403, blocked: true }, retry: null, probe: { cart_hash: 'h1', fragments: {} } });
+  ok(r.out === 'navigate' && r.nav === 'FALLBACK', 'tiltás + a GET ismétlés sem megy, a kosár nem változott: oldalbetöltés a GET címre');
   r = await run({ args: { status: 403, blocked: true }, retry: { error: true, product_url: 'https://mandala.test/termek/x/' } });
   ok(r.out === 'navigate' && r.nav === 'https://mandala.test/termek/x/', 'GET ismétlés: elfogyott / hibás → a termék oldala (ott a WooCommerce üzenete)');
   r = await run({ args: { status: 502 }, probe: { cart_hash: 'h9', fragments: {} } });
@@ -74,7 +95,21 @@ ok(net.cartHash() === 'h1' && net.cartHash({ cookie: '' }) === '', 'kosár-lenyo
   r = await run({ args: { status: 500 }, probe: { cart_hash: 'h1', fragments: {} }, retry: { fragments: {}, cart_hash: 'h2' } });
   ok(r.out === 'retried' && r.probe === 1 && r.retry === 1, '5xx, a kosár nem változott: GET ismétlés');
   r = await run({ args: { status: 0 }, probe: null, retry: null });
-  ok(r.out === 'navigate' && r.probe === 1 && r.nav === 'FALLBACK', 'hálózati hiba, a kosár sem kérdezhető le: GET oldalbetöltés');
+  ok(r.out === 'unknown' && r.probe === 2 && r.retry === 0 && !r.nav && r.unknown === 1, 'hálózati hiba, a kosár két próbával sem kérdezhető le: nem tesszük be újra (ismeretlen – nézze meg a kosarát)');
+  r = await run({ args: { status: 502 }, probe: [null, { cart_hash: 'h7', fragments: {} }] });
+  ok(r.out === 'added' && r.probe === 2 && r.retry === 0 && !r.nav, '5xx, az első kosár-lekérés hibás, a második szerint bent van: nincs dupla');
+  r = await run({ args: { status: 403, blocked: true }, retry: null, probe: { cart_hash: 'h3', fragments: {} } });
+  ok(r.out === 'added' && r.retry === 1 && !r.nav && r.added?.cart_hash === 'h3', 'tiltás, a GET ismétlésre nem jött válasz, de a kosár szerint bekerült: nincs oldalbetöltés (nincs dupla)');
+  r = await run({ args: { status: 403, blocked: true }, retry: null, probe: null });
+  ok(r.out === 'unknown' && !r.nav && r.unknown === 1, 'tiltás, a GET ismétlésre sem jött válasz, és a kosár sem kérdezhető le: nincs oldalbetöltés');
+  r = await run({ args: { status: 403, blocked: true, fallbackUrl: () => 'LAZY' }, retry: null, probe: { cart_hash: 'h1', fragments: {} } });
+  ok(r.out === 'navigate' && r.nav === 'LAZY', 'tiltás, a kosár nem változott: oldalbetöltés (a cím csak ekkor készül)');
+}
+
+{
+  const st = await net.orderState({ fetchImpl: async (u) => ({ ok: /wc-ajax=mandala_order_state/.test(u), json: async () => ({ placed: true, url: 'https://mandala.test/penztar/order-received/5/?key=k', cart_hash: '' }) }) });
+  ok(st?.placed === true && /order-received/.test(st.url), 'rendelés állapota: GET wc-ajax=mandala_order_state');
+  ok(await net.orderState({ fetchImpl: async () => { throw new Error('offline'); } }) === null, 'rendelés állapota: hálózati hibánál null (ismeretlen)');
 }
 
 {
@@ -107,6 +142,17 @@ ok(net.cartHash() === 'h1' && net.cartHash({ cookie: '' }) === '', 'kosár-lenyo
   res = await net.wcPost('mandala_set_qty', new URLSearchParams({ key: 'k1' }), { fetchImpl: async (u, o) => { calls.push(o?.method); return mk(403, 'application/json', '{"ok":false}'); } });
   ok(res.status === 403 && calls.length === 1, 'saját végpont: a szerver saját 403-ja (nonce) után nincs GET ismétlés');
   net._resetBeacon();
+  calls.length = 0;
+  globalThis.document = { cookie: '' };
+  await net.wcPost('apply_coupon', new URLSearchParams({ security: 'n', coupon_code: 'hot10', billing_email: 'anna@example.com' }), { omit: ['billing_email'], fetchImpl: async (u, o) => { calls.push([o?.method || 'GET', u]); return calls.length === 1 ? mk(403, 'text/html', NGINX_403) : mk(200, 'text/html', 'ok'); } });
+  let q = new URL(calls[1]?.[1] || 'https://x/').searchParams;
+  ok(calls[1]?.[0] === 'GET' && q.get('coupon_code') === 'hot10' && q.get('security') === 'n' && !q.has('billing_email') && !/anna@/.test(calls[1][1]), 'kupon: tiltáskor GET-tel (a híd beváltja), az e-mail-cím nélkül');
+  calls.length = 0;
+  await net.wcPost('mandala_capture', new URLSearchParams({ email: 'anna@example.com', name: 'Anna', security: 'n' }), { fetchImpl: async (u, o) => { calls.push([o?.method || 'GET', u]); return calls.length === 1 ? mk(403, 'text/html', NGINX_403) : mk(200, 'application/json', '{}'); } });
+  q = new URL(calls[1]?.[1] || 'https://x/').searchParams;
+  ok(calls[1]?.[0] === 'GET' && q.get('security') === 'n' && q.get('mfs') && !/anna|Anna/.test(calls[1][1]) && /mandala_fbf=/.test(document.cookie), 'pénztár e-mail: tiltáskor GET-tel, az e-mail és a név sütiben (nem a címben)', calls[1]?.[1]);
+  globalThis.document = { cookie: 'foo=1; woocommerce_cart_hash=h1; woocommerce_items_in_cart=1' };
+  net._resetBeacon();
 }
 
 {
@@ -116,7 +162,11 @@ ok(net.cartHash() === 'h1' && net.cartHash({ cookie: '' }) === '', 'kosár-lenyo
   ok(/Most nem értük el a pénztárt/.test(review) && /tel:\+36308928385/.test(review) && /mailto:info@mandala\.hu/.test(review) && /data-net-retry="review"/.test(review), 'pénztár üzenet: frissítés – újra, telefon, e-mail, gomb');
   ok(/Még nem jött létre/.test(order) && /data-net-retry="order"/.test(order), 'pénztár üzenet: tiltott rendelés – „még nem jött létre”');
   ok(/mégis megérkezett/.test(lost) && !/Még nem jött létre/.test(lost), 'pénztár üzenet: válasz nélküli rendelés – nézd meg a postafiókod (nem ígérjük, hogy nem jött létre)');
-  ok(!/\bAI\b|mesterséges/i.test(review + order + lost), 'pénztár üzenet: emberi hang');
+  const expired = net.checkoutTroubleHtml({ kind: 'review', expired: true });
+  ok(/régóta nyitva/.test(expired) && /data-net-retry="reload"/.test(expired) && !/másik internet/.test(expired), 'pénztár üzenet: lejárt ellenőrző kód – frissítés, nem „válts internetet”');
+  ok(/data-check="1"/.test(lost) && !/data-check/.test(order), 'pénztár üzenet: a válasz nélküli rendelés újraküldés előtt ellenőriz');
+  ok(/megérkezett/.test(net.orderPlacedHtml({ url: 'https://x/' })) && /ne add le újra/.test(net.orderPlacedHtml()), 'pénztár üzenet: a rendelés mégis létrejött – ne add le újra');
+  ok(!/\bAI\b|mesterséges/i.test(review + order + lost + expired), 'pénztár üzenet: emberi hang');
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -131,7 +181,9 @@ const JQUERY_STUB = `(() => {
     const els = typeof target === 'string' ? [...document.querySelectorAll(target)] : (target && target.nodeType ? [target] : (target === document ? [document] : []));
     const api = {
       0: els[0], length: els.length,
-      on(evts, fn) { evts.split(/\\s+/).forEach((e) => handlers.push({ e, el: els[0], fn })); return api; },
+      on(evts, fn) { evts.split(/\\s+/).forEach((e) => handlers.push({ e: e.split('.')[0], ns: e.split('.')[1] || '', el: els[0], fn })); return api; },
+      one(evt, fn) { const h = { e: evt.split('.')[0], ns: evt.split('.')[1] || '', el: els[0] }; h.fn = (...a) => { handlers.splice(handlers.indexOf(h), 1); fn(...a); }; handlers.push(h); return api; },
+      off(evt) { const [e, ns = ''] = evt.split('.'); for (let i = handlers.length - 1; i >= 0; i--) { const h = handlers[i]; if (h.el === els[0] && h.e === e && (!ns || h.ns === ns)) handlers.splice(i, 1); } return api; },
       trigger(evt, args = []) { (window.__triggered ||= []).push(evt); handlers.filter((h) => h.e === evt && h.el === els[0]).forEach((h) => h.fn({ type: evt }, ...args)); return api; },
       ajaxError(fn) { ajaxErr.push(fn); return api; },
       each(fn) { els.forEach((el) => fn.call(el)); return api; },
@@ -156,9 +208,9 @@ async function unitPage(body, module, { routes = {} } = {}) {
     if (u.pathname.startsWith('/js/')) return route.fulfill({ status: 200, contentType: 'text/javascript', body: readFileSync(path.join(JS, u.pathname.slice(4)), 'utf8') });
     if (u.pathname.startsWith('/wp-json/mandala/v1/blocked')) { log.beacons.push(Object.fromEntries(u.searchParams)); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); }
     for (const [re, fn] of Object.entries(routes)) {
-      if (new RegExp(re).test(u.pathname + u.search)) return fn(route, u);
+      if (new RegExp(re).test(u.pathname + u.search) && (await fn(route, u)) !== NEXT) return undefined;
     }
-    if (u.pathname === '/' || u.pathname.startsWith('/kategoria/') || u.pathname.startsWith('/penztar/')) {
+    if (route.request().method() === 'GET' && (u.pathname === '/' || u.pathname.startsWith('/kategoria/') || u.pathname.startsWith('/penztar/') || u.pathname.startsWith('/termek/'))) {
       return route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><html><head><meta charset="utf-8"><script>window.MANDALA=${JSON.stringify(MANDALA)};try{localStorage.setItem('mandala.cookie.v1','{"stats":false}')}catch(e){}</script><script>${JQUERY_STUB}</script>
         <script type="importmap">{"imports":{"mandala-site":"/js/site.js"}}</script></head><body>${body}<script type="module" src="/js/${module}"></script></body></html>` });
     }
@@ -167,6 +219,7 @@ async function unitPage(body, module, { routes = {} } = {}) {
   return { page, log, ctx };
 }
 const settle = (page, ms = 1500) => page.waitForTimeout(ms);
+const NEXT = Symbol('next'); // útvonal-kezelő: „nem az enyém”, mehet az általános oldal
 
 // 2a) Kártya „Kosárba”: a POST-ot a tűzfal tiltja → GET ismétlés AJAX-szal, oldalbetöltés nélkül.
 {
@@ -190,11 +243,12 @@ const settle = (page, ms = 1500) => page.waitForTimeout(ms);
   await ctx.close();
 }
 
-// 2b) Ha a GET ismétlés sem megy: oldalbetöltés a GET címre (?add-to-cart=…&mfb=1).
+// 2b) Ha a GET ismétlés sem megy (és a kosár szerint nem került be): oldalbetöltés a GET címre (?add-to-cart=…&mfb=1).
 {
   const card = '<span data-cart-count>0</span><ul><li class="product"><a href="?add-to-cart=42" data-product_id="42" data-quantity="2" class="ajax_add_to_cart">Kosárba</a></li></ul>';
   const { page, log, ctx } = await unitPage(card, 'site.js', { routes: {
-    'wc-ajax=add_to_cart&.*mfb=1': (route) => route.fulfill({ status: 403, contentType: 'text/html', body: NGINX_403 }),
+    'wc-ajax=add_to_cart&.*mfb=1': (route) => route.fulfill({ status: 500, contentType: 'text/html', body: 'Internal Server Error' }),
+    'wc-ajax=get_refreshed_fragments': (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ fragments: {}, cart_hash: '' }) }),
   } });
   await page.goto(`${ORIGIN}/kategoria/fustolok/?orderby=price`);
   await settle(page, 300);
@@ -257,6 +311,126 @@ const settle = (page, ms = 1500) => page.waitForTimeout(ms);
   ok(/mégis megérkezett/.test(await page.textContent('.mandala-net-notice')), 'rendelés leadása, szerver nem válaszol: „nézd meg a postafiókod”');
   ok(log.beacons.length === 0, 'pénztár: a jelzést a site.js küldi (itt nincs betöltve) – a checkout.js nem küld kétszer');
   ok(!log.errors.length, 'pénztár: nincs JS hiba', log.errors.join(' | '));
+  await ctx.close();
+}
+
+// 2e) Pénztár: a frissítés épp a rendelés leadása közben hibázik – a gombhoz nem nyúlunk (dupla rendelés ellen).
+{
+  const form = `<form class="checkout mandala-checkout woocommerce-checkout processing"><section id="section-shipping"><fieldset><legend>Szállítási mód</legend></fieldset></section>
+    <div class="woocommerce-checkout-payment" style="position:relative"><div class="blockUI blockOverlay"></div></div>
+    <button type="submit" id="place_order" disabled class="is-loading">Megrendelés</button></form>`;
+  const { page, log, ctx } = await unitPage(form, 'checkout.js');
+  await page.goto(`${ORIGIN}/penztar/`);
+  await settle(page, 400);
+  await page.evaluate(() => window.jQuery.__fail(0, '/?wc-ajax=update_order_review', '', '', 'error'));
+  await settle(page, 200);
+  ok(await page.$eval('#place_order', (b) => b.disabled) && await page.$eval('form.checkout', (f) => f.classList.contains('processing')) && !(await page.$('.mandala-net-notice')), 'pénztár: rendelés közben a hibás frissítés nem teszi újra kattinthatóvá a gombot, nem villan üzenet');
+  // A rendelés hibával tér vissza (a WooCommerce submit_error-ja): utána jön a frissítés üzenete.
+  await page.evaluate(() => { document.querySelector('form.checkout').classList.remove('processing'); window.jQuery(document.body).trigger('checkout_error'); });
+  await settle(page, 200);
+  ok(!!(await page.$('.mandala-net-notice[data-kind="review"]')) && !(await page.$('.blockUI')), 'pénztár: a rendelés hibája után megjelenik a frissítés üzenete, a takarás lekerül');
+  // Lejárt ellenőrző kód (a WordPress „-1”-e, 403): frissíteni kell, nem internetet váltani.
+  await page.evaluate(() => window.jQuery.__fail(403, '/?wc-ajax=update_order_review', '-1', 'text/html; charset=UTF-8'));
+  await settle(page, 200);
+  ok(/régóta nyitva/.test(await page.textContent('.mandala-net-notice')) && !!(await page.$('[data-net-retry="reload"]')) && !/másik internet/.test(await page.textContent('.mandala-net-notice')), 'pénztár: lejárt ellenőrző kód – „frissítsd az oldalt”');
+  ok(!log.errors.length, 'pénztár (rendelés közben): nincs JS hiba', log.errors.join(' | '));
+  await ctx.close();
+}
+
+// 2f) Pénztár: a rendelés leadására nem jött válasz (5xx / 0) – újraküldés előtt megnézzük, létrejött-e.
+{
+  const form = `<form class="checkout mandala-checkout woocommerce-checkout"><section id="section-shipping"><fieldset></fieldset></section>
+    <button type="submit" id="place_order">Megrendelés</button></form>`;
+  let state = { status: 200, body: { placed: false, url: '', cart_hash: 'h-same' } };
+  const { page, log, ctx } = await unitPage(form, 'checkout.js', { routes: {
+    'wc-ajax=mandala_order_state': (route) => route.fulfill({ status: state.status, contentType: 'application/json', body: JSON.stringify(state.body) }),
+  } });
+  await ctx.addCookies([{ name: 'woocommerce_cart_hash', value: 'h-same', url: ORIGIN }]);
+  await page.goto(`${ORIGIN}/penztar/`);
+  await settle(page, 400);
+  await page.evaluate(() => { window.__placeClicks = 0; document.querySelector('#place_order').addEventListener('click', (e) => { e.preventDefault(); window.__placeClicks++; }); });
+  // a) nem jött létre („Függőben” rendelés / nincs rendelés, a kosár ugyanaz): „Újrapróbálom” → újraküldés
+  await page.evaluate(() => window.jQuery.__fail(502, '/?wc-ajax=checkout', 'Bad Gateway'));
+  await settle(page, 300);
+  await page.click('[data-net-retry="order"]');
+  await settle(page, 400);
+  ok((await page.evaluate(() => window.__placeClicks)) === 1 && log.requests.some((r) => /mandala_order_state/.test(r)), 'rendelés válasz nélkül, nem jött létre: ellenőrzés után újraküldés');
+  // b) nem kérdezhető le: nem küldjük újra, megmondjuk, miért
+  state = { status: 500, body: {} };
+  await page.evaluate(() => window.jQuery.__fail(0, '/?wc-ajax=checkout', '', '', 'error'));
+  await settle(page, 2000);
+  await page.click('[data-net-retry="order"]');
+  await settle(page, 2200);
+  ok((await page.evaluate(() => window.__placeClicks)) === 1 && /Még mindig nem érjük el a boltot/.test(await page.textContent('.mandala-net-notice')), 'rendelés válasz nélkül, az állapot sem kérdezhető le: nem küldjük újra');
+  // c) létrejött (utánvét, „Feldolgozás alatt”): üzenet, a gomb tiltva, és a visszaigazoló oldalra visz
+  state = { status: 200, body: { placed: true, url: `${ORIGIN}/penztar/order-received/55/?key=wc_order_x`, cart_hash: 'h-same' } };
+  const nav = page.waitForURL(/order-received\/55/, { timeout: 8000 }).catch(() => null);
+  await page.evaluate(() => window.jQuery.__fail(500, '/?wc-ajax=checkout', 'Internal Server Error'));
+  await page.waitForSelector('.mandala-net-notice[data-kind="placed"]', { timeout: 4000 }).catch(() => {});
+  ok(/megérkezett/.test(await page.textContent('.mandala-net-notice').catch(() => '')) && await page.$eval('#place_order', (b) => b.disabled).catch(() => false), 'rendelés válasz nélkül, de létrejött: „A rendelésed megérkezett” – ne add le újra (a gomb tiltva)');
+  await nav;
+  ok(/order-received\/55/.test(page.url()) && (await page.evaluate(() => window.__placeClicks ?? 0)) === 0, 'rendelés létrejött: a visszaigazoló oldalra visz, nincs második rendelés', page.url());
+  await ctx.close();
+}
+
+// 2g) Termékoldal, WooCommerce saját űrlapja: változatos termék dupla kattintásra is egyszer; csoportos termék tiltásnál.
+{
+  const body = `<span data-cart-count>0</span><div id="minicart" class="layer"></div><div class="mandala-variable-cart"><form class="variations_form cart" method="post" action="/termek/szantal/" data-product_id="12">
+    <input type="hidden" name="variation_id" value="77"><input type="hidden" name="attribute_pa_meret" value="l"><input type="hidden" name="add-to-cart" value="12"><input name="quantity" value="1">
+    <button type="submit" class="single_add_to_cart_button button alt">Kosárba</button></form></div>`;
+  let posts = 0;
+  const { page, log, ctx } = await unitPage(body, 'product.js', { routes: {
+    '^/termek/szantal/$': async (route) => { if (route.request().method() !== 'POST') return NEXT; posts++; await new Promise((r) => setTimeout(r, 600)); return route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body><div class="woocommerce-message">Kosárba téve</div></body></html>' }); },
+  } });
+  await page.goto(`${ORIGIN}/termek/szantal/`);
+  await settle(page, 400);
+  await page.dblclick('.single_add_to_cart_button');
+  await page.evaluate(() => document.querySelector('form.variations_form').requestSubmit());
+  await settle(page, 1200);
+  ok(posts === 1, 'változatos termék: dupla kattintásra (és második beküldésre) is egyetlen kérés', String(posts));
+  ok(await page.$eval('.single_add_to_cart_button', (b) => !b.disabled && !b.classList.contains('is-loading')), 'változatos termék: utána a gomb újra használható');
+  ok(!log.errors.length, 'változatos termék: nincs JS hiba', log.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const body = `<span data-cart-count>0</span><div class="mandala-variable-cart"><form class="cart grouped_form" method="post" action="/termek/csomag/">
+    <input name="quantity[21]" value="2"><input name="quantity[22]" value="0"><button type="submit" name="add-to-cart" value="20" class="single_add_to_cart_button">Kosárba</button></form></div>`;
+  const { page, log, ctx } = await unitPage(body, 'product.js', { routes: {
+    '^/termek/csomag/$': (route) => (route.request().method() === 'POST' ? route.fulfill({ status: 403, contentType: 'text/html', body: NGINX_403 }) : NEXT),
+  } });
+  await page.goto(`${ORIGIN}/termek/csomag/`);
+  await settle(page, 400);
+  const nav = page.waitForURL(/add-to-cart=20/, { timeout: 8000 }).catch(() => null);
+  await page.click('.single_add_to_cart_button');
+  await nav;
+  const hit = log.requests.find((r) => /^GET \/termek\/csomag\/\?.*add-to-cart=20/.test(r)) || '';
+  const q = new URL(`${ORIGIN}${hit.slice(4)}`).searchParams;
+  ok(q.get('quantity[21]') === '2' && !q.has('quantity') && q.get('mfb') === '1', 'csoportos termék: a tiltott POST után GET-es oldalbetöltés termékenkénti mennyiséggel (nem fehér 403 oldal)', hit);
+  await ctx.close();
+}
+
+// 2h) Ajándékcsomag: a POST-ot a tűzfal tiltja → ugyanaz GET-tel, a kártya üzenete nem a címben.
+{
+  const body = `<form data-gift-builder data-max="6"><input type="checkbox" name="items[]" value="31" data-price="1000" checked><input type="checkbox" name="items[]" value="32" data-price="2000" checked>
+    <input type="radio" name="box" value="40" data-price="500" checked><textarea id="gift-message" name="message">Boldog szülinapot, Anna!</textarea><span data-gift-chars></span>
+    <p data-gift-count></p><p data-gift-total></p><p data-gift-error></p><button type="submit" data-gift-submit>Kosárba</button></form>`;
+  let getUrl = ''; let cookie = '';
+  const { page, log, ctx } = await unitPage(body, 'gift.js', { routes: {
+    'wc-ajax=mandala_gift_add': (route, u) => {
+      if (route.request().method() === 'POST') return route.fulfill({ status: 403, contentType: 'text/html', body: NGINX_403 });
+      getUrl = u.href; cookie = route.request().headers().cookie || '';
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, cart: `${ORIGIN}/kosar/` }) });
+    },
+  } });
+  await page.goto(`${ORIGIN}/`);
+  await settle(page, 400);
+  const nav = page.waitForURL(/\/kosar\//, { timeout: 8000 }).catch(() => null);
+  await page.click('[data-gift-submit]');
+  await nav;
+  const q = new URL(getUrl || 'https://x/').searchParams;
+  ok(q.getAll('items[]').join(',') === '31,32' && q.get('box') === '40' && q.get('mfb') === '1' && q.get('mfs') && !/Boldog|Anna/.test(decodeURIComponent(getUrl)), 'ajándékcsomag: tiltáskor GET-tel, az üzenet nem a címben', getUrl);
+  ok(/mandala_fbf=/.test(cookie) && decodeURIComponent(cookie).includes('Boldog szülinapot, Anna!'), 'ajándékcsomag: az üzenet a kéréssel sütiben megy');
+  ok(/\/kosar\//.test(page.url()) && log.beacons.some((b) => b.e === 'mandala_gift_add'), 'ajándékcsomag: a kosárba került (a kosár oldalára visz), a tiltás jelezve', page.url());
   await ctx.close();
 }
 

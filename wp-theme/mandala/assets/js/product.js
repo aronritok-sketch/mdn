@@ -1,6 +1,6 @@
 // Termékoldal: galéria, AJAX kosárba tétel (a minikosár kinyílik), ragadós kosárba sáv.
 import { $, $$, esc } from './env.js';
-import { addToCart, applyFragments, openCart, toast } from 'mandala-site';
+import { addToCart, applyFragments, openCart, toast, cartUnknownToast } from 'mandala-site';
 import { isElinBlock, isFailure, cartHash, addToCartUrl, probeCart, recoverAddToCart, reportBlocked } from './net.js';
 
 // Galéria: bélyegképre kattintva csere a fő képben.
@@ -13,15 +13,20 @@ document.addEventListener('click', (e) => {
 });
 
 const form = $('form[data-cart-form]');
+let sending = false; // dupla kattintás / Enter / ragadós sáv: egyszerre egy kosárba tétel
 async function submitCart(qty, fields = null) {
+  if (sending) return;
+  sending = true;
   const btn = $('.single_add_to_cart_button', form);
   btn.classList.add('is-loading'); btn.disabled = true;
   const data = await addToCart(form.dataset.productId, qty, fields);
-  if (data?.pending) return; // GET tartalék: az oldal épp átnavigál (net.js)
-  if (data && form.dataset.redirect) { location.href = form.dataset.redirect; return; } // pl. utalvány: a kosár oldalára
+  if (data?.pending) return; // az oldal épp átnavigál (GET tartalék, vagy a WooCommerce üzenete a termék oldalán)
+  sending = false;
+  if (data && !data.unknown && form.dataset.redirect) { location.href = form.dataset.redirect; return; } // pl. utalvány: a kosár oldalára
   btn.classList.remove('is-loading'); btn.disabled = false;
+  if (data?.unknown) return; // üzenet már ment: nézze meg a kosarát
   if (data) openCart();
-  else toast('Ebből a termékből most nem tudunk többet a kosárba tenni – a készlet korlátozott.');
+  else toast('Most nem sikerült a kosárba tenni – próbáld újra.', { ico: 'alert' });
 }
 // Minden kosár űrlap AJAX-szal megy – az extra mezősek is (előfizetés, utalvány): a teljes oldalas POST-ot a tárhely
 // tűzfala (ELIN 403) egyes vásárlóknál fehér „403 Forbidden” oldallal utasítja el. A mezők a kéréssel mennek, a
@@ -37,20 +42,30 @@ $('[data-add-sticky]')?.addEventListener('click', () => {
   submitCart(1);
 });
 
-// Változatos termék (a WooCommerce saját űrlapja, teljes oldalas POST): ugyanaz a POST fetch-csel, hogy a tiltás ne
-// fehér oldal legyen. A dokumentumon figyelünk, így a WooCommerce saját ellenőrzése (nincs kiválasztott változat)
-// előbb lefut, és ha ő megállította a beküldést, mi sem küldjük.
+// A WooCommerce saját kosár-űrlapjai (változatos, csoportos termék – teljes oldalas POST): ugyanaz a POST fetch-csel,
+// hogy a tiltás ne fehér oldal legyen. A dokumentumon figyelünk, így a WooCommerce saját ellenőrzése (nincs
+// kiválasztott változat) előbb lefut, és ha ő megállította a beküldést, mi sem küldjük. A külső termék űrlapja GET.
+// Egyszerre egy beküldés: a gomb tiltva, amíg a kérés (és a tartalék) fut – dupla kattintásra se kerüljön be kétszer.
+const sendingForms = new WeakSet();
 document.addEventListener('submit', async (e) => {
-  const vf = e.target.closest?.('form.variations_form');
-  if (!vf || e.defaultPrevented) return;
+  const vf = e.target.closest?.('form.cart');
+  if (!vf || vf.matches('[data-cart-form]') || String(vf.getAttribute('method') || 'get').toLowerCase() !== 'post') return;
+  if (sendingForms.has(vf)) { e.preventDefault(); return; }
+  if (e.defaultPrevented) return;
+  const variable = vf.matches('.variations_form');
   const vid = Number($('input[name="variation_id"]', vf)?.value || 0);
   const btn = $('.single_add_to_cart_button', vf);
-  if (!vid || btn?.classList.contains('disabled')) return;
+  if ((variable && !vid) || btn?.classList.contains('disabled')) return;
   e.preventDefault();
   const fields = new FormData(vf);
+  // Csoportos terméknél a termék azonosítója a gombon van (name="add-to-cart"), azt a FormData nem viszi.
+  if (!fields.has('add-to-cart') && btn?.name === 'add-to-cart' && btn.value) fields.set('add-to-cart', btn.value);
   const id = Number(fields.get('add-to-cart') || vf.dataset.product_id || 0);
   const qty = Number(fields.get('quantity') || 1);
-  btn?.classList.add('is-loading');
+  const items = variable ? [[vid, qty]] : [...fields.entries()].map(([k, v]) => [Number((k.match(/^quantity\[(\d+)\]$/) || [])[1]), Number(v)]).filter(([pid, n]) => pid && n > 0);
+  sendingForms.add(vf);
+  const busy = (on) => { btn?.classList.toggle('is-loading', on); if (btn) btn.disabled = on; if (!on) sendingForms.delete(vf); };
+  busy(true);
   const before = cartHash();
   let res = null;
   try { res = await fetch(vf.action || location.href, { method: 'POST', credentials: 'same-origin', body: fields }); } catch { res = null; }
@@ -58,19 +73,19 @@ document.addEventListener('submit', async (e) => {
     const text = res ? await res.text().catch(() => '') : '';
     const blocked = !!res && isElinBlock(res.status, res.headers.get('content-type') || '', text);
     if (blocked) reportBlocked('product_form');
-    const out = await recoverAddToCart({ status: res?.status || 0, blocked, before, fallbackUrl: addToCartUrl({ id, qty, fields }), navigate: (u) => location.assign(u),
-      onAdded: (fr) => { applyFragments(fr.fragments, fr.cart_hash); openCart(); } });
-    if (out === 'added') btn?.classList.remove('is-loading');
+    const out = await recoverAddToCart({ status: res?.status || 0, blocked, before, fallbackUrl: () => addToCartUrl({ id, qty, fields }), navigate: (u) => location.assign(u),
+      onAdded: (fr) => { applyFragments(fr.fragments, fr.cart_hash); openCart(); }, onUnknown: cartUnknownToast });
+    if (out !== 'navigate') busy(false);
     return;
   }
   if (res.redirected) { location.assign(res.url); return; }
   const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-  btn?.classList.remove('is-loading');
+  busy(false);
   const errors = [...doc.querySelectorAll('.woocommerce-error li, .woocommerce-error')].map((x) => x.textContent.trim()).filter(Boolean);
   if (errors.length) { toast(esc(errors[0]), { ico: 'alert', timeout: 7000 }); return; }
   const fr = await probeCart();
   if (fr?.fragments) applyFragments(fr.fragments, fr.cart_hash);
-  document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: [[vid, qty]], source: 'product' } }));
+  document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items, source: 'product' } }));
   openCart();
 });
 

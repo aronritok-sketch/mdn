@@ -98,6 +98,13 @@ add_action('wp_loaded', function () {
     if ($code === '') {
         return;
     }
+    // A link szövege a vásárlónak visszaírva jelenik meg: csak kódszerű, rövid szöveg (különben bárki tetszőleges
+    // mondatot – „hívd ezt a számot…” – írathatna ki a boltunk nevében).
+    if (mb_strlen($code) > 40 || !preg_match('/^[\p{L}\p{N}_-]+$/u', $code)) {
+        $GLOBALS['mandala_coupon_notice'] = ['ok' => false, 'text' => __('Ezt a kuponkódot nem találjuk – lehet, hogy elírás. A kínálatot így is nyugodtan böngészheted.', 'mandala')];
+        mandala_nocache('kupon');
+        return;
+    }
     mandala_nocache('kupon'); // a visszajelzés vásárlónként más – ez az oldal ne kerüljön gyorsítótárba
     $coupon = wc_get_coupon_id_by_code($code) ? new WC_Coupon($code) : null;
     $problem = mandala_link_coupon_problem($coupon, $code);
@@ -113,8 +120,8 @@ add_action('wp_loaded', function () {
             $applied = WC()->cart->apply_coupon($code);
             array_map(fn($f) => remove_filter($f, '__return_empty_string', 99), $mute);
             if (!$applied && !WC()->cart->has_discount($code)) {
-                // A kód a munkamenetben marad: amint a kosárba olyan termék kerül, amire érvényes, magától levonódik.
-                $problem = sprintf(__('A %s kódot elmentettük, de a kosaradban lévő termékekre nem érvényes – ha olyat teszel mellé, amire igen, magától levonjuk.', 'mandala'), $code);
+                // A kód a munkamenetben marad: amint a feltétele teljesül (termék, minimum összeg…), magától levonódik.
+                $problem = mandala_link_coupon_pending_text($coupon, $code);
             }
         }
     }
@@ -130,7 +137,8 @@ add_action('wp_loaded', function () {
 function mandala_link_coupon_problem(?WC_Coupon $coupon, string $code): string
 {
     if (!$coupon || !$coupon->get_id()) {
-        return sprintf(__('A %s kódot nem találjuk – lehet, hogy elírás. A kínálatot így is nyugodtan böngészheted.', 'mandala'), $code);
+        // Az ismeretlen kódot nem írjuk vissza (a link szövege bármi lehet).
+        return __('Ezt a kuponkódot nem találjuk – lehet, hogy elírás. A kínálatot így is nyugodtan böngészheted.', 'mandala');
     }
     $expires = $coupon->get_date_expires();
     if ($expires && $expires->getTimestamp() < time()) {
@@ -140,6 +148,24 @@ function mandala_link_coupon_problem(?WC_Coupon $coupon, string $code): string
         return sprintf(__('A %s kód már elfogyott, ezért most nem tudjuk levonni.', 'mandala'), $code);
     }
     return '';
+}
+
+/**
+ * Elmentett, de most még le nem vonható kód: a WooCommerce saját oka (pl. minimum összeg, a kosár termékeire nem
+ * érvényes), ha megkapjuk; különben általános mondat. A kódot a munkamenet őrzi, a feltétel teljesülésekor levonódik.
+ */
+function mandala_link_coupon_pending_text(WC_Coupon $coupon, string $code): string
+{
+    $why = '';
+    if (class_exists('WC_Discounts') && WC()->cart) {
+        $valid = (new WC_Discounts(WC()->cart))->is_coupon_valid($coupon);
+        if (is_wp_error($valid)) {
+            $why = trim(wp_strip_all_tags($valid->get_error_message()));
+        }
+    }
+    return $why !== ''
+        ? sprintf(__('A %1$s kódot elmentettük, de most még nem vonható le: %2$s Ha teljesül a feltétele, magától levonjuk.', 'mandala'), $code, rtrim($why, '. ') . '.')
+        : sprintf(__('A %s kódot elmentettük, de a kosaradra most még nem vonható le – ha teljesül a feltétele (például olyan termék kerül mellé, amire érvényes), magától levonjuk.', 'mandala'), $code);
 }
 
 /** A kedvezmény röviden: „−10%”, „−2 000 Ft”, „−500 Ft / termék”, ingyenes szállításnál „ingyenes szállítás”. */
@@ -180,9 +206,12 @@ add_action('woocommerce_before_calculate_totals', function ($cart) {
         }
     }
     $busy = true;
-    add_filter('woocommerce_coupon_message', '__return_empty_string');
+    // Csendben: ha a kód most még nem érvényes (termék, minimum összeg), a WooCommerce „nem alkalmazható” hibája ne
+    // jelenjen meg minden kosár-újraszámolásnál – amint érvényes, magától levonódik.
+    $mute = ['woocommerce_coupon_message', 'woocommerce_add_error', 'woocommerce_add_success', 'woocommerce_add_message'];
+    array_map(fn($f) => add_filter($f, '__return_empty_string', 99), $mute);
     $cart->apply_coupon($code);
-    remove_filter('woocommerce_coupon_message', '__return_empty_string');
+    array_map(fn($f) => remove_filter($f, '__return_empty_string', 99), $mute);
     $busy = false;
 }, 7);
 

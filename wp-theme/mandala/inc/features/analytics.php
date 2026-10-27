@@ -42,6 +42,16 @@ function mandala_consent_layers(): array
  * window.mandalaPysPrep(pysOptions): a PixelYourSite indulása előtt (a 'pys' szkript elé fűzve, lent): a Meta és a
  * többi hirdetési pixel csak marketing-hozzájárulással töltődik, a Consent Mode értékei a vásárló választása szerint
  * mennek (a PixelYourSite alapból „granted”-et küldene – a Google mérése így a választás előtt is teljes volt).
+ * A tiltó jelzők (facebook_disabled_by_api…) csak olvashatók, és mindig az aktuális választást adják: ha valaki a
+ * PixelYourSite-ban bekapcsolja az AJAX-os GDPR-lekérést (ajax_enabled) vagy a dinamikus beállításokat, a szerver
+ * válasza se kapcsolhassa vissza a Meta pixelt hozzájárulás nélkül.
+ * Visszavonás („Csak a szükségesek” később): a már betöltött Meta pixel fbq('consent','revoke')-t kap – azon az oldalon
+ * sem küld tovább.
+ *
+ * A Google címkéi (a PixelYourSite GA4 / Google Ads, a Google for WooCommerce AW- címkéje) a választás előtt is
+ * betöltődnek, „denied” állapotban: sütit nem írnak, csak sütimentes jelzést küldenek (Google Consent Mode, „haladó”
+ * mód, gcs=G100) – ez a Google szerint megengedett, és a konverziómodellezéshez kell. Ha a választás előtt egyáltalán
+ * nem futhat Google címke, azt a PixelYourSite / Google for WooCommerce beállításában kell kérni („alap” mód).
  */
 add_action('wp_head', function () {
     if (mandala_analytics_settings()['consent_default'] !== 'yes' || !apply_filters('mandala_consent_mode', true)) {
@@ -57,9 +67,9 @@ add_action('wp_head', function () {
         . 'w.mandalaPysPrep=function(o){if(!o||!o.gdpr)return;var g=o.gdpr,st=!!(c&&c.stats),mk=!!(c&&c.marketing);'
         . 'function v(k,on){if(!g[k]||typeof g[k]!=="object"){g[k]={};}g[k].enabled=true;g[k].value=on?"granted":"denied";}'
         . 'v("analytics_storage",st);v("ad_storage",mk);v("ad_user_data",mk);v("ad_personalization",mk);'
-        . '["facebook","tiktok","pinterest","bing","reddit","openai"].forEach(function(k){g[k+"_disabled_by_api"]=!mk;});'
+        . '["facebook","tiktok","pinterest","bing","reddit","openai"].forEach(function(k){var n=k+"_disabled_by_api";try{Object.defineProperty(g,n,{configurable:true,enumerable:true,get:function(){return !(c&&c.marketing);},set:function(){}});}catch(e){g[n]=!mk;}});'
         . 'o.cookie=o.cookie||{};if(!st&&!mk&&!o.cookie.disabled_all_cookie){o.cookie.disabled_all_cookie=true;off=true;}else if((st||mk)&&off){o.cookie.disabled_all_cookie=false;off=false;}};'
-        . 'w.mandalaConsent=function(p){c=p||{};push("update",vals(c));var o=w.pysOptions;if(!o)return;w.mandalaPysPrep(o);'
+        . 'w.mandalaConsent=function(p){c=p||{};push("update",vals(c));try{if(typeof w.fbq==="function"){w.fbq("consent",c.marketing?"grant":"revoke");}}catch(e){}var o=w.pysOptions;if(!o)return;w.mandalaPysPrep(o);'
         . 'if(c.marketing||c.stats){try{var P=w.pys||{};if(P.Utils&&P.Utils.loadPixels){P.Utils.loadPixels();}else if(c.marketing&&P.Facebook&&P.Facebook.loadPixel){P.Facebook.loadPixel();}}catch(e){}}};'
         . '})(window);</script>' . "\n";
 }, 0);
@@ -161,8 +171,10 @@ add_action('woocommerce_order_status_completed', $mandala_capi_queue);
  *  - hub: a saját zárával (_hpvac_sent) – a később megérkező fizetés már nem küldi újra;
  *  - Meta CAPI (a téma saját, ha be van kapcsolva): _mandala_capi_queued zár;
  *  - böngésző (lent, wp_footer): dataLayer purchase (GTM) minden nem hibás rendelésnél, ha a GTM4WP nem méri;
- *    a PixelYourSite helyett Meta Purchase (eventID: wc-<rendelés>, ugyanaz, mint a hubé – a Meta összevonja) és
- *    GA4 purchase (transaction_id), de csak ha a PixelYourSite maga nem küld vásárlást ezen az oldalon.
+ *    a PixelYourSite helyett Meta Purchase és GA4 purchase (transaction_id), de csak ha a PixelYourSite maga nem küld
+ *    vásárlást ezen az oldalon. A Meta eseményazonosítója ugyanaz, mint a szerveroldali párjáé, így a Meta összevonja
+ *    őket: a téma Conversions API-jával „order_<rendelés>”, nélküle a HelloProVision Ads hubé, „wc-<rendelés>”.
+ *    (A téma CAPI-ja és a hub Meta-küldése egyszerre ne legyen bekapcsolva – két szerveres vásárlás lenne.)
  * A visszatérés felismerése: elin.php (mandala_returned_unconfirmed_order, _mandala_card_returned).
  */
 add_action('mandala_card_returned_unconfirmed', function (WC_Order $order) use ($mandala_capi_queue) {
@@ -217,7 +229,9 @@ add_action('wp_footer', function () {
     $dl && $order->update_meta_data('_mandala_dl_purchase', time());
     $fill && $order->update_meta_data('_mandala_px_fill', time());
     $order->save_meta_data();
-    $data = ['id' => $order->get_id(), 'dl' => $dl, 'fill' => (bool) $fill, 'p' => mandala_purchase_payload($order)];
+    // A Meta eseményazonosítója a szerveroldali páré szerint (a téma CAPI-ja: order_<id>; a hub: wc-<id>).
+    $eid = (mandala_capi_ready() && $order->get_meta('_mandala_marketing_consent') === 'yes' ? 'order_' : 'wc-') . $order->get_id();
+    $data = ['id' => $order->get_id(), 'eid' => $eid, 'dl' => $dl, 'fill' => (bool) $fill, 'p' => mandala_purchase_payload($order)];
     echo '<script>(function(w){var d=' . wp_json_encode($data) . ',p=d.p;'
         . 'function once(k){try{if(localStorage.getItem(k))return false;localStorage.setItem(k,"1");}catch(e){}return true;}'
         . 'if(d.dl&&once("mandala.purchase.dl."+d.id)){w.dataLayer=w.dataLayer||[];w.dataLayer.push({ecommerce:null});w.dataLayer.push({event:"purchase",ecommerce:p});}'
@@ -225,7 +239,7 @@ add_action('wp_footer', function () {
         . 'w.addEventListener("load",function(){setTimeout(function(){var o=w.pysOptions;if(!o)return;var se=o.staticEvents||{},has=false;'
         . 'Object.keys(se).forEach(function(px){var ev=se[px]||{};Object.keys(ev).forEach(function(k){if(/purchase/i.test(k))has=true;(Array.isArray(ev[k])?ev[k]:[]).forEach(function(e){if(e&&/^purchase$/i.test(e.name||""))has=true;});});});'
         . 'if(has||!once("mandala.purchase.px."+d.id))return;var c=null;try{c=JSON.parse(localStorage.getItem("mandala.cookie.v1")||"null");}catch(e){}'
-        . 'if(c&&c.marketing&&typeof w.fbq==="function"){w.fbq("track","Purchase",{value:p.value,currency:p.currency,content_type:"product",content_ids:p.items.map(function(i){return i.item_id;}),num_items:p.items.reduce(function(s,i){return s+i.quantity;},0)},{eventID:"wc-"+d.id});}'
+        . 'if(c&&c.marketing&&typeof w.fbq==="function"){w.fbq("track","Purchase",{value:p.value,currency:p.currency,content_type:"product",content_ids:p.items.map(function(i){return i.item_id;}),num_items:p.items.reduce(function(s,i){return s+i.quantity;},0)},{eventID:d.eid});}'
         . 'if(o.ga&&o.ga.trackingIds&&o.ga.trackingIds.length){var t=o.GATags||{},n=t.ga_datalayer_type==="custom"&&t.ga_datalayer_name?t.ga_datalayer_name:(t.ga_datalayer_type&&t.ga_datalayer_type!=="default"?"dataLayer":"dataLayerPYS"),L=w[n]=w[n]||[],e={send_to:o.ga.trackingIds};Object.keys(p).forEach(function(k){e[k]=p[k];});(function(){L.push(arguments);})("event","purchase",e);}'
         . '},1500);});})(window);</script>' . "\n";
 }, 30);

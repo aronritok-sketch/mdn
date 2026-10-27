@@ -1,5 +1,6 @@
 // Ajándékcsomag-összeállító (mandala/gift-builder): kiválasztás, élő összeg, kosárba (wc-ajax=mandala_gift_add).
 import { $, $$, esc, icon, fmt } from './env.js';
+import { wcPost, contactHtml, contactOf } from './net.js';
 
 const M = window.MANDALA || {};
 const form = $('[data-gift-builder]');
@@ -35,8 +36,10 @@ if (form) {
     body.append('security', M.cartNonce || '');
     submit.classList.add('is-loading'); submit.disabled = true;
     try {
-      const res = await fetch(String(M.wcAjax).replace('%%endpoint%%', 'mandala_gift_add'), { method: 'POST', credentials: 'same-origin', body });
-      const data = await res.json();
+      // Tiltásnál (ELIN 403) GET-tel ismétli; az üzenet sütiben megy, nem a címben (net.js).
+      const res = await wcPost('mandala_gift_add', body);
+      const data = res ? await res.json() : null;
+      if (!data) throw new Error('nincs válasz');
       if (data.ok) {
         const added = items().map((i) => [Number(i.value), 1]).concat([[Number($('input[name="box"]:checked', form).value), 1]]);
         document.dispatchEvent(new CustomEvent('mandala:cart-add', { detail: { items: added, source: 'gift_builder' } }));
@@ -45,7 +48,7 @@ if (form) {
       }
       error.innerHTML = `${icon('alert', 'ico ico-s')}<span>${esc(data.error || 'Most nem sikerült – próbáld újra.')}</span>`;
     } catch {
-      error.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem sikerült – próbáld újra.</span>`;
+      error.innerHTML = `${icon('alert', 'ico ico-s')}<span>Most nem sikerült a kosárba tenni – próbáld újra. Ha akkor sem megy, válts másik internetre (például wifi helyett mobilnetre), vagy szólj nekünk: ${contactHtml(contactOf(M))}</span>`;
     }
     submit.classList.remove('is-loading');
     update();
