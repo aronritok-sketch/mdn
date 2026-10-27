@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mandala Dropship – útmutató partnereknek</title>
+<!--
+  Forrás a Mandala-Dropship-utmutato-partnereknek.pdf-hez (A4, 10 oldal).
+  Betűk: betuk/ (a téma Cormorant Garamond és Inter betűinek rögzített vastagságú példányai, SIL OFL), logó a téma
+  mappájából (../../wp-theme/mandala/assets/ads/), képernyőképek: kepek/ (minta bolt, minta adatok).
+  PDF: Chromium page.pdf, A4, háttérgrafikával; minden .page pontosan egy oldal.
+-->
+<style>
+/* Betűk: a téma Cormorant Garamond és Inter betűi (SIL OFL), a PDF-hez rögzített vastagságú példányok (betuk/). */
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:block;src:url(betuk/cormorant-normal-600-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:block;src:url(betuk/cormorant-normal-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500;font-display:block;src:url(betuk/cormorant-italic-500-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500;font-display:block;src:url(betuk/cormorant-italic-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:block;src:url(betuk/inter-normal-400-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:block;src:url(betuk/inter-normal-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:block;src:url(betuk/inter-normal-600-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:block;src:url(betuk/inter-normal-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+/* Mandala tokenek (wp-theme/mandala/theme.json, vars.css) */
+:root{
+  --white:#FFFFFF;--paper:#F7F4EE;--sand:#EEE7DB;--line:#DDD3C3;--ink:#1C1916;--muted:#6E6357;
+  --accent:#A9581A;--accent-deep:#8A4512;--accent-soft:#F4E7D6;--maroon:#6B2A2A;--night:#16120F;
+  --success:#2E6A3E;--success-soft:#E6F0E7;--error:#A3322A;--error-soft:#F7E4E1;--gold:#FEAA30;
+  --display:'Cormorant Garamond','Iowan Old Style',Georgia,serif;
+  --text:Inter,system-ui,sans-serif;
+  --mx:18mm;
+}
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--text);font-size:9.4pt;line-height:1.5;color:var(--ink);background:#d9d3c9;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-feature-settings:"cv11","ss01";hyphens:auto;-webkit-hyphens:auto}
+p{margin:0 0 2.6mm;text-wrap:pretty}
+strong{font-weight:600}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.01em;margin:0;color:var(--ink);text-wrap:balance;hyphens:manual}
+h2{font-size:27pt;line-height:1.02;margin-bottom:2.2mm}
+h3{font-size:15.5pt;line-height:1.1;margin:0 0 1.6mm}
+.eyebrow{font-family:var(--text);font-size:6.8pt;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 2mm}
+.lead{font-size:10.6pt;line-height:1.5;color:var(--ink);max-width:150mm;margin-bottom:5mm}
+.muted{color:var(--muted)}
+.small{font-size:8pt;line-height:1.45}
+.num{font-variant-numeric:tabular-nums}
+.nw{white-space:nowrap}
+.ui{font-weight:600;color:var(--ink)}
+.ui-q{font-weight:600}
+
+/* Oldal */
+.page{width:210mm;height:297mm;position:relative;overflow:hidden;background:var(--white);padding:25mm var(--mx) 21mm;margin:0 auto 8mm;break-after:page;page-break-after:always}
+.page:last-child{break-after:auto;page-break-after:auto}
+.hd{position:absolute;top:9.5mm;left:var(--mx);right:var(--mx);height:7mm;display:flex;align-items:center;justify-content:space-between;border-bottom:.25mm solid var(--line);padding-bottom:2.2mm}
+.hd img{height:5.6mm;width:auto;display:block}
+.hd span{font-size:7pt;letter-spacing:.06em;color:var(--muted)}
+.ft{position:absolute;bottom:8.5mm;left:var(--mx);right:var(--mx);display:flex;justify-content:space-between;align-items:baseline;font-size:7pt;color:var(--muted)}
+.ft b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+@media screen{.page{box-shadow:0 2px 14px rgba(28,25,22,.18)} body{padding:8mm 0}}
+
+/* Rács */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:7mm}
+.cols-3-2{display:grid;grid-template-columns:3fr 2fr;gap:7mm;align-items:start}
+.cols-2-3{display:grid;grid-template-columns:2fr 3fr;gap:7mm;align-items:start}
+.stack>*+*{margin-top:4mm}
+.rule{border:0;border-top:.25mm solid var(--line);margin:5mm 0}
+
+/* Csempe */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:3.5mm;margin:1mm 0 5mm}
+.tile{background:var(--paper);border-radius:2.5mm;padding:4mm 4.5mm 3.4mm}
+.tile h3{font-size:14pt;margin-bottom:1mm}
+.tile p{margin:0;font-size:8.8pt}
+.tile .k{display:inline-block;font-family:var(--display);font-style:italic;font-weight:500;font-size:12pt;color:var(--accent);margin-right:1.5mm}
+
+/* Listák */
+ul.dots{margin:0 0 3mm;padding:0;list-style:none}
+ul.dots li{position:relative;padding-left:4.2mm;margin:0 0 1.5mm}
+ul.dots li::before{content:"";position:absolute;left:.4mm;top:1.9mm;width:1.5mm;height:1.5mm;border-radius:50%;background:var(--accent)}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+ol.steps>li{position:relative;padding-left:10mm;margin:0 0 3.4mm;counter-increment:s}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:-.3mm;width:6.4mm;height:6.4mm;border-radius:50%;background:var(--ink);color:#fff;font-weight:600;font-size:8pt;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+ol.steps>li h3{font-size:13.5pt;margin-bottom:.8mm}
+ol.steps>li p{margin-bottom:1.6mm}
+ol.steps.tight>li{margin-bottom:2.4mm}
+.legend.two{display:grid;grid-template-columns:1fr 1fr;column-gap:7mm}
+
+/* Dobozok */
+.ask{background:var(--accent-soft);border-left:1.1mm solid var(--accent);border-radius:0 2mm 2mm 0;padding:3.4mm 4.5mm 2.6mm;margin:0 0 4mm;break-inside:avoid}
+.ask .t{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--accent-deep);margin:0 0 1mm;display:flex;align-items:center;gap:2mm}
+.ask .t i{font-style:normal;font-family:var(--text);font-weight:600;font-size:7.5pt;width:4.6mm;height:4.6mm;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center}
+.ask p,.ask li{font-size:8.6pt}
+.ask ul{margin:0}
+.note{background:var(--paper);border-radius:2mm;padding:3mm 4.2mm;margin:0 0 4mm;font-size:8.6pt}
+.note p:last-child{margin:0}
+.warn{background:var(--sand);border-radius:2mm;padding:3mm 4.2mm;margin:0 0 4mm;font-size:8.6pt}
+.warn b{color:var(--maroon)}
+
+/* Képernyőkép */
+figure{margin:0 0 4mm;break-inside:avoid}
+.shot{position:relative;border:.25mm solid var(--line);border-radius:2.2mm;overflow:hidden;background:#f0f0f1;line-height:0}
+.shot img{width:100%;height:auto;display:block}
+.shot.plain{background:#fff}
+figcaption{font-size:7.4pt;line-height:1.4;color:var(--muted);margin-top:1.4mm}
+figcaption b{color:var(--ink);font-weight:600}
+.annot{position:relative}
+.annot.l{margin-left:7mm}
+.annot.r{margin-right:7mm}
+.mk{position:absolute;left:-3.8mm;width:5mm;height:5mm;margin:-2.5mm 0 0 -2.5mm;border-radius:50%;background:var(--accent);color:#fff;font:600 7.2pt/1 var(--text);display:flex;align-items:center;justify-content:center}
+.mk.r{left:calc(100% + 3.8mm)}
+.hl{position:absolute;border:.45mm solid var(--accent);border-radius:1.2mm}
+figure.l figcaption{margin-left:7mm}
+.mki{display:inline-flex;width:4.2mm;height:4.2mm;border-radius:50%;background:var(--accent);color:#fff;font:600 6.6pt/1 var(--text);align-items:center;justify-content:center;vertical-align:.2mm;margin-right:.8mm}
+
+/* Állapot-pirulák (a bővítmény színei szerint) */
+.pill{display:inline-block;font-size:7.6pt;font-weight:600;padding:.5mm 2.2mm;border-radius:99px;white-space:nowrap;line-height:1.5}
+.p-muted{background:#ececec;color:#3c3c3c}.p-info{background:#e5f0fa;color:#0a4b78}.p-ok{background:#e7f5ea;color:#1e6b33}.p-warn{background:#fcf0dc;color:#7a4a00}.p-danger{background:#fbe7e7;color:#8a1f1f}
+
+/* Táblázat */
+table{width:100%;border-collapse:collapse;font-size:8.6pt}
+th{font-size:6.8pt;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:0 2mm 1.6mm 0;border-bottom:.35mm solid var(--ink)}
+td{vertical-align:top;padding:2mm 3mm 2mm 0;border-bottom:.25mm solid var(--line)}
+td:first-child{font-weight:600;white-space:nowrap}
+.states td:first-child{width:34mm}
+.who td:first-child{width:30mm;font-family:var(--display);font-size:12.5pt;font-weight:600;line-height:1.15}
+.src td:first-child{white-space:normal;font-weight:400;width:56mm}
+.src td:nth-child(2){width:36mm}
+
+/* Borító */
+.cover{background:var(--paper);padding:0}
+.cover .in{position:absolute;inset:0;padding:22mm 20mm 18mm;display:flex;flex-direction:column}
+.cover .logo{width:62mm;height:auto;display:block}
+.cover .eyebrow{margin-top:24mm;font-size:7.6pt}
+.cover h1{font-size:47pt;line-height:.98;letter-spacing:-.02em;max-width:150mm;margin:0 0 6mm}
+.cover h1 em{font-style:italic;font-weight:500;color:var(--accent)}
+.cover .lead{font-size:11.4pt;max-width:128mm}
+.cover .art{position:absolute;right:-40mm;bottom:34mm;width:132mm;height:132mm}
+.cover .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:8pt;color:var(--muted);border-top:.25mm solid var(--line);padding-top:4mm;position:relative;z-index:1;background:var(--paper)}
+.cover .foot b{color:var(--ink);font-weight:600}
+
+/* Kör-ábra */
+.ring-wrap{display:grid;grid-template-columns:86mm 1fr;gap:6mm;align-items:center;margin:2mm 0 5mm}
+.ring{width:86mm;height:86mm;display:block}
+.ring text{font-family:var(--text)}
+.ring text.disp{font-family:var(--display);font-style:italic;font-weight:500}
+.toc{display:grid;grid-template-columns:1fr 1fr;column-gap:7mm;margin:0;padding:0;list-style:none}
+.toc li{display:flex;align-items:baseline;gap:2mm;padding:1.5mm 0;border-bottom:.25mm solid var(--line);font-size:8.8pt}
+.toc li span:first-child{font-size:6.8pt;font-weight:600;letter-spacing:.12em;color:var(--accent);width:6mm}
+.toc li span:nth-child(2){flex:1}
+.toc li b{font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted)}
+.legend{margin:0;padding:0;list-style:none}
+.legend li{display:grid;grid-template-columns:7mm 1fr;gap:1mm;margin:0 0 3mm;font-size:8.8pt}
+.legend li b{font-weight:600}
+.legend .n{width:5.6mm;height:5.6mm;border-radius:50%;background:var(--accent);color:#fff;font-weight:600;font-size:7.6pt;display:flex;align-items:center;justify-content:center;margin-top:.1mm}
+.legend .n.o{background:#fff;color:var(--accent);border:.35mm dashed var(--accent)}
+
+/* Kapcsolat */
+.contact{background:var(--night);color:var(--paper);border-radius:3mm;padding:7mm 8mm;display:grid;grid-template-columns:1.1fr 1fr;gap:6mm;align-items:center}
+.contact h3{color:var(--paper);font-size:20pt;margin-bottom:2mm}
+.contact p{color:rgba(247,244,238,.78);margin:0 0 1.6mm;font-size:9pt}
+.contact .big{font-family:var(--display);font-size:19pt;font-weight:600;color:var(--white);line-height:1.15;margin:0 0 1mm}
+.contact .big a{color:inherit;text-decoration:none}
+.contact img{height:9mm;width:auto;margin-bottom:4mm;display:block}
+.sign{font-family:var(--display);font-style:italic;font-weight:500;font-size:15pt;color:var(--accent-deep);margin-top:5mm}
+a{color:var(--accent-deep);text-decoration:none}
+.ft a,.cover .foot a{color:inherit}
+.toc a{display:flex;align-items:baseline;gap:2mm;flex:1;color:inherit}
+.faq h3{font-size:12.8pt;margin-bottom:.6mm}
+.faq p{font-size:8.7pt;margin-bottom:3.2mm}
+.check{margin:0;padding:0;list-style:none;columns:2;column-gap:7mm}
+.check li{break-inside:avoid;position:relative;padding-left:5.4mm;margin:0 0 1.8mm;font-size:8.6pt}
+.check li::before{content:"";position:absolute;left:0;top:.6mm;width:3mm;height:3mm;border:.3mm solid var(--accent);border-radius:.6mm}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ 1. BORÍTÓ ═══════════════ -->
+<section class="page cover">
+  <svg class="art" viewBox="0 0 400 400" aria-hidden="true">
+    <g fill="none" stroke="#A9581A" stroke-width="1.4">
+      <circle cx="200" cy="200" r="140"/>
+      <circle cx="200" cy="200" r="100" stroke-dasharray="3 5" stroke-width="1.1"/>
+      <rect x="101" y="101" width="198" height="198" transform="rotate(45 200 200)" stroke="#DDD3C3" stroke-width="1.2"/>
+      <circle cx="200" cy="200" r="178" stroke="#DDD3C3" stroke-width="1"/>
+    </g>
+    <g fill="#F7F4EE" stroke="#A9581A" stroke-width="1.6">
+      <circle cx="200" cy="60" r="22"/><circle cx="340" cy="200" r="22"/><circle cx="200" cy="340" r="22"/><circle cx="60" cy="200" r="22"/>
+    </g>
+    <g fill="#FEAA30"><circle cx="200" cy="60" r="6"/><circle cx="340" cy="200" r="6"/><circle cx="200" cy="340" r="6"/><circle cx="60" cy="200" r="6"/></g>
+  </svg>
+  <div class="in">
+    <img class="logo" src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala">
+    <p class="eyebrow">Viszonteladóknak · Útmutató a dropshiphez</p>
+    <h1>Te eladod,<br><em>mi feladjuk.</em></h1>
+    <p class="lead">A vásárlód a te webshopodban rendel. A rendelés magától átér a raktárunkba, mi összekészítjük, és a te GLS-címkéddel feladjuk. A terméket nagyker áron kapod, a csomagban a te boltod neve áll.</p>
+    <p class="lead" style="font-size:9.6pt;color:var(--muted);max-width:110mm">Ebben az útmutatóban lépésről lépésre megmutatjuk, hogyan kötöd össze a boltodat a raktárunkkal, és mi történik egy rendeléssel.</p>
+    <div class="foot">
+      <div><b>Mandala</b> · 1093 Budapest, Bakáts u. 6.<br><a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a> · <a href="https://mandala.hu/">mandala.hu</a></div>
+      <div>2026. október</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. MI A DROPSHIP ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow">01 · Röviden</p>
+  <h2>Mi a dropship, és kinek jó?</h2>
+  <p class="lead">Nem neked kell raktáron tartanod, becsomagolnod és futárnak átadnod a terméket. A vásárlód nálad rendel és nálad fizet, a rendelés magától átér hozzánk, mi pedig a te GLS-címkéddel feladjuk neki.</p>
+
+  <p><strong>Neked szól, ha</strong> WordPress + WooCommerce alapú webshopod van, Mandala-termékeket árulsz benne (vagy szeretnél), és nem akarsz minden rendelésnél csomagolni.</p>
+
+  <div class="tiles">
+    <div class="tile"><h3><span class="k">i.</span>Magától megy</h3><p>A fizetett vagy utánvétes rendelés – amikor „Feldolgozás alatt” lesz – gombnyomás nélkül átér a raktárunkba. Kézzel is beküldheted.</p></div>
+    <div class="tile"><h3><span class="k">ii.</span>A te neved a csomagban</h3><p>A csomagolási listán a te boltod neve és logója áll, ár nélkül, a végén a te pár sorod (például köszönet, kuponkód).</p></div>
+    <div class="tile"><h3><span class="k">iii.</span>Mindent látsz</h3><p>Minden rendelésednél ott a Raktár doboz: hol tart a csomag, mi a raktári szám, a csomagszám, <span class="nw">van-e</span> hiány.</p></div>
+    <div class="tile"><h3><span class="k">iv.</span>A te GLS-ed</h3><p>A címke a te GLS-fiókodból készül. Feladóként a te boltod neve áll rajta, az utánvét a te GLS-számládra folyik be.</p></div>
+  </div>
+
+  <h3>Pénz és elszámolás</h3>
+  <ul class="dots">
+    <li>A dropship-rendelésed nálunk a <strong>viszonteladói (nagyker) fiókodra</strong> kerül, <strong>nagyker áron</strong>.</li>
+    <li>Ezen a rendelésen <strong>nincs szállítási díj</strong>: a csomag a te GLS-szerződéseddel megy.</li>
+    <li>Amikor feladjuk, a rendelés nálunk „Teljesítve” lesz, és <strong>a nagyker fiókodra kapsz róla számlát</strong> (a számlázási címed és az adószámod a fiókodból jön).</li>
+    <li>Ha a vásárló utánvéttel fizet, a GLS a <strong>te számládra</strong> utalja az összeget, nem a miénkre.</li>
+  </ul>
+
+  <div class="ask">
+    <p class="t"><i>?</i>Kérdezd meg tőlünk</p>
+    <p>Ezeket induláskor egyeztetjük veled:</p>
+    <ul class="dots" style="margin:0">
+      <li><span class="nw">van-e</span> csomagolási vagy kezelési díj, és <span class="nw">van-e</span> minimális rendelési érték a dropship-rendeléseknél;</li>
+      <li>a számla fizetési határideje és módja (a rendeléseiden „Partner-elszámolás” fizetési mód áll);</li>
+      <li>a vásárlódnak szóló számla: ki állítja ki, és bekerül-e a csomagba;</li>
+      <li>hány munkanapon belül adjuk fel a beérkezett rendelést, és hogyan megy a visszáru, a csere, a garancia.</li>
+    </ul>
+  </div>
+
+  <h3 style="margin-top:6mm">Mit találsz ebben az útmutatóban?</h3>
+  <ol class="toc">
+    <li><a href="#mukodes"><span>02</span><span>Így működik: egy rendelés köre</span><b>3</b></a></li>
+    <li><a href="#cimke"><span>05</span><span>Szállítási címke: GLS, MyGLS, kézi</span><b>6</b></a></li>
+    <li><a href="#elokeszuletek"><span>03</span><span>Amire szükséged lesz</span><b>4</b></a></li>
+    <li><a href="#gyakorlat"><span>06</span><span>Egy rendelés a gyakorlatban</span><b>8</b></a></li>
+    <li><a href="#telepites"><span>04</span><span>Telepítés és összekötés</span><b>4</b></a></li>
+    <li><a href="#gyik"><span>07</span><span>Gyakori kérdések, elérhetőség</span><b>10</b></a></li>
+  </ol>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 3. ÍGY MŰKÖDIK ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow" id="mukodes">02 · Így működik</p>
+  <h2>Egy rendelés köre</h2>
+  <p class="lead">A rendelés a vásárlódtól indul, és hozzá érkezik vissza – közben minden lépésről tudsz.</p>
+
+  <div class="ring-wrap">
+    <svg class="ring" viewBox="0 0 400 400" role="img" aria-label="Vásárló, a te boltod, Mandala raktár, GLS – a rendelés útja körben">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#A9581A"/></marker>
+        <marker id="ar2" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6E6357"/></marker>
+      </defs>
+      <rect x="101" y="101" width="198" height="198" transform="rotate(45 200 200)" fill="none" stroke="#EEE7DB" stroke-width="1.5"/>
+      <g fill="none" stroke="#A9581A" stroke-width="3" stroke-linecap="round" marker-end="url(#ar)">
+        <path d="M238.6 65.4 A140 140 0 0 1 334.6 161.4"/>
+        <path d="M334.6 238.6 A140 140 0 0 1 238.6 334.6"/>
+        <path d="M161.4 334.6 A140 140 0 0 1 65.4 238.6"/>
+        <path d="M65.4 161.4 A140 140 0 0 1 161.4 65.4"/>
+      </g>
+      <path d="M222 286 A96 96 0 0 0 286 222" fill="none" stroke="#6E6357" stroke-width="1.8" stroke-dasharray="5 5" marker-end="url(#ar2)"/>
+      <g fill="#FFFFFF" stroke="#1C1916" stroke-width="1.6">
+        <circle cx="200" cy="60" r="40"/><circle cx="340" cy="200" r="40"/><circle cx="60" cy="200" r="40"/>
+      </g>
+      <circle cx="200" cy="340" r="40" fill="#1C1916"/>
+      <g font-size="15" font-weight="600" text-anchor="middle" fill="#1C1916">
+        <text x="200" y="65">Vásárló</text>
+        <text x="340" y="196">A te</text><text x="340" y="214">boltod</text>
+        <text x="60" y="205">GLS</text>
+        <text x="200" y="336" fill="#FFFFFF">Mandala</text><text x="200" y="354" fill="#FFFFFF">raktár</text>
+      </g>
+      <g font-size="13" font-weight="600" text-anchor="middle" fill="#FFFFFF">
+        <circle cx="299" cy="101" r="14" fill="#A9581A"/><text x="299" y="106">1</text>
+        <circle cx="299" cy="299" r="14" fill="#A9581A"/><text x="299" y="304">2</text>
+        <circle cx="101" cy="299" r="14" fill="#A9581A"/><text x="101" y="304">3</text>
+        <circle cx="101" cy="101" r="14" fill="#A9581A"/><text x="101" y="106">4</text>
+        <circle cx="249" cy="249" r="12" fill="#FFFFFF" stroke="#A9581A" stroke-width="1.4" stroke-dasharray="3 2.5"/><text x="249" y="254" fill="#A9581A" font-size="12">5</text>
+      </g>
+      <text class="disp" x="200" y="196" text-anchor="middle" font-size="30" fill="#8A4512">a rendelés</text>
+      <text class="disp" x="200" y="224" text-anchor="middle" font-size="30" fill="#8A4512">köre</text>
+    </svg>
+    <ol class="legend">
+      <li><span class="n">1</span><div><b>Rendel a boltodban.</b> A vásárló nálad választ, és nálad fizet – vagy utánvétet kér.</div></li>
+      <li><span class="n">2</span><div><b>A boltod beküldi nekünk.</b> „Feldolgozás alatt” állapotnál a bővítmény magától átküldi a cikkszámos termékeket, a szállítási címet és a GLS-címkét.</div></li>
+      <li><span class="n">3</span><div><b>Összekészítjük.</b> A rendelés percen belül megjelenik nálunk. Becsomagoljuk, a te csomagolási listáddal, és átadjuk a GLS-nek.</div></li>
+      <li><span class="n">4</span><div><b>A GLS kiszállítja.</b> A futár a raktárunkból viszi el a csomagot, a te címkéddel – a címkén a felvételi cím a raktárunké.</div></li>
+      <li><span class="n o">5</span><div><b>Visszajelzés.</b> Közben a rendelésed Raktár dobozában látod: „A raktárban”, „Feladva” (a csomagszámmal), majd „Kézbesítve”.</div></li>
+    </ol>
+  </div>
+
+  <h3>Ki mit lát?</h3>
+  <table class="who">
+    <tbody>
+      <tr><td>A vásárlód</td><td>A te boltodat és a boltod leveleit. Ha bekapcsolod, a GLS értesítőjét. A csomagban a te csomagolási listádat – a boltod nevével, ár nélkül.</td></tr>
+      <tr><td>Te</td><td>Minden rendelésnél a <span class="ui">Raktár (Dropship)</span> dobozt: állapot, raktári szám, csomagszám, hiány. Levelet kapsz, ha hiány, hiba vagy GLS-gond van.</td></tr>
+      <tr><td>Mi, a raktárban</td><td>Csak ami a csomaghoz kell: a vásárló neve, címe, telefonszáma, a tételek és a megjegyzése. A vásárló e-mail-címe nem jön át hozzánk.</td></tr>
+      <tr><td>A GLS</td><td>A te ügyfélszámodon futó csomagot, felvétellel a raktárunkból.</td></tr>
+    </tbody>
+  </table>
+
+  <figure style="margin:5mm auto 0;width:106mm">
+    <div class="shot plain"><img src="kepek/09-csomagolasi-lista.png" alt="Csomagolási lista a partnerbolt nevével és logójával, ár nélkül"></div>
+    <figcaption><b>Ezt tesszük a csomagba:</b> csomagolási lista a te boltod nevével, logójával és pár soroddal – ár nélkül. (Minta bolt, minta vásárló.)</figcaption>
+  </figure>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 4. AMIRE SZÜKSÉGED LESZ + TELEPÍTÉS 1–2 ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow" id="elokeszuletek">03 · Előkészületek</p>
+  <h2>Amire szükséged lesz</h2>
+  <p class="lead" style="margin-bottom:4mm">Öt dolog kell az induláshoz. Ha valamelyik még hiányzik, szólj – segítünk.</p>
+
+  <ol class="steps tight">
+    <li><h3>Jóváhagyott viszonteladói fiók a mandala.hu-n</h3>
+      <p>Erre a fiókra kerülnek a dropship-rendeléseid, nagyker áron. Ha még nincs, jelentkezz a <a href="https://mandala.hu/viszonteladoknak/">mandala.hu/viszonteladoknak</a> oldalon – 1–2 munkanapon belül visszajelzünk.</p></li>
+    <li><h3>WordPress + WooCommerce webshop</h3>
+      <p>Admin hozzáférés kell, hogy bővítményt telepíthess. A tárhelyen PHP 7.4 vagy újabb fusson (a tárhelyszolgáltatód megmondja). A bolt a végleges, átirányítás nélküli címén legyen elérhető – például <span class="nw">https://www.boltod.hu</span> –, mert a raktár erre a címre küldi a kéréseit.</p></li>
+    <li><h3>A Mandala cikkszámai a termékeidnél</h3>
+      <p>A raktár a <strong>cikkszám</strong> alapján ismeri fel a tételt – ami cikkszám nélkül van, nem jön át. A mandala.hu-n a <span class="ui">Fiókom › Viszonteladói felület</span> oldalon az <span class="ui">Árlista (CSV)</span> gomb minden termék cikkszámát megadja, a <span class="ui">Fotók (ZIP)</span> gombbal pedig kategóriánként, cikkszám szerint elnevezve töltheted le a képeket. Ha egy terméknek több változata van (például méret, szín), minden változatnak legyen saját cikkszáma.</p></li>
+    <li><h3>GLS-szerződés és MyGLS-fiók</h3>
+      <p>A címke a te GLS-fiókodból készül: a bővítmény beépített MyGLS-kapcsolatával, a Pont bővítménnyel (VP Woo Pont), vagy kézzel feltöltve. A GLS-szerződésed engedje, hogy a futár más címről – a raktárunkból – vegye fel a csomagot. Ezt egyszer egyeztesd a GLS-ügyintéződdel.</p></li>
+    <li><h3>Az összekötő kód tőlünk</h3>
+      <p>Ha a fentiek megvannak, felveszünk partnerként, és kapsz egy összekötő kódot. Ez titkos, mint egy jelszó: ne küldd tovább senkinek. Hogy hogyan adjuk át, induláskor megbeszéljük.</p></li>
+  </ol>
+
+  <div class="note" style="margin:1mm 0 0">
+    <p><strong>Ezt kérjük tőled a felvételhez:</strong> a webshopod pontos címét (https, átirányítás nélkül) · a viszonteladói fiókod e-mail-címét · a kapcsolattartód e-mail-címét · a csomagolási listára a márkanevedet, a logódat és – ha szeretnéd – pár sort a lista aljára (köszönet, kuponkód a következő vásárláshoz, elérhetőség).</p>
+  </div>
+
+  <hr class="rule" style="margin:5mm 0 4mm">
+  <p class="eyebrow" id="telepites">04 · Telepítés és összekötés</p>
+  <h2>Lépésről lépésre</h2>
+  <p class="small muted" style="margin-bottom:3.5mm">A képernyőképek egy minta boltban, minta adatokkal készültek – nálad a saját boltod neve és adatai szerepelnek.</p>
+  <ol class="steps tight">
+    <li><h3>Telepítsd a bővítményt</h3>
+      <p>Kérd el tőlünk a bővítmény telepítőfájlját (.zip). A WordPressben: <span class="ui">Bővítmények › Bővítmény hozzáadása › Bővítmény feltöltése</span>, válaszd ki a fájlt, <span class="ui">Telepítés</span>, majd <span class="ui">Bővítmény bekapcsolása</span>. A listában ezen a néven látod: <em>HelloProVision Dropship (partnerrendelések a raktárból)</em>.</p></li>
+    <li><h3>Nyisd meg a beállítását</h3>
+      <p><span class="ui">WooCommerce › Dropship (raktár)</span>. Ugyanebben a menüben megjelenik egy <span class="ui">Partnerrendelések</span> pont is: az a raktár oldala, nálad nincs vele teendő – ott ne kapcsolj be semmit.</p></li>
+  </ol>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 5. TELEPÍTÉS 3–5 ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow">04 · Telepítés és összekötés – folytatás</p>
+  <ol class="steps" style="counter-reset:s 2">
+    <li><h3>Másold be az összekötő kódot, és kattints az Összekötés gombra</h3>
+      <figure class="l">
+        <div class="annot l"><div class="shot"><img src="kepek/01-osszekotes-kod.png" alt="Kapcsolat a raktárral – összekötő kód mező és Összekötés gomb">
+          <span class="hl" style="left:2.6%;top:43.6%;width:93.9%;height:31%"></span><span class="hl" style="left:2.6%;top:77.8%;width:11%;height:13.9%"></span></div>
+          <span class="mk" style="top:58.7%">1</span><span class="mk" style="top:84.8%">2</span></div>
+        <figcaption><span class="mki">1</span>A kódot egyben másold be, ahogy kaptad. <span class="mki">2</span>Összekötés. Utána ezt az üzenetet látod: <b>„Összekötve: … A beállított állapotú rendelések mostantól maguktól átmennek a raktárba.”</b></figcaption>
+      </figure></li>
+    <li><h3>Próbáld ki a kapcsolatot</h3>
+      <p>Kattints a <span class="ui">Kapcsolat tesztelése</span> gombra. Ha minden rendben, ezt írja: <em>„A raktár válaszol: …”</em>, és megjelenik a raktár felvételi címe – ez kerül a GLS-címkére, innen viszi el a futár a csomagot.</p>
+      <figure class="l">
+        <div class="annot l"><div class="shot"><img src="kepek/02-kapcsolat-rendben.png" alt="Kapcsolat a raktárral – Összekötve állapot, felvételi cím, gombok">
+          <span class="hl" style="left:18.4%;top:8.6%;width:9%;height:9.6%"></span><span class="hl" style="left:2.4%;top:34.6%;width:61.6%;height:14.6%"></span><span class="hl" style="left:2.4%;top:66%;width:41.4%;height:15.6%"></span></div>
+          <span class="mk" style="top:13.4%">1</span><span class="mk" style="top:42%">2</span><span class="mk" style="top:74%">3</span></div>
+        <figcaption><span class="mki">1</span>Összekötve. <span class="mki">2</span>A felvételi cím a GLS-címkére. <span class="mki">3</span><b>Lehúzás most:</b> azonnal lekéri a raktár visszajelzéseit (magától is megy 5 percenként, és azonnal, amikor a raktár szól). A <b>Szétkapcsolás</b> után a rendelések nem mennek a raktárba, amíg újra össze nem kötöd.</figcaption>
+      </figure></li>
+    <li><h3>Állítsd be, mi menjen át magától</h3>
+      <figure class="l">
+        <div class="annot l"><div class="shot"><img src="kepek/03-bekuldes-beallitas.png" alt="Beküldés a raktárnak – állapotok, Teljesítve feladáskor, értesítési cím">
+          <span class="hl" style="left:16.4%;top:37.6%;width:13.6%;height:7.8%"></span><span class="hl" style="left:2.4%;top:53.4%;width:26.6%;height:7.8%"></span><span class="hl" style="left:2.4%;top:67.6%;width:44.6%;height:18%"></span></div>
+          <span class="mk" style="top:41.5%">1</span><span class="mk" style="top:57.3%">2</span><span class="mk" style="top:76.6%">3</span></div>
+        <figcaption><span class="mki">1</span>Alapból a <b>Feldolgozás alatt</b> állapotú rendelés megy át – ezt hagyd így. Átutalásnál akkor megy, amikor a pénz beérkezése után „Feldolgozás alatt” állapotba teszed. Ha semmit nem jelölsz be, csak kézzel megy. <span class="mki">2</span><b>Feladáskor a rendelés legyen Teljesítve</b> (alapból be van kapcsolva). <span class="mki">3</span><b>Értesítés ide:</b> erre a címre jön levél, ha hiány, hiba vagy GLS-gond van. Több címet vesszővel válassz el. Végül: <b>Beállítások mentése</b>.</figcaption>
+      </figure></li>
+  </ol>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 6. CÍMKEFORRÁS + KÉZI ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow" id="cimke">05 · Szállítási címke</p>
+  <h2>Honnan jön a címke?</h2>
+  <p class="lead">A csomagot mi adjuk fel, de a címke a tiéd: a te GLS-szerződéseddel megy. A beállítások <span class="ui">Szállítási címke</span> részén választod ki a forrását – az <span class="ui">Automatikus</span> a legtöbbször jó.</p>
+
+  <table class="src">
+    <thead><tr><th>Ha…</th><th>Válaszd</th><th>Mi történik</th></tr></thead>
+    <tbody>
+      <tr><td>a Pont bővítménnyel (VP Woo Pont) már most is GLS-címkét készítesz</td><td><strong>Automatikus</strong> vagy <strong>Pont bővítmény</strong></td><td>A címkét továbbra is a Pont bővítménnyel készíted a rendelés oldalán. Magától átmegy a raktárnak – akkor is, ha a beküldés után készül –, a felvételi cím pedig a raktáré lesz.</td></tr>
+      <tr><td>nincs Pont bővítményed, de van MyGLS-fiókod</td><td><strong>Automatikus</strong> vagy <strong>Beépített MyGLS</strong></td><td>Beküldéskor magától elkészül a címke a MyGLS-fiókodból – a vásárlás után, így a vásárlónak a pénztárban nem kell várnia. Csak GLS-házhozszállításnál és GLS-csomagpontnál.</td></tr>
+      <tr><td>a MyGLS weboldalán készíted a címkét</td><td><strong>Kézi feltöltés</strong></td><td>A rendelés oldalán, a Raktár dobozban töltöd fel a címke PDF- vagy PNG-fájlját (legfeljebb 8 MB) a csomagszámmal. A kézzel feltöltött címke mindig elsőbbséget kap.</td></tr>
+    </tbody>
+  </table>
+  <p class="small muted" style="margin-top:2.4mm">Ha egy rendelésnél még nincs címke, attól még átjön: összekészítjük, és amint megérkezik a címke, feladjuk.</p>
+
+  <div class="ask" style="margin-top:3mm">
+    <p class="t"><i>?</i>Kérdezd meg tőlünk</p>
+    <p style="margin:0">Más futárral (MPL, Foxpost, Packeta) szállítasz? A bővítmény ezek címkéjét is fogadja kézi feltöltéssel – hogy a raktárunk ezeket fel tudja-e adni, egyeztessük.</p>
+  </div>
+
+  <hr class="rule">
+  <div style="display:grid;grid-template-columns:46mm 1fr;gap:7mm;align-items:start">
+    <figure style="margin:0">
+      <div class="shot"><img src="kepek/06b-doboz-kezi-feltoltes-vagott.png" alt="Raktár doboz – címke készítése és feltöltése: fájl, csomagszám, futárszolgálat"></div>
+      <figcaption>A címke rész a rendelés oldalán, a Raktár dobozban.</figcaption>
+    </figure>
+    <div>
+      <h3>Címke a rendelés oldalán</h3>
+      <p>Minden rendelés oldalán, a <span class="ui">Raktár (Dropship)</span> dobozban:</p>
+      <ul class="dots">
+        <li><span class="ui">GLS-címke készítése (MyGLS)</span> – ha még nincs címke, egy kattintással elkészíti.</li>
+        <li><span class="ui">Címke feltöltése (PDF / PNG)</span> – válaszd ki a fájlt, írd be a csomagszámot (a követéshez), válaszd ki a futárszolgálatot, és kattints a <span class="ui">Címke feltöltése</span> gombra.</li>
+        <li><span class="ui">Címke letöltése</span> – bármikor megnézheted, mi ment a raktárnak.</li>
+        <li><span class="ui">Saját címke törlése</span> – a MyGLS-ből készült vagy feltöltött címkét törli, amíg a csomag nincs feladva. A GLS-nél már létrehozott csomagot ez nem törli: ha nem kell, a MyGLS-ben töröld.</li>
+      </ul>
+      <div class="warn"><p style="margin:0"><b>Ha a cím vagy az utánvét a címke után változik:</b> a beépített MyGLS-címkét a rendszer törli a GLS-nél is, és újat készít. A Pont bővítménnyel vagy kézzel készült címke „Elavult – új kell” jelzést kap – ezt nem használjuk, készíts újat. Erről levelet is kapsz.</p></div>
+    </div>
+  </div>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 7. MYGLS ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow">05 · Szállítási címke</p>
+  <h2>A MyGLS-fiók beállítása</h2>
+  <p class="lead">A MyGLS-belépés két dologhoz kell: a beépített címkekészítéshez, és ahhoz, hogy lásd, mikor kézbesítette a GLS a csomagot – ez a Pont bővítmény mellett is hasznos. A beállítások <span class="ui">Szállítási címke</span> részén add meg.</p>
+
+  <figure class="l">
+    <div class="annot l r"><div class="shot"><img src="kepek/04-mygls-fiok.png" alt="MyGLS-fiók beállítása: belépés, ügyfélszám, címke formátuma, feladó neve, értesítő, próba">
+      <span class="hl" style="left:2.4%;top:13.8%;width:92.8%;height:11%"></span><span class="hl" style="left:2.4%;top:26.4%;width:44.6%;height:11%"></span>
+      <span class="hl" style="left:50.2%;top:26.4%;width:44.8%;height:11%"></span>
+      <span class="hl" style="left:2.4%;top:46.4%;width:44.6%;height:13.6%"></span>
+      <span class="hl" style="left:2.4%;top:61.6%;width:54%;height:7.6%"></span>
+      <span class="hl" style="left:2.4%;top:69.4%;width:42%;height:7.6%"></span>
+      <span class="hl" style="left:2.6%;top:78.4%;width:18.6%;height:7.8%"></span></div>
+      <span class="mk" style="top:19.3%">1</span><span class="mk" style="top:31.9%">1</span><span class="mk r" style="top:31.9%">2</span><span class="mk" style="top:53.2%">3</span><span class="mk" style="top:65.4%">4</span><span class="mk" style="top:73.2%">5</span><span class="mk" style="top:82.3%">6</span></div>
+    <figcaption>A MyGLS-fiók beállítása (minta adatokkal).</figcaption>
+  </figure>
+
+  <ul class="legend two">
+    <li><span class="n">1</span><div><b>Felhasználónév, jelszó, GLS-ügyfélszám.</b> A MyGLS-be belépő e-mail-cím és jelszó. A jelszót nem tároljuk, csak a kivonatát.</div></li>
+    <li><span class="n">4</span><div><b>GLS értesítő.</b> Házhozszállításnál a GLS e-mailben / SMS-ben szól a vásárlónak, mikor érkezik a futár. Csomagpontnál a GLS magától értesít.</div></li>
+    <li><span class="n">2</span><div><b>Címke formátuma.</b> A címkét mi nyomtatjuk ki: kérdezd meg tőlünk, melyiket válaszd (A4-es lap vagy címkenyomtató).</div></li>
+    <li><span class="n">5</span><div><b>Tesztrendszer.</b> Csak kipróbáláshoz: tesztcímkével nem lehet csomagot feladni. Élesben legyen kikapcsolva.</div></li>
+    <li><span class="n">3</span><div><b>Feladó neve a címkén.</b> A vásárló ezt látja feladóként – a boltod neve.</div></li>
+    <li><span class="n">6</span><div><b>MyGLS-belépés próbája.</b> Elmenti az adatokat, és kipróbálja a belépést: <em>„MyGLS: a belépés rendben.”</em></div></li>
+  </ul>
+
+  <div class="note"><p><strong>Kézbesítés:</strong> a rendszer 3 óránként megnézi a GLS-nél a feladott csomagokat; amit kézbesítettek, az a Raktár dobozban „Kézbesítve” lesz. Ha a csomag visszafordult, vagy lejárt a csomagponti tárolás, levelet kapsz.</p>
+    <p><strong>Ha egy címke nem készül el:</strong> 15 percenként újrapróbálja, összesen legfeljebb háromszor. Utána a rendelés oldalán jelzi a hibát – javítsd (például a címet vagy a belépést), és készítsd el a gombbal, vagy töltsd fel a címkét.</p></div>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 8. EGY RENDELÉS A GYAKORLATBAN ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow" id="gyakorlat">06 · Egy rendelés a gyakorlatban</p>
+  <h2>A Raktár doboz</h2>
+  <p class="lead">Minden rendelésed oldalán, jobb oldalt ott a <span class="ui">Raktár (Dropship)</span> doboz. Innen látod, hol tart a csomag, és innen intézel mindent.</p>
+
+  <div style="display:grid;grid-template-columns:52mm 45mm 1fr;gap:6mm;align-items:start">
+    <figure style="margin:0">
+      <div class="annot r"><div class="shot"><img src="kepek/07-doboz-a-raktarban.png" alt="Raktár doboz – A raktárban állapot">
+        <span class="hl" style="left:5.4%;top:7.4%;width:31.6%;height:4.8%"></span><span class="hl" style="left:5.4%;top:12.8%;width:47%;height:24.8%"></span><span class="hl" style="left:5.4%;top:38.2%;width:42%;height:3.8%"></span><span class="hl" style="left:5.4%;top:45.2%;width:67%;height:11.8%"></span><span class="hl" style="left:5.4%;top:77.2%;width:60%;height:15.6%"></span></div>
+        <span class="mk r" style="top:9.8%">1</span><span class="mk r" style="top:25.2%">2</span><span class="mk r" style="top:40.1%">3</span><span class="mk r" style="top:51.1%">4</span><span class="mk r" style="top:85%">5</span></div>
+      <figcaption>Megérkezett a raktárba.</figcaption>
+    </figure>
+    <figure style="margin:0">
+      <div class="shot"><img src="kepek/07e-doboz-kezbesitve.png" alt="Raktár doboz – Kézbesítve állapot, csomagszámmal"></div>
+      <figcaption>Feladva, majd kézbesítve – a csomagszám kattintható.</figcaption>
+    </figure>
+    <ul class="legend">
+      <li><span class="n">1</span><div><b>Állapot</b> – a lenti táblázat szerint.</div></li>
+      <li><span class="n">2</span><div><b>Idővonal</b> dátumokkal.</div></li>
+      <li><span class="n">3</span><div><b>Raktári szám</b> – erre hivatkozz, ha hívsz minket.</div></li>
+      <li><span class="n">4</span><div><b>Szállítási címke</b> – állapota, forrása, csomagszáma.</div></li>
+      <li><span class="n">5</span><div><b>Újraküldés</b>, ha valami nem ért át; <b>Lemondás a raktárnál</b>, ha a vásárló visszalép.</div></li>
+    </ul>
+  </div>
+
+  <h3 style="margin-top:5mm">Az állapotok</h3>
+  <table class="states">
+    <tbody>
+      <tr><td><span class="pill p-muted">Nincs beküldve</span></td><td>Még nem ment át – például még nincs kifizetve. Fizetett vagy utánvétes rendelést a <span class="ui">Beküldés a raktárnak</span> gombbal kézzel is beküldhetsz.</td></tr>
+      <tr><td><span class="pill p-info">Beküldve</span></td><td>Elküldte a boltod, a raktár még nem rögzítette.</td></tr>
+      <tr><td><span class="pill p-info">A raktárban</span></td><td>Megérkezett, raktári számot kapott.</td></tr>
+      <tr><td><span class="pill p-info">Összekészítés</span></td><td>Kinyomtattuk a csomagolási listát, csomagoljuk.</td></tr>
+      <tr><td><span class="pill p-ok">Feladva</span></td><td>Átadtuk a GLS-nek. A csomagszám bekerül a rendelésbe, és – ha a beállításban így hagytad – a rendelés „Teljesítve” lesz.</td></tr>
+      <tr><td><span class="pill p-ok">Kézbesítve</span></td><td>A GLS szerint a vásárló átvette (ehhez kell a MyGLS-belépés a beállításokban).</td></tr>
+      <tr><td><span class="pill p-danger">Hiány</span></td><td>Valami nincs raktáron – te döntesz, mi legyen (következő oldal).</td></tr>
+      <tr><td><span class="pill p-warn">Lemondás folyamatban</span><br><span class="pill p-muted" style="margin-top:1mm">Lemondva</span></td><td>Lemondtad, a raktár még nem válaszolt.<br>Töröltük, nem adjuk fel.</td></tr>
+      <tr><td><span class="pill p-danger">Hiba</span></td><td>A raktár nem tudta rögzíteni – például egyik cikkszámot sem ismeri. Levelet is kapsz.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 9. HA VALAMI KÖZBEJÖN ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow">06 · Egy rendelés a gyakorlatban</p>
+  <h2>Beküldés, változás, lemondás</h2>
+
+  <div class="cols" style="margin-top:4mm">
+    <div class="stack">
+      <div>
+        <h3>Beküldés</h3>
+        <ul class="dots">
+          <li><strong>Magától:</strong> amikor a rendelés „Feldolgozás alatt” lesz.</li>
+          <li><strong>Kézzel:</strong> a Raktár dobozban a <span class="ui">Beküldés a raktárnak</span> gombbal.</li>
+          <li><strong>Egyszerre többet:</strong> a rendelések listáján jelöld ki őket, <span class="ui">Tömeges műveletek › Beküldés a raktárnak</span>, majd <span class="ui">Alkalmaz</span>.</li>
+          <li>Csak a cikkszámos, fizikai termékek jönnek át; a szolgáltatás és a letölthető termék nálad marad. Személyes átvételes rendelés nem megy magától.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Ha módosítasz</h3>
+        <p>Ha a beküldés után a címet, a tételeket vagy a megjegyzést módosítod, a változás magától utánunk jön, amíg nem adtuk fel. Ha minden raktári tételt kiveszel, az lemondásnak számít.</p>
+      </div>
+      <div>
+        <h3>Ha hiány van</h3>
+        <p>Jelezzük a dobozban, és levelet kapsz <em>„[Raktár] Hiány a raktárban – #…”</em> tárggyal. Te döntesz: megvárjátok, módosítod a rendelést (a módosítás magától átmegy), vagy lemondod.</p>
+      </div>
+    </div>
+    <figure style="margin:0;justify-self:center;width:58mm">
+      <div class="shot"><img src="kepek/07c-doboz-hiany-felso.png" alt="Raktár doboz – Hiány a raktárban jelzés"></div>
+      <figcaption>Hiányjelzés a Raktár dobozban (minta).</figcaption>
+    </figure>
+  </div>
+
+  <div class="cols" style="margin-top:2mm">
+    <div>
+      <h3>Lemondás</h3>
+      <p>A Raktár dobozban kattints a <span class="ui">Lemondás a raktárnál</span> gombra – vagy állítsd a rendelést „Visszamondva” / „Visszatérítve” állapotra, akkor magától megy.</p>
+      <ul class="dots">
+        <li>Ha még nem adtuk fel: töröljük, nem csomagoljuk – a Raktár dobozban „Lemondva” lesz.</li>
+        <li>Ha már feladtuk, nem lehet lemondani (a gomb ilyenkor nem is látszik). Ha épp közben adtuk fel, levelet kapsz.</li>
+        <li>A gomb a te rendelésed állapotát nem változtatja meg – azt te állítod.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ha mi jelzünk</h3>
+      <ul class="dots">
+        <li><strong>Ismeretlen cikkszám:</strong> azt a tételt nem tudjuk csomagolni – levelet kapsz, nézd meg a termék cikkszámát.</li>
+        <li><strong>Nem minden tétel ment a csomagba:</strong> a rendelés nem lesz „Teljesítve”, levelet kapsz – intézd a vásárlóval.</li>
+        <li><strong>Ha töröltünk egy rendelést:</strong> levelet kapsz – vedd fel a kapcsolatot a vásárlóval.</li>
+        <li><strong>GLS-gond</strong> (visszafordult a csomag, lejárt a csomagponti tárolás): levelet kapsz – ehhez kell a MyGLS-belépés.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:2mm">
+    <h3 style="font-size:13.5pt">Csomagszám a vásárlónak</h3>
+    <p>Feladáskor a csomagszám követő linkkel bekerül a Raktár dobozba, a rendelés pedig „Teljesítve” lesz, így a vásárló megkapja a boltod szokásos levelét a teljesített rendelésről. Ebben a levélben a csomagszám magától nincs benne: ha a beépített MyGLS-t használod és bekapcsoltad a GLS értesítőt, a GLS küldi el neki. Ha a vásárló rákérdez, a Raktár dobozból kimásolhatod.</p>
+  </div>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<!-- ═══════════════ 10. GYIK + KAPCSOLAT ═══════════════ -->
+<section class="page">
+  <div class="hd"><img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-atlatszo-1200x300.png" alt="Mandala"><span>Dropship · útmutató partnereknek</span></div>
+
+  <p class="eyebrow" id="gyik">07 · Gyakori kérdések</p>
+  <h2>Amit gyakran kérdeznek</h2>
+
+  <div class="cols faq">
+    <div>
+      <h3>Mennyi idő, amíg a rendelés hozzánk ér?</h3>
+      <p>Általában percen belül: a boltod szól a raktárnak, az pedig azonnal lekéri. Ha ez egyszer elmarad, 5 percenként mindkét oldal magától is ellenőriz.</p>
+      <h3>Hol látom egyben a dropship-rendeléseimet?</h3>
+      <p>A rendelések listáján a <span class="ui">Raktár</span> oszlopban, és a <span class="ui">Dropship (raktár)</span> oldal alján, a <span class="ui">Legutóbbi raktári rendelések</span> táblázatban.</p>
+      <h3>Követhetem a raktár készletét?</h3>
+      <p>Igen, a <span class="ui">Készletfigyelés</span> bekapcsolásával. Óránként összeveti a cikkszámos termékeidet a raktárral: ami nálunk elfogyott, nálad „Nincs készleten” lesz; ahol darabszámot kezelsz, a raktár darabszáma lesz.</p>
+    </div>
+    <div>
+      <h3>Új összekötő kódot kaptam. Mit csináljak?</h3>
+      <p>A <span class="ui">Dropship (raktár)</span> oldalon nyisd le az <span class="ui">Új összekötő kódot kaptál a raktártól?</span> részt, másold be, és kattints az <span class="ui">Összekötés az új kóddal</span> gombra. A régi kód azonnal érvénytelen.</p>
+      <h3>A beállításoknál a „Feladtuk” levélről olvasok. Nálam is kimegy?</h3>
+      <p>Ez a levél csak a Mandala-témával futó boltokban megy ki magától. Más boltban a vásárló a szokásos levelet kapja a teljesített rendelésről, és – ha bekapcsoltad – a GLS értesítőjét.</p>
+      <h3>Mi a teendőm, ha a Kapcsolat részen hibát látok?</h3>
+      <p>Ha a bolt nem éri el a raktárt, a WooCommerce-oldalak tetején piros sáv is jelzi. Nyomd meg a <span class="ui">Kapcsolat tesztelése</span> gombot. Ha továbbra is hibát ír, hívj minket, és mondd el, mit látsz.</p>
+    </div>
+  </div>
+
+  <div class="ask" style="margin-top:1mm">
+    <p class="t"><i>?</i>Kérdezd meg tőlünk – induláskor ezeket beszéljük át</p>
+    <ul class="check">
+      <li>díjak, minimális rendelési érték dropshipnél</li>
+      <li>fizetési határidő és mód („Partner-elszámolás”)</li>
+      <li>a vásárlódnak szóló számla</li>
+      <li>feladási idő, visszáru, csere, garancia</li>
+      <li>címkeformátum (milyen nyomtatónk van)</li>
+      <li>más futár (MPL, Foxpost, Packeta)</li>
+      <li>a bővítmény új verzióinak telepítése</li>
+      <li>az összekötő kód átadása és egy próbarendelés</li>
+    </ul>
+  </div>
+
+  <div class="contact">
+    <div>
+      <img src="../../wp-theme/mandala/assets/ads/mandala-logo-szeles-feher-1200x300.png" alt="Mandala">
+      <h3>Hívj minket – telefonon mindent átbeszélünk</h3>
+      <p>Az első rendelés előtt egyeztessünk egy próbát: így együtt nézzük meg, hogy a rendelés és a címke rendben átjön.</p>
+    </div>
+    <div>
+      <p class="big num"><a href="tel:+36308928385">+36 30 892 8385</a></p>
+      <p class="big" style="font-size:16pt"><a href="mailto:info@mandala.hu">info@mandala.hu</a></p>
+      <p style="margin-top:2.5mm">Bemutatóterem és átvevőhely:<br>1093 Budapest, Bakáts u. 6.<br>mandala.hu</p>
+    </div>
+  </div>
+  <p class="sign">Szeretettel: a Mandala csapata</p>
+
+  <div class="ft"><span><a href="https://mandala.hu/">mandala.hu</a> · <a href="tel:+36308928385">+36 30 892 8385</a> · <a href="mailto:info@mandala.hu">info@mandala.hu</a></span><b class="pn"></b></div>
+</section>
+
+<script>
+  // Oldalszámok („3 / 10”); a borítón nincs.
+  (function () {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function (p, i) {
+      var pn = p.querySelector('.pn');
+      if (pn) { pn.textContent = (i + 1) + ' / ' + pages.length; }
+    });
+    document.fonts.ready.then(function () { document.documentElement.setAttribute('data-ready', '1'); });
+  })();
+</script>
+</body>
+</html>
