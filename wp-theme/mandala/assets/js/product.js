@@ -89,11 +89,13 @@ document.addEventListener('submit', async (e) => {
   openCart();
 });
 
-// Ragadós kosárba sáv, ha a gomb kigördült a képből.
+// Ragadós kosárba sáv, ha a gomb kigördült a képből – mobilon akkor is, ha még a hajtás alatt van (ott 1 500 px görgetés
+// kellett a Kosárba gombig, 2026-11-01).
 const sticky = $('[data-sticky-atc]');
 if (form && sticky && 'IntersectionObserver' in window) {
+  const narrow = matchMedia('(max-width: 768px)');
   new IntersectionObserver(([en]) => {
-    const show = !en.isIntersecting && en.boundingClientRect.top < 0;
+    const show = !en.isIntersecting && (en.boundingClientRect.top < 0 || narrow.matches);
     sticky.classList.toggle('is-visible', show);
     sticky.setAttribute('aria-hidden', String(!show));
     $('[data-add-sticky]').tabIndex = show ? 0 : -1;

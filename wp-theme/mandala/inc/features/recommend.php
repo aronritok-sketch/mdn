@@ -199,7 +199,9 @@ function mandala_gap_suggestions(float $gap, array $in_cart, int $n = 3): array
 }
 
 add_action('mandala_after_ship_meter', function ($where, $gap) {
-    if (!function_exists('WC') || !WC()->cart || $gap <= 0) {
+    // Csak kis hiánynál (alapból ≤ 5 000 Ft): nagy hiánynál drága tárgyakat ajánlott a vevő saját tétele fölött, és mobilon
+    // letolta a pénztár gombot (2026-11-01, kosár-vizsgálat).
+    if (!function_exists('WC') || !WC()->cart || $gap <= 0 || $gap > (float) apply_filters('mandala_gap_suggest_max', 5000)) {
         return;
     }
     $in = array_values(array_unique(array_map(fn($i) => (int) $i['product_id'], WC()->cart->get_cart())));

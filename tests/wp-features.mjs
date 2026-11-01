@@ -1047,7 +1047,16 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(await page.isVisible('.bought-together') && (await page.textContent('.bought-together')).includes(wp(`echo get_the_title(${ids.inc});`)), 'ajánló: „Gyakran együtt vásárolják” a rendelésekből');
   await page.goto(`${BASE}/?add-to-cart=${ids.inc}`, { waitUntil: 'networkidle' });
   await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
-  ok(await page.isVisible('.gap-suggest .reco-list li'), 'kosár: „Ezzel ingyenes a szállítás” javaslatok');
+  ok(!(await page.isVisible('.gap-suggest')) && /Szállítás .*Ft-tól/.test(await page.textContent('.woocommerce')), 'kosár: nagy hiánynál nincs „Ezzel ingyenes a szállítás” javaslat (drága tárgy a vevő tétele fölött), a szállítási díj viszont látszik');
+  // A határ közelében (≤ 5 000 Ft hiány) jön a javaslat.
+  const incPrice = Number(wp(`echo wc_get_product(${ids.inc})->get_price();`));
+  const free = Number(wp('echo (float) mandala_config("freeShippingFrom", 25000);'));
+  const q = Math.ceil((free - 4000) / incPrice);
+  if (q * incPrice < free) {
+    await page.goto(`${BASE}/?add-to-cart=${ids.inc}&quantity=${q - 1}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/kosar/`, { waitUntil: 'networkidle' });
+    ok(await page.isVisible('.gap-suggest .reco-list li'), 'kosár: kis hiánynál „Ezzel ingyenes a szállítás” javaslatok', `${q} × ${incPrice} Ft, határ ${free}`);
+  }
   await page.context().close();
 
   // --- AI SEO ---

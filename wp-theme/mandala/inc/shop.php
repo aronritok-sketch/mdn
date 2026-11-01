@@ -59,6 +59,23 @@ function mandala_cart_goods_total(): float
 }
 
 /** Ahová az ingyenes szállítás jár (alapból csak belföld – a külföldi díjakat nem nullázzuk). */
+/**
+ * A szállítási díj röviden, már a kosárban (eddig csak a pénztárban derült ki, ott a végösszeg majdnem duplázódott):
+ * a legolcsóbb beállított mód ára és az ingyenes határ. Forrás: mandala_config('shipping'), 'freeShippingFrom'.
+ */
+function mandala_shipping_note(): string
+{
+    $prices = array_filter(array_map(fn($m) => (float) ($m['price'] ?? 0), (array) mandala_config('shipping', [])), fn($v) => $v > 0);
+    $from = $prices ? min($prices) : 0.0;
+    $threshold = (float) mandala_config('freeShippingFrom', 25000);
+    $free = $threshold > 0 && mandala_free_shipping_for_customer();
+    if ($from > 0) {
+        return $free ? sprintf(__('Szállítás %1$s-tól, %2$s felett ingyenes; a módot a pénztárban választod ki.', 'mandala'), mandala_fmt($from), mandala_fmt($threshold))
+            : sprintf(__('Szállítás %s-tól; a módot a pénztárban választod ki.', 'mandala'), mandala_fmt($from));
+    }
+    return $free ? sprintf(__('A szállítási díjat a pénztárban választod ki; %s felett ingyenes.', 'mandala'), mandala_fmt($threshold)) : __('A szállítási díjat a pénztárban választod ki.', 'mandala');
+}
+
 function mandala_free_shipping_countries(): array
 {
     return (array) apply_filters('mandala_free_shipping_countries', ['HU']);
@@ -568,7 +585,7 @@ function mandala_minicart_content(): void
     foreach ($cart->get_coupons() as $code => $coupon) {
         echo '<tr class="discount"><th>' . esc_html(sprintf(__('Kupon (%s)', 'mandala'), strtoupper($code))) . '</th><td>−' . wp_kses_post(wc_price($cart->get_coupon_discount_amount($code, false))) . '</td></tr>';
     }
-    echo '</tbody></table><p class="text-muted text-small" style="margin:0">' . esc_html__('A szállítási díjat a pénztárban választod ki. Az árak az ÁFÁ-t tartalmazzák.', 'mandala') . '</p>'
+    echo '</tbody></table><p class="text-muted text-small" style="margin:0">' . esc_html(mandala_shipping_note()) . ' ' . esc_html__('Az árak az ÁFÁ-t tartalmazzák.', 'mandala') . '</p>'
         . '<a class="iu-button iu-button-large iu-button-block" href="' . esc_url(wc_get_checkout_url()) . '">' . $icon('lock', 'ico ico-s') . ' ' . esc_html__('Tovább a pénztárhoz', 'mandala') . '</a>' // phpcs:ignore
         . '<a class="iu-button iu-button-outline iu-button-block" href="' . esc_url(wc_get_cart_url()) . '">' . esc_html__('Kosár megtekintése', 'mandala') . '</a></div>';
 }
@@ -689,6 +706,7 @@ add_action('woocommerce_before_cart_table', function () {
         . ($goods >= $threshold ? mandala_icon('check', 'ico ico-s') . ' ' . esc_html__('A szállítás ingyenes.', 'mandala') : sprintf(esc_html__('Még %s, és ingyen szállítunk.', 'mandala'), '<strong>' . esc_html(mandala_fmt($threshold - $goods)) . '</strong>')) // phpcs:ignore
         . '</p><div class="meter" role="progressbar" aria-label="' . esc_attr__('Ingyenes szállításig', 'mandala') . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . (int) $pct . '"><span style="width:' . esc_attr((string) $pct) . '%"></span></div></div>';
     if ($goods < $threshold) {
+        echo '<p class="text-muted text-small">' . esc_html(mandala_shipping_note()) . '</p>';
         do_action('mandala_after_ship_meter', 'cart', $threshold - $goods);
     }
     do_action('mandala_cart_meters', 'cart');
