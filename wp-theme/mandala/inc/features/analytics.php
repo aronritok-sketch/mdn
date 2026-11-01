@@ -222,25 +222,37 @@ add_action('wp_footer', function () {
     }
     $dl = mandala_analytics_settings()['track'] === 'yes' && !defined('GTM4WP_VERSION') && !$order->get_meta('_mandala_dl_purchase');
     $fill = $order->has_status('pending') && $order->get_meta('_mandala_card_returned') && !$order->get_meta('_mandala_px_fill');
-    if (!$dl && !$fill) {
+    // Meta Purchase a böngészőből minden rendelésnél (2026-11-01): a PixelYourSite nem küldi, a szerveroldali páré pedig
+    // nem jelent meg a Metánál – így a Meta legalább a böngészős vásárlást látja (marketing-hozzájárulással, egyszer).
+    $px = !$order->get_meta('_mandala_px_purchase');
+    if (!$dl && !$fill && !$px) {
         return;
     }
     // Rendelésenként egyszer (a köszönőoldal újratöltése, a levélből visszanyitott oldal ne számoljon újra).
     $dl && $order->update_meta_data('_mandala_dl_purchase', time());
     $fill && $order->update_meta_data('_mandala_px_fill', time());
+    $px && $order->update_meta_data('_mandala_px_purchase', time());
     $order->save_meta_data();
     // A Meta eseményazonosítója a szerveroldali páré szerint (a téma CAPI-ja: order_<id>; a hub: wc-<id>).
     $eid = (mandala_capi_ready() && $order->get_meta('_mandala_marketing_consent') === 'yes' ? 'order_' : 'wc-') . $order->get_id();
-    $data = ['id' => $order->get_id(), 'eid' => $eid, 'dl' => $dl, 'fill' => (bool) $fill, 'p' => mandala_purchase_payload($order)];
+    // A Meta-katalógus a termék (változat) azonosítóját használja, nem a cikkszámot (a hub is ezt küldi: meta_content_id = id).
+    $mid = [];
+    foreach ($order->get_items() as $line) {
+        $mid[] = (string) ($line->get_variation_id() ?: $line->get_product_id());
+    }
+    // A Meta-érték ugyanaz, mint a szerveroldali páré (a hub: nettó = végösszeg − áfa − szállítás); a közös eseményazonosító
+    // miatt a Meta az elsőként beérkezőt tartja meg, így eltérő érték torzítaná a ROAS-t.
+    $net = round(max(0, (float) $order->get_total() - (float) $order->get_total_tax() - (float) $order->get_shipping_total()), 2);
+    $data = ['id' => $order->get_id(), 'eid' => $eid, 'dl' => $dl, 'fill' => (bool) $fill, 'px' => (bool) ($px || $fill), 'mid' => array_values(array_unique($mid)), 'nv' => $net, 'p' => mandala_purchase_payload($order)];
     echo '<script>(function(w){var d=' . wp_json_encode($data) . ',p=d.p;'
         . 'function once(k){try{if(localStorage.getItem(k))return false;localStorage.setItem(k,"1");}catch(e){}return true;}'
         . 'if(d.dl&&once("mandala.purchase.dl."+d.id)){w.dataLayer=w.dataLayer||[];w.dataLayer.push({ecommerce:null});w.dataLayer.push({event:"purchase",ecommerce:p});}'
-        . 'if(!d.fill)return;'
+        . 'if(!d.px)return;'
         . 'w.addEventListener("load",function(){setTimeout(function(){var o=w.pysOptions;if(!o)return;var se=o.staticEvents||{},has=false;'
         . 'Object.keys(se).forEach(function(px){var ev=se[px]||{};Object.keys(ev).forEach(function(k){if(/purchase/i.test(k))has=true;(Array.isArray(ev[k])?ev[k]:[]).forEach(function(e){if(e&&/^purchase$/i.test(e.name||""))has=true;});});});'
         . 'if(has||!once("mandala.purchase.px."+d.id))return;var c=null;try{c=JSON.parse(localStorage.getItem("mandala.cookie.v1")||"null");}catch(e){}'
-        . 'if(c&&c.marketing&&typeof w.fbq==="function"){w.fbq("track","Purchase",{value:p.value,currency:p.currency,content_type:"product",content_ids:p.items.map(function(i){return i.item_id;}),num_items:p.items.reduce(function(s,i){return s+i.quantity;},0)},{eventID:d.eid});}'
-        . 'if(o.ga&&o.ga.trackingIds&&o.ga.trackingIds.length){var t=o.GATags||{},n=t.ga_datalayer_type==="custom"&&t.ga_datalayer_name?t.ga_datalayer_name:(t.ga_datalayer_type&&t.ga_datalayer_type!=="default"?"dataLayer":"dataLayerPYS"),L=w[n]=w[n]||[],e={send_to:o.ga.trackingIds};Object.keys(p).forEach(function(k){e[k]=p[k];});(function(){L.push(arguments);})("event","purchase",e);}'
+        . 'if(c&&c.marketing&&typeof w.fbq==="function"){w.fbq("track","Purchase",{value:d.nv,currency:p.currency,content_type:"product",content_ids:d.mid,num_items:p.items.reduce(function(s,i){return s+i.quantity;},0)},{eventID:d.eid});}'
+        . 'if(d.fill&&o.ga&&o.ga.trackingIds&&o.ga.trackingIds.length){var t=o.GATags||{},n=t.ga_datalayer_type==="custom"&&t.ga_datalayer_name?t.ga_datalayer_name:(t.ga_datalayer_type&&t.ga_datalayer_type!=="default"?"dataLayer":"dataLayerPYS"),L=w[n]=w[n]||[],e={send_to:o.ga.trackingIds};Object.keys(p).forEach(function(k){e[k]=p[k];});(function(){L.push(arguments);})("event","purchase",e);}'
         . '},1500);});})(window);</script>' . "\n";
 }, 30);
 

@@ -144,9 +144,9 @@ try {
     const loaded = page.waitForRequest((r) => r.isNavigationRequest() && /add-to-cart=/.test(r.url()), { timeout: 20000 }).catch(() => null);
     await page.locator('li.product .loop-product-button a.ajax_add_to_cart').first().click();
     await loaded;
-    await page.waitForURL(/mandala_added=|orderby=price$/, { timeout: 20000 }).catch(() => {});
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // A visszairányított oldal a köztes (?mandala_added=) címmel tölt be, a visszajelzés után tisztul: arra várunk
+    // (lassú teszt-szerveren a networkidle + 500 ms kevés volt).
+    await page.waitForFunction(() => /Kosárba tettük/.test(document.querySelector('.toasts')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
     ok((await cartCount(page)) === before + 1 && /Kosárba tettük/.test(await toastText(page)), 'végső tartalék: oldalbetöltéssel bekerült, visszajelzéssel', page.url());
     ok(!/add-to-cart|mfb|mandala_added/.test(page.url()) && /orderby=price/.test(page.url()), 'végső tartalék: a cím tiszta, a rendezés megmaradt', page.url());
     rules.block = null; rules.getBlock = null;
@@ -320,6 +320,32 @@ try {
     const teya = JSON.parse(wp('$c = mandala_health_checks(false); echo wp_json_encode($c["teya"] ?? null);'));
     ok(teya && teya.status === 'warn' && teya.msg.includes(`#${oid2}`), 'őrszem: figyelmeztet a visszaigazolásra váró kártyás rendelésre', teya?.msg || '');
     wp(`wp_delete_post(${oid2}, true); $o = wc_get_order(${oid2}); if ($o) { $o->delete(true); }`);
+    await ctx.close();
+  }
+
+  // ======================= 8b. Köszönőoldal: rendes (fizetett) rendelés – Meta Purchase a böngészőből is =======================
+  {
+    const pid = Number(wp('echo wc_get_product_id_by_sku("MND-HT-0490");'));
+    const oid = Number(wp(`$o = wc_create_order(["status" => "processing", "created_via" => "checkout"]); $o->add_product(wc_get_product(${pid}), 2); $o->set_billing_email("rendes.teszt@example.com"); $o->set_payment_method("cod"); $o->update_meta_data("_hpvac_consent", "granted"); $o->calculate_totals(); $o->save(); echo $o->get_id();`));
+    const url = wp(`echo wc_get_order(${oid})->get_checkout_order_received_url();`);
+    let { page, ctx } = await newPage({ consent: { stats: true, marketing: true } });
+    await page.goto(url, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2200);
+    const px = await page.evaluate(() => ({ fb: (window.__fbq || []).filter((x) => x[1] === 'Purchase').map((x) => ({ id: x[3]?.eventID, ids: x[2]?.content_ids, n: x[2]?.num_items, v: x[2]?.value })), ga: (window.dataLayerPYS || []).filter((e) => e && e[0] === 'event' && e[1] === 'purchase').length }));
+    const net = Number(wp(`$o = wc_get_order(${oid}); echo round((float) $o->get_total() - (float) $o->get_total_tax() - (float) $o->get_shipping_total(), 2);`));
+    ok(px.fb.length === 1 && px.fb[0].id === `wc-${oid}` && JSON.stringify(px.fb[0].ids) === JSON.stringify([String(pid)]) && px.fb[0].n === 2 && px.fb[0].v === net && px.ga === 0, 'köszönőoldal (fizetett rendelés): Meta Purchase a böngészőből, a hub eseményazonosítójával, nettó értékével és a katalógus termék-azonosítójával; GA4 purchase nem (azt a Google mérése adja)', JSON.stringify(px));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(2200);
+    const again = await page.evaluate(() => (window.__fbq || []).filter((x) => x[1] === 'Purchase').length);
+    ok(again === 0, 'köszönőoldal újratöltve: a böngészős Purchase sem megy újra', String(again));
+    await ctx.close();
+    // Hozzájárulás nélkül nincs Meta Purchase.
+    const oid2 = Number(wp(`$o = wc_create_order(["status" => "processing", "created_via" => "checkout"]); $o->add_product(wc_get_product(${pid}), 1); $o->set_payment_method("cod"); $o->calculate_totals(); $o->save(); echo $o->get_id();`));
+    ({ page, ctx } = await newPage({ consent: { stats: true, marketing: false } }));
+    await page.goto(wp(`echo wc_get_order(${oid2})->get_checkout_order_received_url();`), { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2200);
+    const none = await page.evaluate(() => (window.__fbq || []).filter((x) => x[1] === 'Purchase').length);
+    ok(none === 0, 'köszönőoldal marketing-hozzájárulás nélkül: nincs Meta Purchase', String(none));
     await ctx.close();
   }
 
