@@ -1,8 +1,9 @@
 <?php
 /**
  * E-mail automatizmusok (Action Scheduler – a WooCommerce része):
- *  - elhagyott kosár: egyetlen emlékeztető a kosár visszaállító linkjével – reklámlevél, ezért csak hírlevél-
- *    feliratkozónak (Grt. 6. § (1), nincs „soft opt-in”); más címet a pénztár nem is rögzít;
+ *  - elhagyott kosár: két emlékeztető (alapból 3 és 24 óra) a kosár visszaállító linkjével – reklámlevél, ezért csak
+ *    hírlevél-feliratkozónak (Grt. 6. § (1), nincs „soft opt-in”); a feliratkozás pipája az e-mail mező mellett van, és
+ *    bejelölve már a pénztár közben feliratkoztat (kivéve: visszavonja); más címet a pénztár nem is rögzít;
  *  - használati útmutató a teljesített rendelés után;
  *  - újrarendelés emlékeztető fogyóeszközöknél (füstölő);
  *  - értékelés kérése személyes, ellenőrzött linkkel (lásd reviews.php).
@@ -27,12 +28,28 @@ function mandala_schedule(int $delay_seconds, string $hook, array $args): void
 /* ---------- Elhagyott kosár ---------- */
 
 /**
- * A pénztár az e-mail megadásakor jelez (wc-ajax=mandala_capture). Csak hírlevél-feliratkozó kosarát tesszük el: más
- * címre az emlékeztető úgysem mehet (reklámlevél hozzájárulás nélkül), így az adatra sincs szükség.
+ * A pénztár az e-mail megadásakor és a hírlevél-pipa váltásakor jelez (wc-ajax=mandala_capture). A bejelölt pipa
+ * (newsletter=1) a pipa szövegével azonnal feliratkoztat – addig az emlékeztető egy olyan pipán múlt, ami csak
+ * rendeléskor számított, így a félbehagyott pénztárra soha nem ment levél (2026-11-01, Áron) –; a kivett pipa a
+ * pénztárban adott feliratkozást visszavonja. Csak hírlevél-feliratkozó kosarát tesszük el: más címre az emlékeztető
+ * úgysem mehet (reklámlevél hozzájárulás nélkül), így az adatra sincs szükség.
  */
 add_action('wc_ajax_mandala_capture', function () {
     mandala_verify_cart_request();
     $email = strtolower(sanitize_email(wp_unslash($_POST['email'] ?? '')));
+    $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
+    $nl = isset($_POST['newsletter']) ? (string) wp_unslash($_POST['newsletter']) : ''; // phpcs:ignore
+    if (is_email($email) && function_exists('WC') && WC()->session) {
+        if ($nl === '1') {
+            mandala_newsletter_subscribe($email, 'penztar', mandala_consent_wording(__('Pénztár', 'mandala'), mandala_consent_text('checkout')), ['name' => $name, 'user_id' => get_current_user_id()]);
+            WC()->session->set('mandala_nl_checkout', $email);
+        } elseif ($nl === '0' && WC()->session->get('mandala_nl_checkout') === $email) {
+            mandala_newsletter_withdraw($email, 'penztar', ['user_id' => get_current_user_id()]);
+            WC()->session->set('mandala_nl_checkout', '');
+            mandala_abandoned_forget($email);
+            wp_send_json(['ok' => false]);
+        }
+    }
     if (!mandala_automation_on('abandoned') || !is_email($email) || !WC()->cart || WC()->cart->is_empty() || !mandala_marketing_consent($email)) {
         wp_send_json(['ok' => false]);
     }
@@ -41,44 +58,68 @@ add_action('wc_ajax_mandala_capture', function () {
         $items[] = [(int) $item['product_id'], (int) $item['variation_id'], (int) $item['quantity']];
     }
     $carts = (array) get_option('mandala_abandoned', []);
-    $carts[$email] = ['items' => $items, 'time' => time(), 'name' => sanitize_text_field(wp_unslash($_POST['name'] ?? ''))];
+    $carts[$email] = ['items' => $items, 'time' => time(), 'name' => $name];
     // Legfeljebb 2000 nyitott kosarat tartunk (a legrégebbiek esnek ki).
     if (count($carts) > 2000) {
         uasort($carts, fn($a, $b) => $b['time'] <=> $a['time']);
         $carts = array_slice($carts, 0, 2000, true);
     }
     update_option('mandala_abandoned', $carts, false);
-    if (function_exists('as_unschedule_all_actions')) {
-        as_unschedule_all_actions('mandala_mail_abandoned', [$email], MANDALA_AS_GROUP);
+    mandala_abandoned_unschedule($email);
+    $s = mandala_automation_settings();
+    mandala_schedule((int) $s['abandoned_hours'] * HOUR_IN_SECONDS, 'mandala_mail_abandoned', [$email]);
+    if (mandala_automation_on('abandoned2')) {
+        mandala_schedule(max((int) $s['abandoned2_hours'], (int) $s['abandoned_hours'] + 1) * HOUR_IN_SECONDS, 'mandala_mail_abandoned2', [$email]);
     }
-    mandala_schedule((int) mandala_automation_settings()['abandoned_hours'] * HOUR_IN_SECONDS, 'mandala_mail_abandoned', [$email]);
     wp_send_json(['ok' => true]);
 });
 
-/** Rendeléskor az emlékeztető törlődik. */
-add_action('woocommerce_checkout_order_created', function (WC_Order $order) {
-    $email = strtolower($order->get_billing_email());
+function mandala_abandoned_unschedule(string $email): void
+{
+    if (function_exists('as_unschedule_all_actions')) {
+        as_unschedule_all_actions('mandala_mail_abandoned', [$email], MANDALA_AS_GROUP);
+        as_unschedule_all_actions('mandala_mail_abandoned2', [$email], MANDALA_AS_GROUP);
+    }
+}
+
+/** A félretett kosár és mindkét emlékeztető törlése (rendelés, visszavont feliratkozás). */
+function mandala_abandoned_forget(string $email): void
+{
     $carts = (array) get_option('mandala_abandoned', []);
     if (isset($carts[$email])) {
         unset($carts[$email]);
         update_option('mandala_abandoned', $carts, false);
     }
-    if (function_exists('as_unschedule_all_actions')) {
-        as_unschedule_all_actions('mandala_mail_abandoned', [$email], MANDALA_AS_GROUP);
-    }
+    mandala_abandoned_unschedule($email);
+}
+
+/** Rendeléskor az emlékeztetők törlődnek. */
+add_action('woocommerce_checkout_order_created', function (WC_Order $order) {
+    mandala_abandoned_forget(strtolower($order->get_billing_email()));
 });
 
-add_action('mandala_mail_abandoned', function ($email) {
+/**
+ * Egy emlékeztető kiküldése ($type: abandoned | abandoned2). Az első után a kosár megmarad a másodikhoz (ha az be van
+ * kapcsolva); közben leadott rendelés (másik eszközről is) vagy leiratkozás mindkettőt elhagyja.
+ */
+function mandala_abandoned_send(string $email, string $type): void
+{
     $carts = (array) get_option('mandala_abandoned', []);
     $cart = $carts[$email] ?? null;
-    if (!$cart || !mandala_automation_on('abandoned')) {
+    if (!$cart || !mandala_automation_on($type)) { // a hozzájárulást a mandala_mail() nézi és naplózza
+        if ($cart && $type === 'abandoned2') {
+            mandala_abandoned_forget($email);
+        }
         return;
     }
-    // Közben rendelt? (másik eszközről is)
     $orders = wc_get_orders(['billing_email' => $email, 'date_created' => '>' . $cart['time'], 'limit' => 1, 'return' => 'ids']);
-    unset($carts[$email]);
-    update_option('mandala_abandoned', $carts, false);
+    $last = $type === 'abandoned2' || !mandala_automation_on('abandoned2');
+    if ($orders || $last) {
+        unset($carts[$email]);
+        update_option('mandala_abandoned', $carts, false);
+    }
     if ($orders) {
+        mandala_abandoned_unschedule($email);
         return;
     }
     $rows = '';
@@ -94,8 +135,11 @@ add_action('mandala_mail_abandoned', function ($email) {
     $restore = add_query_arg(['mandala_restore' => rawurlencode($email), 'k' => mandala_token('restore', $email, (string) $cart['time']), 't' => $cart['time']], home_url('/'));
     // A visszaállításhoz a kosár tartalma a linkhez kötve 7 napig marad meg.
     set_transient('mandala_restore_' . md5($email . $cart['time']), $cart['items'], 7 * DAY_IN_SECONDS);
-    mandala_mail('abandoned', $email, ['keresztnev' => $cart['name'] ?: __('Vásárlónk', 'mandala')], ['termekek' => $rows, 'gomb' => mandala_mail_button($restore, __('Rendelés folytatása', 'mandala'))]);
-});
+    mandala_mail($type, $email, ['keresztnev' => $cart['name'] ?: __('Vásárlónk', 'mandala')], ['termekek' => $rows, 'gomb' => mandala_mail_button($restore, __('Rendelés folytatása', 'mandala'))]);
+}
+
+add_action('mandala_mail_abandoned', fn($email) => mandala_abandoned_send((string) $email, 'abandoned'));
+add_action('mandala_mail_abandoned2', fn($email) => mandala_abandoned_send((string) $email, 'abandoned2'));
 
 /** Kosár visszaállítása a levél linkjéből. */
 add_action('wp_loaded', function () {
@@ -229,7 +273,9 @@ add_action('mandala_mail_reorder', function ($order_id) {
 
 add_filter('woocommerce_billing_fields', function ($fields) {
     if (mandala_automation_on('abandoned') && isset($fields['billing_email'])) {
-        $fields['billing_email']['description'] = __('Ide küldjük a visszaigazolást és a csomagkövetést. Ha feliratkoztál a hírlevelünkre, és nem fejezed be a rendelést, egyszer emlékeztetünk.', 'mandala');
+        $fields['billing_email']['description'] = mandala_automation_on('abandoned2')
+            ? __('Ide küldjük a visszaigazolást és a csomagkövetést. Ha feliratkozol a hírlevelünkre, és nem fejezed be a rendelést, legfeljebb kétszer emlékeztetünk.', 'mandala')
+            : __('Ide küldjük a visszaigazolást és a csomagkövetést. Ha feliratkoztál a hírlevelünkre, és nem fejezed be a rendelést, egyszer emlékeztetünk.', 'mandala');
     }
     return $fields;
 }, 30);

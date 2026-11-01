@@ -683,7 +683,11 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   // A TinyMCE betöltése előtt a „Szöveg” fülre kattintás hatástalan: megvárjuk (a WordPress a legutóbbi
   // nézetet megjegyzi – ha már szöveg nézetben nyílik, nem kattintunk).
   await admin.waitForFunction(() => document.querySelector('#mandala_mail_body')?.offsetParent || window.tinymce?.get('mandala_mail_body')?.initialized);
-  if (!(await admin.isVisible('#mandala_mail_body'))) await admin.click('#mandala_mail_body-html');
+  // A fülváltás a TinyMCE indulása közben néha elveszik: legfeljebb háromszor próbáljuk.
+  for (let i = 0; i < 3 && !(await admin.isVisible('#mandala_mail_body')); i++) {
+    await admin.click('#mandala_mail_body-html');
+    await admin.waitForTimeout(800);
+  }
   await admin.waitForSelector('#mandala_mail_body', { state: 'visible' });
   await admin.fill('#mandala_mail_body', '<p>Szia {keresztnev}!</p>\n\n<p>A kosarad <strong>félretettük</strong>. {nincsilyen}</p>\n\n{termekek}\n\n{gomb}');
   await Promise.all([admin.waitForNavigation(), admin.click('button[name="mail_save"]')]);
@@ -1760,8 +1764,44 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
     const no = await capture(`vendeg.${T}@example.com`);
     const yes = await capture('reklam-teszt@example.com');
     ok(no === false && yes === true && !desc.includes('egyszer emlékeztetünk – ebből'), 'elhagyott kosár: hozzájárulás nélkül nem rögzít, hírlevél-feliratkozónál igen', JSON.stringify({ no, yes }));
-    wp('delete_option("mandala_abandoned"); as_unschedule_all_actions("mandala_mail_abandoned", ["reklam-teszt@example.com"], MANDALA_AS_GROUP);');
+    wp('delete_option("mandala_abandoned"); as_unschedule_all_actions("mandala_mail_abandoned", ["reklam-teszt@example.com"], MANDALA_AS_GROUP); as_unschedule_all_actions("mandala_mail_abandoned2", ["reklam-teszt@example.com"], MANDALA_AS_GROUP);');
+    // A hírlevél-pipa az e-mail mellett: bejelölve a pénztár közben feliratkoztat (napló a pipa szövegével), a kosár
+    // félrekerül, és mindkét emlékeztető ütemezve; a kivett pipa visszavonja és a kosarat is elengedi (2026-11-01).
+    const pipaMail = `pipa.${T}@example.com`;
+    const nlInContact = await cp.locator('#section-contact #mandala_newsletter').count();
+    await cp.fill('#billing_email', pipaMail);
+    await cp.locator('#billing_phone').click();
+    await cp.waitForTimeout(800);
+    let res = cp.waitForResponse((r) => r.url().includes('mandala_capture'), { timeout: 8000 }).catch(() => null);
+    await cp.check('#mandala_newsletter');
+    await res;
+    const sub = wp(`echo (int) mandala_newsletter_is_active("${pipaMail}");`);
+    const sched = wp(`echo (int) (bool) as_next_scheduled_action("mandala_mail_abandoned", ["${pipaMail}"], MANDALA_AS_GROUP) . (int) (bool) as_next_scheduled_action("mandala_mail_abandoned2", ["${pipaMail}"], MANDALA_AS_GROUP);`);
+    const wording = lastRow(pipaMail, 'newsletter');
+    ok(nlInContact === 1 && sub === '1' && carts().includes(pipaMail) && sched === '11' && wording?.granted === '1' && /Feliratkozom a hírlevélre/.test(wording?.wording || ''), 'pénztár: a hírlevél-pipa az e-mail mellett, bejelölve azonnal feliratkoztat (napló a pipa szövegével), a kosár félrekerül, két emlékeztető ütemezve', JSON.stringify({ nlInContact, sub, sched }));
+    res = cp.waitForResponse((r) => r.url().includes('mandala_capture'), { timeout: 8000 }).catch(() => null);
+    await cp.uncheck('#mandala_newsletter');
+    await res;
+    const off = wp(`echo (int) mandala_newsletter_is_active("${pipaMail}") . (int) (bool) as_next_scheduled_action("mandala_mail_abandoned2", ["${pipaMail}"], MANDALA_AS_GROUP);`);
+    ok(off === '00' && !carts().includes(pipaMail), 'pénztár: a kivett pipa a pénztárban adott feliratkozást visszavonja, a kosarat és az emlékeztetőket elengedi', off);
     await cp.context().close();
+  }
+  // Második emlékeztető: az első után a kosár megmarad, a második kimegy és lezár; közben leadott rendelésnél nem megy.
+  {
+    const pid2 = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
+    wp('mandala_newsletter_subscribe("masodik@example.com", "weboldal", "teszt");');
+    let b2 = mails().length;
+    wp(`update_option("mandala_abandoned", ["masodik@example.com" => ["items" => [[${pid2}, 0, 1]], "time" => time() - 5, "name" => "Mari"]]); do_action("mandala_mail_abandoned", "masodik@example.com");`);
+    const kept = JSON.parse(wp('echo wp_json_encode(array_keys((array) get_option("mandala_abandoned", [])));')).includes('masodik@example.com');
+    wp('do_action("mandala_mail_abandoned2", "masodik@example.com");');
+    const m2 = mails().slice(b2);
+    const gone = !JSON.parse(wp('echo wp_json_encode(array_keys((array) get_option("mandala_abandoned", [])));')).includes('masodik@example.com');
+    ok(kept && /SUBJECT: A kosarad vár rád/.test(m2) && /SUBJECT: Még félretettük neked/.test(m2) && m2.split('Rendelés folytatása').length >= 3 && gone, 'elhagyott kosár: két emlékeztető (az első után a kosár megmarad, a második lezár)', JSON.stringify({ kept, gone }));
+    b2 = mails().length;
+    const oid = wp(`$o = wc_create_order(["status" => "processing"]); $o->set_billing_email("masodik@example.com"); $o->save(); echo $o->get_id();`);
+    wp(`update_option("mandala_abandoned", ["masodik@example.com" => ["items" => [[${pid2}, 0, 1]], "time" => time() - 60, "name" => "Mari"]]); do_action("mandala_mail_abandoned2", "masodik@example.com");`);
+    ok(!mails().slice(b2).includes('Még félretettük neked'), 'elhagyott kosár: közben rendelt → a második emlékeztető nem megy');
+    wp(`wc_get_order(${oid})->delete(true); delete_option("mandala_abandoned"); $n = (array) get_option("mandala_newsletter", []); unset($n["masodik@example.com"]); update_option("mandala_newsletter", $n, false);`);
   }
   // Általános leiratkozás (link): minden reklámlevél – partnerlevél és heti levél is ki, a CRM fiók-eseményt kap.
   wp(`delete_option("mandala_unsubscribed"); update_user_meta(${vid}, "_mandala_b2b_arrivals", "yes"); update_user_meta(${vid}, "_mandala_partner_mail", "yes"); delete_option("mandala_crm_queue"); mandala_birthday_set("b2b@example.com", "01-02", "fiok");`);

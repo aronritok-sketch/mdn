@@ -22,7 +22,7 @@ const MANDALA_MAIL_DB_VERSION = '1';
 function mandala_automation_settings(): array
 {
     return wp_parse_args((array) get_option('mandala_automations', []), [
-        'abandoned' => 'yes', 'abandoned_hours' => 3,
+        'abandoned' => 'yes', 'abandoned_hours' => 3, 'abandoned2' => 'yes', 'abandoned2_hours' => 24,
         'care' => 'yes', 'care_days' => 2,
         'reorder' => 'yes', 'reorder_days' => 40, 'reorder_cats' => 'fustolok,illoolajok,teak',
         'crosssell' => 'yes', 'crosssell_days' => 14,
@@ -309,11 +309,20 @@ function mandala_mail_types(bool $fresh = false): array
     $types = [
         'abandoned' => [
             'label' => 'Elhagyott kosár', 'group' => 'Emlékeztetők', 'setting' => 'abandoned', 'delay' => ['abandoned_hours', 'óra'], 'marketing' => true,
-            'when' => fn($s) => sprintf('%d órával azután, hogy a vásárló a pénztárban megadta az e-mail-címét, de nem rendelt. Egyszer.', $s['abandoned_hours']),
+            'when' => fn($s) => sprintf('%d órával azután, hogy a vásárló a pénztárban megadta az e-mail-címét, de nem rendelt. Az első emlékeztető.', $s['abandoned_hours']),
             'vars' => ['keresztnev' => 'A vásárló keresztneve (ha megadta; különben „Vásárlónk”)'],
             'blocks' => ['termekek' => 'A kosárban maradt termékek', 'gomb' => '„Rendelés folytatása” gomb (visszaállítja a kosarat)'],
             'subject' => __('A kosarad vár rád', 'mandala'), 'heading' => __('Félretettük neked', 'mandala'),
             'body' => $hello . '<p>' . __('Úgy láttuk, a kosaradban maradt néhány darab. Félretettük neked – egy kattintással folytathatod a rendelést.', 'mandala') . '</p>{termekek}{gomb}<p>' . __('Kérdésed van a termékekről? Válaszolj erre a levélre, szívesen segítünk.', 'mandala') . '</p>',
+            'sample' => fn() => [['keresztnev' => 'Anna'], ['termekek' => mandala_mail_sample_rows(2, true), 'gomb' => mandala_mail_button(wc_get_checkout_url(), __('Rendelés folytatása', 'mandala'))]],
+        ],
+        'abandoned2' => [
+            'label' => 'Elhagyott kosár – 2. emlékeztető', 'group' => 'Emlékeztetők', 'setting' => 'abandoned2', 'delay' => ['abandoned2_hours', 'óra'], 'marketing' => true,
+            'when' => fn($s) => sprintf('%d órával az e-mail megadása után, ha azóta sem rendelt (az első emlékeztető után). Utána nem megy több.', $s['abandoned2_hours']),
+            'vars' => ['keresztnev' => 'A vásárló keresztneve (ha megadta; különben „Vásárlónk”)'],
+            'blocks' => ['termekek' => 'A kosárban maradt termékek', 'gomb' => '„Rendelés folytatása” gomb (visszaállítja a kosarat)'],
+            'subject' => __('Még félretettük neked', 'mandala'), 'heading' => __('Még mindig vár rád', 'mandala'),
+            'body' => $hello . '<p>' . __('A kosaradban maradt darabokat még félretettük. Ha még kell, egy kattintással folytathatod a rendelést – raktárról, gyorsan feladjuk.', 'mandala') . '</p>{termekek}{gomb}<p>' . __('Ha bizonytalan vagy valamiben (méret, hangzás, ajándéknak jó-e), válaszolj erre a levélre, vagy hívj minket: {bolt_telefon} – szívesen segítünk választani.', 'mandala') . '</p>',
             'sample' => fn() => [['keresztnev' => 'Anna'], ['termekek' => mandala_mail_sample_rows(2, true), 'gomb' => mandala_mail_button(wc_get_checkout_url(), __('Rendelés folytatása', 'mandala'))]],
         ],
         'care' => [

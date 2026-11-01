@@ -295,16 +295,24 @@ if (form) {
     });
   }, 0));
 
-  // Elhagyott kosár: az érvényes e-mail-cím rögzítése (egyetlen emlékeztető, leiratkozható).
+  // Elhagyott kosár: az érvényes e-mail-cím rögzítése (legfeljebb két emlékeztető, csak feliratkozónak, leiratkozható).
+  // A hírlevél-pipa az e-mail mellett: bejelölve a pénztár közben feliratkoztat, kivéve visszavonja (automations.php).
   const emailEl = $('#billing_email');
+  const nlEl = $('#mandala_newsletter');
   let captured = '';
-  emailEl?.addEventListener('change', () => {
-    const v = emailEl.value.trim();
-    if (v === captured || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || !M.wcAjax) return;
+  const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  const capture = (extra = {}) => {
+    const v = emailEl?.value.trim() || '';
+    if (!validEmail(v) || !M.wcAjax) return;
     captured = v;
     // Tiltásnál GET-tel ismétli (az e-mail és a név sütiben megy, nem a címben – net.js).
-    wcPost('mandala_capture', new URLSearchParams({ email: v, name: $('#billing_first_name')?.value || '', security: M.cartNonce || '' })).catch(() => {});
+    wcPost('mandala_capture', new URLSearchParams({ email: v, name: $('#billing_first_name')?.value || '', security: M.cartNonce || '', ...extra })).catch(() => {});
+  };
+  emailEl?.addEventListener('change', () => {
+    if (emailEl.value.trim() === captured) return;
+    capture(nlEl?.checked ? { newsletter: '1' } : {});
   });
+  nlEl?.addEventListener('change', () => capture({ newsletter: nlEl.checked ? '1' : '0' }));
 
   syncShipping();
   placeNote();

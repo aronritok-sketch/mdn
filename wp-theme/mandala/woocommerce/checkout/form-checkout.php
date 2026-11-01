@@ -40,6 +40,11 @@ $icon = 'mandala_icon';
             if (isset($billing[$key])) {
                 woocommerce_form_field($key, $billing[$key], $checkout->get_value($key));
             }
+            if ($key === 'billing_email') {
+                // A hírlevél-pipa közvetlenül az e-mail alatt (eddig az 5. lépésben): bejelölve már a pénztár közben
+                // feliratkoztat (automations.php), így a félbehagyott pénztárra is mehet emlékeztető.
+                echo '<p class="form-row form-row-wide check-row"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox" for="mandala_newsletter"><input type="checkbox" class="woocommerce-form__input input-checkbox" name="mandala_newsletter" id="mandala_newsletter" value="1"' . checked(!empty($_POST['mandala_newsletter']), true, false) . '> <span>' . esc_html(mandala_consent_text('checkout')) . '</span></label></p>'; // phpcs:ignore
+            }
         } ?>
       </div>
     </section>
@@ -131,7 +136,6 @@ $icon = 'mandala_icon';
           <?php do_action('woocommerce_after_checkout_registration_form', $checkout); ?>
         </div>
         <?php endif; ?>
-        <p class="form-row form-row-wide check-row"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox" for="mandala_newsletter"><input type="checkbox" class="woocommerce-form__input input-checkbox" name="mandala_newsletter" id="mandala_newsletter" value="1"<?php checked(!empty($_POST['mandala_newsletter'])); // phpcs:ignore ?>> <span><?php echo esc_html(mandala_consent_text('checkout')); ?></span></label></p>
         <?php wc_get_template('checkout/terms.php'); ?>
       </div>
 
