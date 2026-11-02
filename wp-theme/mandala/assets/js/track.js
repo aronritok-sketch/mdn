@@ -1,8 +1,8 @@
-// Mérés (GA4 e-kereskedelmi események a dataLayer-be) a téma saját, AJAX-os felületeihez, amelyeket
-// a GTM4WP nem lát: szűrt terméklista (view_item_list / select_item), termékoldali és
-// ajándékcsomag / viszonteladói kosárba tétel (add_to_cart), élő keresés (search), és – ha a
-// GTM4WP nem aktív – a termékoldal megtekintése (view_item). A címkéket a GTM a hozzájárulás
-// (Consent Mode v2) szerint futtatja; a témát ez nem befolyásolja.
+// Mérés a téma saját, AJAX-os felületeihez: szűrt terméklista (view_item_list / select_item), kosárba tétel
+// (termékoldal, kártya, ajándékcsomag, viszonteladói gyorsrendelő: add_to_cart), élő keresés (search), termékoldal
+// (view_item). Saját méréskor (analytics.php, M.track.own) a GA4-nek közvetlenül (window.mandalaGtag) és a Meta pixelnek
+// is (window.mandalaPx: AddToCart, ViewCategory, Search – csak marketing-hozzájárulással); különben GTM-formában a
+// dataLayer-be, a címkéket a GTM futtatja.
 import { $, $$, loadProducts } from './env.js';
 
 const M = window.MANDALA || {};
@@ -10,8 +10,28 @@ const T = M.track || {};
 window.dataLayer = window.dataLayer || [];
 
 function push(event, data) {
+  if (T.own && typeof window.mandalaGtag === 'function') {
+    const { ecommerce, ...rest } = data;
+    window.mandalaGtag('event', event, { ...(ecommerce || {}), ...rest });
+    return;
+  }
   window.dataLayer.push({ ecommerce: null });
   window.dataLayer.push({ event, ...data });
+}
+/** Meta pixel esemény (saját mérés; a mandalaPx csak hozzájárulással küld). */
+const meta = (type, name, params, opts) => { try { return !!(T.own && window.mandalaPx && window.mandalaPx.track(type, name, params, opts)); } catch { return false; } };
+const eid = (p) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+/** Egy termék / változat bruttó ára: a termékindexből, változatnál a termékoldal változat-adataiból. */
+function priceOf(id, map) {
+  const p = map.get(id);
+  if (p) return Number(p.price) || 0;
+  try {
+    for (const f of document.querySelectorAll('form.variations_form[data-product_variations]')) {
+      const v = (JSON.parse(f.dataset.product_variations) || []).find((x) => Number(x.variation_id) === id);
+      if (v) return Number(v.display_price) || 0;
+    }
+  } catch { /* nincs változat-adat */ }
+  return 0;
 }
 const item = (p, i = 0, qty = 1, list = '') => ({
   item_id: p.sku || String(p.id), item_name: p.name, item_category: p.catLabel || p.cat || '', item_category2: p.sub || '',
@@ -22,6 +42,14 @@ const byId = async () => new Map((await loadProducts()).map((p) => [p.id, p]));
 // Kosárba (termékoldal, ajándékcsomag, viszonteladói gyorsrendelő)
 document.addEventListener('mandala:cart-add', async (e) => {
   const map = await byId();
+  const lines = e.detail.items.filter(([id, qty]) => id && qty > 0);
+  // Meta AddToCart: a katalógus azonosítójával (termék / változat), a változatot is beleértve, ami nincs az indexben.
+  if (lines.length) {
+    meta('track', 'AddToCart', {
+      content_ids: lines.map(([id]) => String(id)), content_type: 'product', contents: lines.map(([id, qty]) => ({ id: String(id), quantity: qty })),
+      value: Math.round(lines.reduce((s, [id, qty]) => s + priceOf(id, map) * qty, 0) * 100) / 100, currency: M.currency || 'HUF',
+    }, { eventID: eid('atc') });
+  }
   const items = e.detail.items.map(([id, qty], i) => map.get(id) && item(map.get(id), i, qty)).filter(Boolean);
   if (!items.length) return;
   push('add_to_cart', { ecommerce: { currency: M.currency || 'HUF', value: items.reduce((s, x) => s + x.price * x.quantity, 0), items }, mandala_source: e.detail.source });
@@ -39,6 +67,7 @@ if (results) {
     last = key;
     const map = await byId();
     push('view_item_list', { ecommerce: { item_list_name: listName(), items: ids.map((id, i) => map.get(id) && item(map.get(id), i, 1, listName())).filter(Boolean) } });
+    meta('trackCustom', 'ViewCategory', { content_ids: ids.slice(0, 10).map(String), content_type: 'product', content_category: listName() });
   };
   new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(report, 800); }).observe(results, { childList: true, subtree: false });
   timer = setTimeout(report, 800);
@@ -54,7 +83,7 @@ if (results) {
 const search = $('#search-input');
 if (search) {
   let t;
-  search.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { const q = search.value.trim(); if (q.length >= 3) push('search', { search_term: q }); }, 1200); });
+  search.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { const q = search.value.trim(); if (q.length >= 3) { push('search', { search_term: q }); meta('track', 'Search', { search_string: q.slice(0, 100) }); } }, 1200); });
 }
 
 // Termékoldal (ha a GTM4WP nem méri)

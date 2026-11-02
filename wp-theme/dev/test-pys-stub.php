@@ -28,7 +28,8 @@ add_action('wp_enqueue_scripts', function () {
         'google_consent_mode' => true,
         'GATags' => ['ga_datalayer_type' => 'default', 'ga_datalayer_name' => 'dataLayerPYS'],
         'gdpr' => [
-            'all_disabled_by_api' => false, 'facebook_disabled_by_api' => false, 'analytics_disabled_by_api' => false, 'google_ads_disabled_by_api' => false,
+            // Mint a valódi (class-events-manager.php): a pys_disable_by_gdpr szűrő minden pixelt tilt – a téma saját mérése ezzel némítja.
+            'all_disabled_by_api' => (bool) apply_filters('pys_disable_by_gdpr', false), 'facebook_disabled_by_api' => false, 'analytics_disabled_by_api' => false, 'google_ads_disabled_by_api' => false,
             'tiktok_disabled_by_api' => false, 'pinterest_disabled_by_api' => false, 'bing_disabled_by_api' => false,
             'analytics_storage' => ['enabled' => true, 'value' => $mode('pys_analytics_storage_mode'), 'filter' => has_filter('pys_analytics_storage_mode')],
             'ad_storage' => ['enabled' => true, 'value' => $mode('pys_ad_storage_mode'), 'filter' => has_filter('pys_ad_storage_mode')],
@@ -49,7 +50,7 @@ add_action('wp_enqueue_scripts', function () {
   if (options.google_consent_mode) {
     push('consent', hasDefault ? 'update' : 'default', { analytics_storage: g.analytics_storage.value, ad_storage: g.ad_storage.value, ad_user_data: g.ad_user_data.value, ad_personalization: g.ad_personalization.value });
   }
-  if (!options.cookie.disabled_all_cookie) document.cookie = 'pys_first_visit=1; path=/';
+  if (!options.cookie.disabled_all_cookie && !g.all_disabled_by_api) document.cookie = 'pys_first_visit=1; path=/';
   var fbInit = false;
   var Facebook = { loadPixel: function () { if (fbInit) return; fbInit = true; window.__fbq = window.__fbq || []; window.fbq = function () { window.__fbq.push([].slice.call(arguments)); }; window.fbq('init', '123'); window.fbq('track', 'PageView'); } };
   var Utils = { loadPixels: function () { if (!g.all_disabled_by_api && !g.facebook_disabled_by_api) Facebook.loadPixel(); } };

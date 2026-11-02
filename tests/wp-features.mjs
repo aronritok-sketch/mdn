@@ -29,6 +29,8 @@ wp('$p = wc_get_product(wc_get_product_id_by_sku("MND-HT-0490")); $p->set_manage
 const browser = await chromium.launch();
 async function newPage() {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // A Meta és a Google szkriptje ne töltődjön le (a saját mérés a tesztben se küldjön ki semmit).
+  await ctx.route(/connect\.facebook\.net|googletagmanager\.com/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
   await ctx.addInitScript(() => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify({ stats: false })); } catch {} });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`PAGEERROR ${page.url()} ${e.message}`));
@@ -271,8 +273,8 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   const zip = await page.request.get(`${BASE}/wp-admin/admin-post.php?action=mandala_b2b_images&cat=szakralis-targyak&_wpnonce=${new URL(csvUrl, BASE).searchParams.get('_wpnonce')}`);
   const zipBody = await zip.body();
   ok(zip.status() === 200 && zip.headers()['content-type'].includes('zip') && zipBody.includes(Buffer.from('MND-HT-0490.png')), 'B2B: kategória fotói ZIP-ben, cikkszám szerint elnevezve', String(zip.status()));
-  await page.check('.b2b-arrivals input[type="checkbox"]');
-  await page.waitForLoadState('networkidle');
+  // A pipa beküldi az űrlapot (oldalbetöltés): a navigáció végét várjuk, nem a mostani oldal nyugalmát.
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}), page.check('.b2b-arrivals input[type="checkbox"]')]);
   const uid = wp('echo get_user_by("login", "viszontelado")->ID;');
   ok(wp(`echo get_user_meta(${uid}, "_mandala_b2b_arrivals", true);`) === 'yes', 'B2B: feliratkozás az új érkezésekre');
   const before = mails().length;
@@ -292,18 +294,20 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   await page.addInitScript(() => { try { localStorage.setItem('mandala.cookie.v1', JSON.stringify({ stats: true, marketing: true })); } catch {} });
   await page.context().addCookies([{ name: '_fbp', value: 'fb.1.1700000000.123456789', url: BASE }]);
   await page.goto(`${BASE}/kategoria/szakralis-targyak/hangtalak/`, { waitUntil: 'networkidle' });
-  const consent = await page.evaluate(() => window.dataLayer.filter((e) => e[0] === 'consent').map((e) => `${e[1]}:${e[2].analytics_storage}`));
+  const consent = await page.evaluate(() => window.mandalaDL.filter((e) => e[0] === 'consent').map((e) => `${e[1]}:${e[2].analytics_storage}`));
   ok(consent[0] === 'default:denied' && consent[1] === 'update:granted', 'Consent Mode v2: alapból elutasítva, a mentett választás azonnal visszaállítva', consent.join(' '));
-  await page.waitForFunction(() => window.dataLayer.some((e) => e.event === 'view_item_list'), null, { timeout: 5000 }).catch(() => {});
-  const list = await page.evaluate(() => window.dataLayer.find((e) => e.event === 'view_item_list'));
-  ok(list && list.ecommerce.items.length > 0 && list.ecommerce.items[0].item_id, 'GA4: view_item_list a szűrt listára', list ? `${list.ecommerce.items.length} tétel` : '');
+  // Saját mérés: a GA4-események gtag-formában a saját adatrétegben (mandalaDL).
+  const gaFind = (name) => page.evaluate((n) => { const e = (window.mandalaDL || []).find((x) => x && x[0] === 'event' && x[1] === n); return e ? e[2] : null; }, name);
+  await page.waitForFunction(() => (window.mandalaDL || []).some((e) => e && e[0] === 'event' && e[1] === 'view_item_list'), null, { timeout: 5000 }).catch(() => {});
+  const list = await gaFind('view_item_list');
+  ok(list && list.items.length > 0 && list.items[0].item_id, 'GA4: view_item_list a szűrt listára', list ? `${list.items.length} tétel` : '');
   const mala = wp('echo wc_get_product_id_by_sku("MND-HT-0490");');
   await page.goto(wp(`echo get_permalink(${mala});`), { waitUntil: 'networkidle' });
   await page.click('.product-summary .single_add_to_cart_button');
-  await page.waitForFunction(() => window.dataLayer.some((e) => e.event === 'add_to_cart'), null, { timeout: 5000 }).catch(() => {});
-  const atc = await page.evaluate(() => window.dataLayer.find((e) => e.event === 'add_to_cart'));
-  ok(atc && atc.ecommerce.items[0].item_id === 'MND-HT-0490' && atc.ecommerce.currency === 'HUF', 'GA4: add_to_cart a termékoldalról (cikkszám, pénznem)');
-  ok(await page.evaluate(() => window.dataLayer.some((e) => e.event === 'view_item')), 'GA4: view_item (GTM4WP nélkül a téma küldi)');
+  await page.waitForFunction(() => (window.mandalaDL || []).some((e) => e && e[0] === 'event' && e[1] === 'add_to_cart'), null, { timeout: 5000 }).catch(() => {});
+  const atc = await gaFind('add_to_cart');
+  ok(atc && atc.items[0].item_id === 'MND-HT-0490' && atc.currency === 'HUF', 'GA4: add_to_cart a termékoldalról (cikkszám, pénznem)');
+  ok(!!(await gaFind('view_item')), 'GA4: view_item (a téma küldi)');
 
   wp('update_option("mandala_analytics", ["capi" => "yes", "pixel_id" => "123", "capi_token" => "tok"]); delete_option("mandala_capi_mock");');
   const orderId = await checkout(page, { email: 'Meres.Teszt@Example.com' });

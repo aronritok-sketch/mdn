@@ -22,6 +22,11 @@ let fails = 0;
 const ok = (cond, label, extra = '') => { console.log(`${cond ? '✓' : '✗'} ${label}${extra ? ` – ${extra}` : ''}`); if (!cond) fails++; };
 const errors = [];
 const NGINX_403 = '<html>\r\n<head><title>403 Forbidden</title></head>\r\n<body>\r\n<center><h1>403 Forbidden</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n';
+const FBEVENTS = '(function(){var f=window.fbq;window.__fbq=window.__fbq||[];if(!f)return;var q=f.queue||[];f.callMethod=function(){window.__fbq.push([].slice.call(arguments));};q.forEach(function(a){window.__fbq.push([].slice.call(a));});f.queue=[];})();';
+/** A Meta pixel hívásai (a betöltött és a még sorban álló is). */
+const fbCalls = (page) => page.evaluate(() => (window.__fbq || []).concat(((window.fbq && window.fbq.queue) || []).map((a) => [].slice.call(a))));
+/** A saját GA4 (mandalaDL) eseményei név szerint. */
+const gaEvents = (page, name) => page.evaluate((n) => (window.mandalaDL || []).filter((e) => e && e[0] === 'event' && e[1] === n).map((e) => e[2]), name);
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'; // a szerver a „Headless” böngészőt botnak venné
 
 const MU = wp('echo WPMU_PLUGIN_DIR;');
@@ -55,6 +60,9 @@ async function newPage({ block = null, getBlock = null, lose = null, consent = {
     const u = r.url();
     net.requests.push(`${r.method()} ${u}`);
     if (/\/mandala\/v1\/blocked/.test(u)) net.beacons.push(Object.fromEntries(new URL(u).searchParams));
+    // A Meta és a Google szkriptje helyett kicsinyített mása: a pixel hívásait a window.__fbq-ba gyűjti (a saját mérés tesztje).
+    if (/connect\.facebook\.net\/[^/]+\/fbevents\.js/.test(u)) return route.fulfill({ status: 200, contentType: 'application/javascript', body: FBEVENTS });
+    if (/googletagmanager\.com\/gtag\/js/.test(u)) return route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
     const hit = (r.method() === 'POST' && rules.block && rules.block.test(u)) || (r.method() === 'GET' && rules.getBlock && rules.getBlock.test(u));
     if (hit) { net.blocked.push(`${r.method()} ${u}`); return route.fulfill({ status: 403, contentType: 'text/html', headers: { server: 'ELIN.hu' }, body: NGINX_403 }); }
     if (r.method() === 'POST' && rules.lose && rules.lose.test(u)) { await route.fetch().catch(() => null); return route.fulfill({ status: 500, contentType: 'text/html', body: 'Internal Server Error' }); }
@@ -248,51 +256,89 @@ try {
     await ctx.close();
   }
 
-  // ======================= 7. Hozzájárulás: Consent Mode és Meta pixel (PixelYourSite másával) =======================
+  // ======================= 7. Saját mérés: Consent Mode, Meta pixel és GA4 a témából; a PixelYourSite néma =======================
   {
     const read = (page) => page.evaluate(() => ({
+      own: (window.mandalaDL || []).filter((e) => e && e[0] === 'consent').map((e) => `${e[1]}:${e[2].analytics_storage}/${e[2].ad_storage}`),
       pys: (window.dataLayerPYS || []).filter((e) => e && e[0] === 'consent').map((e) => `${e[1]}:${e[2].analytics_storage}/${e[2].ad_storage}`),
+      config: (window.mandalaDL || []).filter((e) => e && e[0] === 'config').map((e) => e[1]),
       fbq: typeof window.fbq === 'function',
-      events: (window.__fbq || []).map((x) => x.slice(0, 2).join(':')),
+      events: (window.__fbq || []).concat(((window.fbq && window.fbq.queue) || []).map((a) => [].slice.call(a))).map((x) => x.slice(0, 2).join(':')),
+      pysOff: window.pysOptions?.gdpr?.all_disabled_by_api === true,
       cookie: /pys_first_visit/.test(document.cookie),
     }));
     let { page, ctx } = await newPage({ consent: null });
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
     let s = await read(page);
-    ok(s.pys.length >= 2 && s.pys.every((x) => !/granted/.test(x)), 'választás előtt: a Google Consent Mode minden jelzése „denied” (a PixelYourSite sem állítja át)', s.pys.join(' '));
+    ok(s.own.length >= 1 && s.own.every((x) => !/granted/.test(x)) && s.pys.every((x) => !/granted/.test(x)), 'választás előtt: a Google Consent Mode minden jelzése „denied” (saját GA4 és a Google for WooCommerce rétege is)', `${s.own.join(' ')} | ${s.pys.join(' ')}`);
+    ok(s.config.includes('G-TESZT1'), 'saját GA4: a téma tölti be (saját adatréteg)', s.config.join(','));
     ok(!s.fbq && !s.events.length, 'választás előtt: a Meta pixel nem töltődik be, nincs PageView');
-    ok(!s.cookie, 'választás előtt: a PixelYourSite saját sütijei sincsenek');
+    ok(s.pysOff && !s.cookie, 'a PixelYourSite néma: minden pixele tiltva, sütit sem ír', `${s.pysOff} ${s.cookie}`);
     await page.click('[data-cookie="necessary"]');
     await page.waitForTimeout(300);
     s = await read(page);
-    ok(!s.fbq && /update:denied\/denied$/.test(s.pys.at(-1)), '„Csak a szükségesek”: marad elutasítva, Meta nincs', s.pys.at(-1));
+    ok(!s.fbq && /update:denied\/denied$/.test(s.own.at(-1)), '„Csak a szükségesek”: marad elutasítva, Meta nincs', s.own.at(-1));
     await page.reload({ waitUntil: 'networkidle' });
     s = await read(page);
-    ok(!s.fbq && s.pys.every((x) => !/granted/.test(x)), '„Csak a szükségesek” után a következő oldalon is elutasítva', s.pys.join(' '));
+    ok(!s.fbq && s.own.every((x) => !/granted/.test(x)), '„Csak a szükségesek” után a következő oldalon is elutasítva', s.own.join(' '));
     await ctx.close();
 
     ({ page, ctx } = await newPage({ consent: null }));
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
     await page.click('[data-cookie="all"]');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
     s = await read(page);
-    ok(s.fbq && s.events.includes('track:PageView') && /update:granted\/granted$/.test(s.pys.at(-1)), '„Mindet elfogadom”: Consent Mode engedélyezve, a Meta pixel betölt és PageView-t küld', `${s.pys.at(-1)} ${s.events.join(',')}`);
+    ok(s.fbq && s.events.filter((x) => x === 'track:PageView').length === 1 && s.events.includes('init:123456') && /update:granted\/granted$/.test(s.own.at(-1)), '„Mindet elfogadom”: Consent Mode engedélyezve, a saját Meta pixel betölt és egy PageView-t küld', `${s.own.at(-1)} ${s.events.join(',')}`);
     await page.reload({ waitUntil: 'networkidle' });
     s = await read(page);
-    ok(s.fbq && s.pys.slice(1).every((x) => /granted/.test(x) || /^default/.test(x)), 'elfogadás után a következő oldalon már az elején engedélyezve', s.pys.join(' '));
+    ok(s.fbq && s.own.slice(1).every((x) => /granted/.test(x)) && s.events.filter((x) => x === 'track:PageView').length === 1, 'elfogadás után a következő oldalon már az elején engedélyezve, egy PageView', `${s.own.join(' ')} ${s.events.join(',')}`);
     // Visszavonás ugyanazon az oldalon: a már betöltött Meta pixel „revoke”-ot kap.
     await page.evaluate(() => window.mandalaConsent({ stats: false, marketing: false }));
     s = await read(page);
     ok(s.events.includes('consent:revoke'), 'visszavonás: a betöltött Meta pixel azonnal leáll (fbq consent revoke)', s.events.join(','));
     await ctx.close();
 
-    // A PixelYourSite AJAX-os GDPR-lekérése (ajax_enabled) se kapcsolhassa vissza a Metát hozzájárulás nélkül.
-    ({ page, ctx } = await newPage({ consent: { stats: true, marketing: false } }));
+    // A PixelYourSite AJAX-os GDPR-válasza se kapcsolhassa vissza a saját pixelét (dupla PageView lenne) – hozzájárulással sem.
+    ({ page, ctx } = await newPage({ consent: { stats: true, marketing: true } }));
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
-    // Mint a PixelYourSite AJAX-válasza (pys_get_gdpr_filters_values): felülírja a jelzőt, majd újra betölti a pixeleket.
-    const forced = await page.evaluate(() => { const g = window.pysOptions?.gdpr; if (!g) return 'nincs pysOptions'; g.facebook_disabled_by_api = false; window.pys?.Utils?.loadPixels(); return String(g.facebook_disabled_by_api); });
+    const forced = await page.evaluate(() => { const g = window.pysOptions?.gdpr; if (!g) return 'nincs pysOptions'; g.all_disabled_by_api = false; g.facebook_disabled_by_api = false; window.pys?.Utils?.loadPixels(); return String(g.all_disabled_by_api); });
     s = await read(page);
-    ok(forced === 'true' && !s.fbq, 'hozzájárulás nélkül a szerver válasza sem kapcsolja be a Meta pixelt (a jelző csak olvasható)', forced);
+    ok(forced === 'true' && s.events.filter((x) => /^init:/.test(x)).length === 1 && s.events.filter((x) => x === 'track:PageView').length === 1, 'a PixelYourSite nem tölti be a saját pixelét (egy init, egy PageView)', `${forced} ${s.events.join(',')}`);
+    await ctx.close();
+  }
+
+  // ======================= 7b. Saját mérés: termék, kosárba, keresés, pénztár =======================
+  {
+    const pid = sku('MND-HT-0490');
+    let { page, ctx } = await newPage({ consent: { stats: true, marketing: true } });
+    await page.goto(link(pid), { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    let calls = await fbCalls(page);
+    const vc = calls.filter((x) => x[0] === 'track' && x[1] === 'ViewContent');
+    ok(vc.length === 1 && JSON.stringify(vc[0][2].content_ids) === JSON.stringify([String(pid)]) && vc[0][2].value > 0 && vc[0][2].currency === 'HUF', 'termékoldal: Meta ViewContent a katalógus azonosítójával és árral', JSON.stringify(vc.map((x) => x[2])));
+    ok((await gaEvents(page, 'view_item')).length === 1, 'termékoldal: GA4 view_item (saját GA4)');
+    await page.click('.product-summary .single_add_to_cart_button');
+    await page.waitForSelector('#minicart.is-open', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    calls = await fbCalls(page);
+    const atc = calls.filter((x) => x[0] === 'track' && x[1] === 'AddToCart');
+    ok(atc.length === 1 && JSON.stringify(atc[0][2].content_ids) === JSON.stringify([String(pid)]) && atc[0][2].value > 0 && /^atc-/.test(atc[0][3]?.eventID || ''), 'kosárba: Meta AddToCart (katalógus-azonosító, érték, eseményazonosító)', JSON.stringify(atc));
+    ok((await gaEvents(page, 'add_to_cart')).length === 1, 'kosárba: GA4 add_to_cart');
+    await page.goto(`${BASE}/penztar/`, { waitUntil: 'networkidle' });
+    const bc = await gaEvents(page, 'begin_checkout');
+    ok(bc.length === 1 && bc[0].items?.length >= 1 && bc[0].value > 0, 'pénztár: GA4 begin_checkout a kosár tételeivel', JSON.stringify(bc).slice(0, 200));
+    ok(!(await fbCalls(page)).some((x) => x[1] === 'InitiateCheckout'), 'pénztár: Meta InitiateCheckout a böngészőből nem (a hub küldi szerverről – dupla lenne)');
+    await page.goto(`${BASE}/?s=hangt%C3%A1l`, { waitUntil: 'networkidle' });
+    const se = (await fbCalls(page)).filter((x) => x[1] === 'Search');
+    ok(se.length === 1 && se[0][2].search_string === 'hangtál' && (await gaEvents(page, 'search')).length >= 1, 'keresés: Meta Search és GA4 search', JSON.stringify(se));
+    await ctx.close();
+    // Marketing-hozzájárulás nélkül: a Meta semmit, a GA4 sütimentesen (Consent Mode) igen.
+    ({ page, ctx } = await newPage({ consent: { stats: false, marketing: false } }));
+    await page.goto(link(pid), { waitUntil: 'networkidle' });
+    await page.click('.product-summary .single_add_to_cart_button');
+    await page.waitForSelector('#minicart.is-open', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    ok(!(await fbCalls(page)).length && (await gaEvents(page, 'add_to_cart')).length === 1, 'hozzájárulás nélkül: Meta pixel nincs, a GA4 „denied” módban mér', '');
     await ctx.close();
   }
 
@@ -303,15 +349,15 @@ try {
     const { page, ctx } = await newPage({ consent: { stats: true, marketing: true } });
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(2200);
-    const dl = await page.evaluate(() => (window.dataLayer || []).filter((e) => e && e.event === 'purchase').map((e) => e.ecommerce.transaction_id));
-    ok(dl.length === 1 && dl[0] === wp(`echo wc_get_order(${oid})->get_order_number();`), 'köszönőoldal: dataLayer purchase a függő kártyás rendelésnél is (transaction_id)', dl.join(','));
-    const px = await page.evaluate(() => ({ fb: (window.__fbq || []).filter((x) => x[1] === 'Purchase').map((x) => x[3]?.eventID), ga: (window.dataLayerPYS || []).filter((e) => e && e[0] === 'event' && e[1] === 'purchase').length }));
-    ok(px.fb.length === 1 && px.fb[0] === `wc-${oid}` && px.ga === 1, 'köszönőoldal: a PixelYourSite helyett Meta Purchase (eventID = a hub azonosítója) és GA4 purchase', JSON.stringify(px));
+    const dl = (await gaEvents(page, 'purchase')).map((e) => e.transaction_id);
+    ok(dl.length === 1 && dl[0] === wp(`echo wc_get_order(${oid})->get_order_number();`), 'köszönőoldal: GA4 purchase a függő kártyás rendelésnél is (transaction_id)', dl.join(','));
+    const px = { fb: (await fbCalls(page)).filter((x) => x[1] === 'Purchase').map((x) => x[3]?.eventID) };
+    ok(px.fb.length === 1 && px.fb[0] === `wc-${oid}`, 'köszönőoldal: Meta Purchase (eventID = a hub azonosítója)', JSON.stringify(px));
     ok(JSON.parse(wp('echo wp_json_encode(get_option("test_hpvac_calls", []));')).filter((x) => x === oid).length === 1, 'köszönőoldal: a hub vásárlás-eseménye elindult');
     ok(/visszatért a Teyától/.test(wp(`echo implode(" ", array_map(fn($n) => $n->content, wc_get_order_notes(["order_id" => ${oid}])));`)), 'köszönőoldal: rendelés-jegyzet a csapatnak');
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(2200);
-    const again = await page.evaluate(() => ({ dl: (window.dataLayer || []).filter((e) => e && e.event === 'purchase').length, fb: (window.__fbq || []).filter((x) => x[1] === 'Purchase').length }));
+    const again = { dl: (await gaEvents(page, 'purchase')).length, fb: (await fbCalls(page)).filter((x) => x[1] === 'Purchase').length };
     ok(again.dl === 0 && again.fb === 0, 'köszönőoldal újratöltve: nem számol újra', JSON.stringify(again));
     wp(`$o = wc_get_order(${oid}); $o->payment_complete("TESZT"); `);
     ok(JSON.parse(wp('echo wp_json_encode(get_option("test_hpvac_calls", []));')).filter((x) => x === oid).length === 1, 'a később megérkező fizetés nem küldi újra a hubnak (rendelésenként egyszer)');
@@ -331,20 +377,20 @@ try {
     let { page, ctx } = await newPage({ consent: { stats: true, marketing: true } });
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(2200);
-    const px = await page.evaluate(() => ({ fb: (window.__fbq || []).filter((x) => x[1] === 'Purchase').map((x) => ({ id: x[3]?.eventID, ids: x[2]?.content_ids, n: x[2]?.num_items, v: x[2]?.value })), ga: (window.dataLayerPYS || []).filter((e) => e && e[0] === 'event' && e[1] === 'purchase').length }));
+    const px = { fb: (await fbCalls(page)).filter((x) => x[1] === 'Purchase').map((x) => ({ id: x[3]?.eventID, ids: x[2]?.content_ids, n: x[2]?.num_items, v: x[2]?.value })), ga: (await gaEvents(page, 'purchase')).length };
     const net = Number(wp(`$o = wc_get_order(${oid}); echo round((float) $o->get_total() - (float) $o->get_total_tax() - (float) $o->get_shipping_total(), 2);`));
-    ok(px.fb.length === 1 && px.fb[0].id === `wc-${oid}` && JSON.stringify(px.fb[0].ids) === JSON.stringify([String(pid)]) && px.fb[0].n === 2 && px.fb[0].v === net && px.ga === 0, 'köszönőoldal (fizetett rendelés): Meta Purchase a böngészőből, a hub eseményazonosítójával, nettó értékével és a katalógus termék-azonosítójával; GA4 purchase nem (azt a Google mérése adja)', JSON.stringify(px));
+    ok(px.fb.length === 1 && px.fb[0].id === `wc-${oid}` && JSON.stringify(px.fb[0].ids) === JSON.stringify([String(pid)]) && px.fb[0].n === 2 && px.fb[0].v === net && px.ga === 1, 'köszönőoldal (fizetett rendelés): Meta Purchase a böngészőből, a hub eseményazonosítójával, nettó értékével és a katalógus termék-azonosítójával; GA4 purchase egyszer', JSON.stringify(px));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(2200);
-    const again = await page.evaluate(() => (window.__fbq || []).filter((x) => x[1] === 'Purchase').length);
-    ok(again === 0, 'köszönőoldal újratöltve: a böngészős Purchase sem megy újra', String(again));
+    const again = (await fbCalls(page)).filter((x) => x[1] === 'Purchase').length + (await gaEvents(page, 'purchase')).length;
+    ok(again === 0, 'köszönőoldal újratöltve: a böngészős Purchase (Meta, GA4) sem megy újra', String(again));
     await ctx.close();
     // Hozzájárulás nélkül nincs Meta Purchase.
     const oid2 = Number(wp(`$o = wc_create_order(["status" => "processing", "created_via" => "checkout"]); $o->add_product(wc_get_product(${pid}), 1); $o->set_payment_method("cod"); $o->calculate_totals(); $o->save(); echo $o->get_id();`));
     ({ page, ctx } = await newPage({ consent: { stats: true, marketing: false } }));
     await page.goto(wp(`echo wc_get_order(${oid2})->get_checkout_order_received_url();`), { waitUntil: 'networkidle' });
     await page.waitForTimeout(2200);
-    const none = await page.evaluate(() => (window.__fbq || []).filter((x) => x[1] === 'Purchase').length);
+    const none = (await fbCalls(page)).filter((x) => x[1] === 'Purchase').length;
     ok(none === 0, 'köszönőoldal marketing-hozzájárulás nélkül: nincs Meta Purchase', String(none));
     await ctx.close();
   }

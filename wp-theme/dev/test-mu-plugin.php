@@ -259,3 +259,8 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
 
 // Kis bemutató katalógusnál a gyűjtőoldalak alsó határa a tesztben állítható.
 add_filter('mandala_collection_min', fn($min) => (int) get_option('mandala_test_collection_min', $min));
+
+// Saját mérés: a teszt soha ne a valódi Meta pixelre / GA4-re küldjön (ha a teszt maga nem állít mást).
+$mandala_test_ids = fn($v) => array_merge(['meta_pixel' => '123456', 'ga4' => 'G-TESZT1'], (array) $v);
+add_filter('option_mandala_analytics', $mandala_test_ids);
+add_filter('default_option_mandala_analytics', $mandala_test_ids);

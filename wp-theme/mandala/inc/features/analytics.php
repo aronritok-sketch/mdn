@@ -3,10 +3,13 @@
  * Mérés: Google Consent Mode v2 alapállapot, GA4 események a saját felületekhez (assets/js/track.js),
  * és opcionálisan Meta Conversions API (szerveroldali Purchase esemény, csak marketing hozzájárulással).
  *
- * A GA4 / Google Ads / Meta pixel címkéi a GTM-ben (GTM4WP) vagy a PixelYourSite-ban futnak; a WooCommerce alap
- * eseményeit (termékoldal, pénztár lépései, vásárlás) ők adják. A téma csak azt méri, amit ők nem látnak, és a
- * PixelYourSite-ot a süti sáv választásához köti (Consent Mode, Meta pixel csak marketing-hozzájárulással).
- * Vásárlás a köszönőoldalon: dataLayer purchase, és a „Függőben” maradt, visszatért kártyás rendelés pótlása (lent).
+ * Saját mérés (2026-11-02, Áron: „saját marketing mérést használjunk, ne a PixelYourSite-ot”): a Meta pixelt és a GA4-et a
+ * téma tölti be és küldi az eseményeket (oldalmegtekintés, termék, kategória, keresés, kosárba, pénztár, vásárlás); a
+ * szerveroldali párokat (pénztár, vásárlás) a HelloProVision Ads hub küldi a Conversions API-ra, közös azonosítóval. A
+ * PixelYourSite ilyenkor néma (pys_disable_by_gdpr), a Google Ads konverziót a Google for WooCommerce adja.
+ * Kikapcsolva (own = no) a régi működés: a címkék a GTM-ben (GTM4WP) vagy a PixelYourSite-ban futnak, a téma csak azt
+ * méri, amit ők nem látnak, és a PixelYourSite-ot a süti sáv választásához köti.
+ * Vásárlás a köszönőoldalon: GA4 / Meta Purchase, és a „Függőben” maradt, visszatért kártyás rendelés pótlása (lent).
  * Beállítás: WooCommerce → Mandala mérés.
  */
 
@@ -15,6 +18,9 @@ defined('ABSPATH') || exit;
 function mandala_analytics_settings(): array
 {
     return wp_parse_args((array) get_option('mandala_analytics', []), [
+        'own' => 'yes',               // saját mérés: Meta pixel + GA4 a témából, a PixelYourSite néma
+        'meta_pixel' => '2165657357605171',
+        'ga4' => 'G-K7GBNYNH24',
         'consent_default' => 'yes',   // Consent Mode v2 alapállapot (elutasítva) a GTM betöltése előtt
         'pys_consent' => 'yes',       // PixelYourSite a süti sáv választása szerint (Meta csak marketing-hozzájárulással)
         'track' => 'yes',             // saját felületek eseményei a dataLayer-be
@@ -25,10 +31,25 @@ function mandala_analytics_settings(): array
     ]);
 }
 
-/** Az adatrétegek, amelyekbe a hozzájárulás kerül: a GTM-é és a PixelYourSite / Google for WooCommerce gtag-jáé. */
+/** Saját mérés be van-e kapcsolva (Meta pixel + GA4 a témából, a PixelYourSite helyett). */
+function mandala_own_tracking(): bool
+{
+    return mandala_analytics_settings()['own'] === 'yes' && apply_filters('mandala_own_tracking', true);
+}
+
+/*
+ * Saját méréskor a PixelYourSite néma: a szűrő a pixeleit és a szerveres (AJAX-os) eseményeit is leállítja, így a
+ * bővítmény kikapcsolásáig sincs dupla mérés. Az Ads Connect se tegyen ki második pixelt.
+ */
+if (mandala_own_tracking()) {
+    add_filter('pys_disable_by_gdpr', '__return_true', 99);
+    add_filter('hpvac_pixel_present', '__return_true');
+}
+
+/** Az adatrétegek, amelyekbe a hozzájárulás kerül: a GTM-é, a PixelYourSite / Google for WooCommerce gtag-jáé, és a saját GA4-é. */
 function mandala_consent_layers(): array
 {
-    $layers = (array) apply_filters('mandala_consent_layers', ['dataLayer', 'dataLayerPYS']);
+    $layers = (array) apply_filters('mandala_consent_layers', array_merge(['dataLayer', 'dataLayerPYS'], mandala_own_tracking() ? ['mandalaDL'] : []));
     return array_values(array_unique(array_filter($layers, fn($l) => is_string($l) && preg_match('/^[A-Za-z_$][\w$]*$/', $l))));
 }
 
@@ -65,6 +86,7 @@ add_action('wp_head', function () {
         . 'try{c=JSON.parse(localStorage.getItem("mandala.cookie.v1")||"null");}catch(e){}'
         . 'if(c){push("update",vals(c));}'
         . 'w.mandalaPysPrep=function(o){if(!o||!o.gdpr)return;var g=o.gdpr,st=!!(c&&c.stats),mk=!!(c&&c.marketing);'
+        . (mandala_own_tracking() ? 'try{Object.defineProperty(g,"all_disabled_by_api",{configurable:true,enumerable:true,get:function(){return true;},set:function(){}});}catch(e){g.all_disabled_by_api=true;}o.cookie=o.cookie||{};o.cookie.disabled_all_cookie=true;return;' : '')
         . 'function v(k,on){if(!g[k]||typeof g[k]!=="object"){g[k]={};}g[k].enabled=true;g[k].value=on?"granted":"denied";}'
         . 'v("analytics_storage",st);v("ad_storage",mk);v("ad_user_data",mk);v("ad_personalization",mk);'
         . '["facebook","tiktok","pinterest","bing","reddit","openai"].forEach(function(k){var n=k+"_disabled_by_api";try{Object.defineProperty(g,n,{configurable:true,enumerable:true,get:function(){return !(c&&c.marketing);},set:function(){}});}catch(e){g[n]=!mk;}});'
@@ -96,7 +118,7 @@ add_action('init', function () {
 function mandala_pys_glue(): void
 {
     static $done = false;
-    if ($done || !mandala_pys_consent_on()) {
+    if ($done || !(mandala_pys_consent_on() || mandala_own_tracking())) {
         return;
     }
     foreach ((array) apply_filters('mandala_pys_handles', ['pys']) as $handle) {
@@ -110,15 +132,84 @@ function mandala_pys_glue(): void
 add_action('wp_enqueue_scripts', 'mandala_pys_glue', PHP_INT_MAX);
 add_action('wp_print_footer_scripts', 'mandala_pys_glue', 1);
 
+/* ---------- Saját mérés: Meta pixel és GA4 ---------- */
+
+/**
+ * Az oldal saját eseményei (a HTML mindenkinek ugyanaz – a gyorsítótár miatt csak oldalfüggő adat, látogatói nem; a
+ * pénztár nincs gyorsítótárban): termékoldal → Meta ViewContent (a katalógus azonosítóival: egyszerű terméknél a termék,
+ * változatosnál a változatok), keresés → Meta Search és GA4 search, pénztár → GA4 begin_checkout. A Meta
+ * InitiateCheckout-ot a hub küldi szerverről (a böngészős pár dupla lenne), a GA4 view_item a track.js-ben.
+ */
+function mandala_own_page_events(): array
+{
+    $out = ['meta' => [], 'ga' => []];
+    if (!function_exists('wc_get_product')) {
+        return $out;
+    }
+    $cur = get_woocommerce_currency();
+    if (is_product()) {
+        $p = wc_get_product(get_queried_object_id());
+        if ($p) {
+            $ids = $p->is_type('variable') ? array_slice(array_map('strval', $p->get_children()), 0, 20) : [];
+            $out['meta'][] = ['track', 'ViewContent', ['content_ids' => $ids ?: [(string) $p->get_id()], 'content_type' => 'product', 'value' => round((float) wc_get_price_to_display($p), 2), 'currency' => $cur]];
+        }
+    } elseif (is_search() && get_search_query() !== '') {
+        $q = mb_substr(get_search_query(), 0, 100);
+        $out['meta'][] = ['track', 'Search', ['search_string' => $q]];
+        $out['ga'][] = ['search', ['search_term' => $q]];
+    } elseif (is_checkout() && !is_order_received_page() && WC()->cart && !WC()->cart->is_empty()) {
+        $items = [];
+        foreach (WC()->cart->get_cart() as $ci) {
+            $prod = $ci['data'] ?? null;
+            if (!$prod instanceof WC_Product) {
+                continue;
+            }
+            $q = max(1, (int) $ci['quantity']);
+            $items[] = ['item_id' => $prod->get_sku() ?: (string) $prod->get_id(), 'item_name' => $prod->get_name(), 'price' => round(((float) $ci['line_total'] + (float) $ci['line_tax']) / $q, 2), 'quantity' => $q, 'index' => count($items)];
+        }
+        $out['ga'][] = ['begin_checkout', ['currency' => $cur, 'value' => round((float) WC()->cart->get_total('edit'), 2), 'items' => $items]];
+    }
+    return $out;
+}
+
+/**
+ * Betöltő a <head>-ben (a hozzájárulás alapállapota után):
+ *  - GA4 saját adatréteggel (mandalaDL, hogy a Google for WooCommerce gtag-ja ne keveredjen bele): a választás előtt is
+ *    betölt, „denied” állapotban (Consent Mode, sütimentes jelzés) – mint eddig a PixelYourSite-é;
+ *  - Meta pixel csak marketing-hozzájárulással: betöltés, init, PageView és az oldal eseményei; ha a vásárló most fogad el
+ *    (mandala:consent), ugyanezen az oldalon tölt be. window.mandalaPx.track() csak hozzájárulással küld.
+ * A böngésző-eseményazonosítók (eventID) közösek a hub szerveres párjaival (vásárlás: wc-<rendelés>).
+ */
+add_action('wp_head', function () {
+    if (!mandala_own_tracking()) {
+        return;
+    }
+    $s = mandala_analytics_settings();
+    $ev = mandala_own_page_events();
+    $cfg = ['px' => (string) preg_replace('/\D/', '', (string) $s['meta_pixel']), 'ga' => preg_match('/^G-[A-Z0-9]{4,}$/', (string) $s['ga4']) ? (string) $s['ga4'] : '', 'mev' => $ev['meta'], 'gev' => $ev['ga']];
+    echo '<script>(function(w,d){var C=' . wp_json_encode($cfg) . ',L=w.mandalaDL=w.mandalaDL||[],on=false;'
+        . 'function g(){L.push(arguments);}w.mandalaGtag=g;'
+        . 'if(C.ga){var s=d.createElement("script");s.async=true;s.src="https://www.googletagmanager.com/gtag/js?id="+encodeURIComponent(C.ga)+"&l=mandalaDL";(d.head||d.documentElement).appendChild(s);'
+        . 'g("js",new Date());g("set","url_passthrough",true);g("set","ads_data_redaction",true);g("config",C.ga);C.gev.forEach(function(e){g("event",e[0],e[1]);});}'
+        . 'function mk(){try{var c=JSON.parse(localStorage.getItem("mandala.cookie.v1")||"null");return !!(c&&c.marketing);}catch(e){return false;}}'
+        . 'function load(){if(on||!C.px)return;on=true;'
+        . 'if(!w.fbq){!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(w,d,"script","https://connect.facebook.net/en_US/fbevents.js");}'
+        . 'w.fbq("init",C.px);w.fbq("track","PageView");C.mev.forEach(function(e){w.fbq(e[0],e[1],e[2]||{},e[3]||{});});}'
+        . 'w.mandalaPx={load:load,on:function(){return on&&mk();},track:function(t,n,p,o){if(on&&mk()){w.fbq(t,n,p||{},o||{});return true;}return false;}};'
+        . 'd.addEventListener("mandala:consent",function(e){var p=e.detail||{};if(p.marketing){if(on){w.fbq("consent","grant");}else{load();}}else if(on){w.fbq("consent","revoke");}});'
+        . 'if(mk())load();'
+        . '})(window,document);</script>' . "\n";
+}, 1);
+
 add_filter('mandala_js_data', function ($data) {
     $s = mandala_analytics_settings();
     $data['currency'] = function_exists('get_woocommerce_currency') ? get_woocommerce_currency() : 'HUF';
-    $data['track'] = ['viewItem' => !defined('GTM4WP_VERSION')];
+    $data['track'] = ['viewItem' => !defined('GTM4WP_VERSION') || mandala_own_tracking(), 'own' => mandala_own_tracking()];
     return $data;
 });
 
 add_action('wp_enqueue_scripts', function () {
-    if (mandala_analytics_settings()['track'] === 'yes' && !is_admin()) {
+    if ((mandala_analytics_settings()['track'] === 'yes' || mandala_own_tracking()) && !is_admin()) {
         wp_enqueue_script_module('mandala-track', MANDALA_URL . '/assets/js/track.js', [], MANDALA_VERSION);
     }
 }, 30);
@@ -220,16 +311,20 @@ add_action('wp_footer', function () {
     if (!$order instanceof WC_Order || $key === '' || !hash_equals($order->get_order_key(), (string) $key) || $order->has_status(['failed', 'cancelled'])) {
         return;
     }
-    $dl = mandala_analytics_settings()['track'] === 'yes' && !defined('GTM4WP_VERSION') && !$order->get_meta('_mandala_dl_purchase');
+    $own = mandala_own_tracking();
+    $dl = !$own && mandala_analytics_settings()['track'] === 'yes' && !defined('GTM4WP_VERSION') && !$order->get_meta('_mandala_dl_purchase');
+    // Saját méréskor a GA4 purchase is a témából megy (eddig a PixelYourSite küldte), rendelésenként egyszer.
+    $ga = $own && !$order->get_meta('_mandala_ga_purchase');
     $fill = $order->has_status('pending') && $order->get_meta('_mandala_card_returned') && !$order->get_meta('_mandala_px_fill');
     // Meta Purchase a böngészőből minden rendelésnél (2026-11-01): a PixelYourSite nem küldi, a szerveroldali páré pedig
     // nem jelent meg a Metánál – így a Meta legalább a böngészős vásárlást látja (marketing-hozzájárulással, egyszer).
     $px = !$order->get_meta('_mandala_px_purchase');
-    if (!$dl && !$fill && !$px) {
+    if (!$dl && !$fill && !$px && !$ga) {
         return;
     }
     // Rendelésenként egyszer (a köszönőoldal újratöltése, a levélből visszanyitott oldal ne számoljon újra).
     $dl && $order->update_meta_data('_mandala_dl_purchase', time());
+    $ga && $order->update_meta_data('_mandala_ga_purchase', time());
     $fill && $order->update_meta_data('_mandala_px_fill', time());
     $px && $order->update_meta_data('_mandala_px_purchase', time());
     $order->save_meta_data();
@@ -243,10 +338,13 @@ add_action('wp_footer', function () {
     // A Meta-érték ugyanaz, mint a szerveroldali páré (a hub: nettó = végösszeg − áfa − szállítás); a közös eseményazonosító
     // miatt a Meta az elsőként beérkezőt tartja meg, így eltérő érték torzítaná a ROAS-t.
     $net = round(max(0, (float) $order->get_total() - (float) $order->get_total_tax() - (float) $order->get_shipping_total()), 2);
-    $data = ['id' => $order->get_id(), 'eid' => $eid, 'dl' => $dl, 'fill' => (bool) $fill, 'px' => (bool) ($px || $fill), 'mid' => array_values(array_unique($mid)), 'nv' => $net, 'p' => mandala_purchase_payload($order)];
+    $data = ['id' => $order->get_id(), 'eid' => $eid, 'own' => $own, 'ga' => $ga, 'dl' => $dl, 'fill' => (bool) $fill, 'px' => (bool) ($px || $fill), 'mid' => array_values(array_unique($mid)), 'nv' => $net, 'p' => mandala_purchase_payload($order)];
     echo '<script>(function(w){var d=' . wp_json_encode($data) . ',p=d.p;'
         . 'function once(k){try{if(localStorage.getItem(k))return false;localStorage.setItem(k,"1");}catch(e){}return true;}'
         . 'if(d.dl&&once("mandala.purchase.dl."+d.id)){w.dataLayer=w.dataLayer||[];w.dataLayer.push({ecommerce:null});w.dataLayer.push({event:"purchase",ecommerce:p});}'
+        . 'if(d.own){var ni=p.items.reduce(function(s,i){return s+i.quantity;},0);'
+        . 'if(d.ga&&w.mandalaGtag&&once("mandala.purchase.ga."+d.id)){w.mandalaGtag("event","purchase",p);}'
+        . 'if(d.px&&w.mandalaPx&&w.mandalaPx.on()&&once("mandala.purchase.px."+d.id)){w.mandalaPx.track("track","Purchase",{value:d.nv,currency:p.currency,content_type:"product",content_ids:d.mid,num_items:ni},{eventID:d.eid});}return;}'
         . 'if(!d.px)return;'
         . 'w.addEventListener("load",function(){setTimeout(function(){var o=w.pysOptions;if(!o)return;var se=o.staticEvents||{},has=false;'
         . 'Object.keys(se).forEach(function(px){var ev=se[px]||{};Object.keys(ev).forEach(function(k){if(/purchase/i.test(k))has=true;(Array.isArray(ev[k])?ev[k]:[]).forEach(function(e){if(e&&/^purchase$/i.test(e.name||""))has=true;});});});'
@@ -313,7 +411,7 @@ add_action('admin_menu', function () {
             $in = array_map('sanitize_text_field', (array) wp_unslash($_POST['mandala_analytics']));
             $clean = [];
             foreach (mandala_analytics_settings() as $key => $value) {
-                $clean[$key] = in_array($key, ['consent_default', 'pys_consent', 'track', 'capi'], true) ? (empty($in[$key]) ? 'no' : 'yes') : trim($in[$key] ?? '');
+                $clean[$key] = in_array($key, ['own', 'consent_default', 'pys_consent', 'track', 'capi'], true) ? (empty($in[$key]) ? 'no' : 'yes') : trim($in[$key] ?? '');
             }
             update_option('mandala_analytics', $clean, false);
             echo '<div class="notice notice-success"><p>Mentve.</p></div>';
@@ -324,6 +422,9 @@ add_action('admin_menu', function () {
         echo '<div class="wrap"><h1>Mandala mérés</h1><form method="post">';
         wp_nonce_field('mandala_analytics');
         echo '<table class="form-table">'
+            . $box('own', 'Saját mérés (a PixelYourSite helyett)', 'A Meta pixelt és a GA4-et a téma tölti be és küldi az eseményeket (oldal, termék, kategória, keresés, kosárba, pénztár, vásárlás); a Meta csak marketing-hozzájárulással. A pénztár és a vásárlás szerveroldali párját a HelloProVision Ads hub küldi. Bekapcsolva a PixelYourSite néma – utána kikapcsolható. A Google Ads konverziót a Google for WooCommerce adja.')
+            . $text('meta_pixel', 'Meta pixel azonosító', 'Saját méréshez.')
+            . $text('ga4', 'GA4 mérési azonosító', 'Saját méréshez (G-…).')
             . $box('consent_default', 'Consent Mode v2 alapállapot', 'A GTM előtt minden mérés „elutasítva”, a süti sáv választása frissíti. Kapcsold ki, ha külön süti-kezelő bővítmény állítja.')
             . $box('pys_consent', 'PixelYourSite a süti sáv szerint', 'A Meta (és a többi hirdetési) pixel csak marketing-hozzájárulással töltődik be; a Google Consent Mode értékei a vásárló választása szerint mennek (a PixelYourSite magától „engedélyezve” állapotot küldene). Kell hozzá a Consent Mode alapállapot is.')
             . $box('track', 'Saját felületek eseményei', 'GA4 események a dataLayer-be: szűrt lista (view_item_list, select_item), termékoldali, ajándékcsomag és viszonteladói kosárba tétel (add_to_cart), keresés, hangtál-választó. A WooCommerce alap eseményeit a GTM4WP adja.' . (defined('GTM4WP_VERSION') ? '' : ' (GTM4WP nem aktív: a termékoldal view_item eseményét is a téma küldi.)'))
