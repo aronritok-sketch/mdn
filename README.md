@@ -21,6 +21,11 @@ események jegyértékesítéssel, e-mail automatizmusok, fotós értékelések,
 hűségpontok, viszonteladói felület, WPML, EU-s szállítás, SEO, mérés (Consent Mode, GA4, Meta CAPI), akadálymentesség.
 Részletek, követelmények és élesítési teendők: [`wp-theme/mandala/README.md`](wp-theme/mandala/README.md).
 
+**Szállítás (2026-11-02, egységes szabvány – hlprv `deploy/README.md`):** építés után `tools/publish-hlprv.sh` a kész
+témát a hlprv `claude/mandala-site` ágára tükrözi; onnan kiadás készül (`mandala-v<verzió>`, `mandala.zip`), és a
+mandala.hu (iu_theme ≥ 0.3.0, `HPV_GITHUB_TOKEN`, `HPV_SITE_ENV`) a hlprv `deploy/sites.json` `mandala.live.version`
+szerinti verziót telepíti magától. Élesbe a verziót csak Áron jóváhagyásával írjuk át; kézi feltöltés nem kell.
+
 ```bash
 python3 tools/build-theme.py             # téma frissítése a prototípusból + zip
 python3 tools/build-theme.py --content   # a blokk-markup újragenerálása is (utána: wp-theme/dev/canon.mjs)
