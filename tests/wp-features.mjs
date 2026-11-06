@@ -1046,6 +1046,18 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(!g.includes('ajándékutalvány') && !/Mandala ajándékutalvány/.test(ak), 'feed: utalvány nem kerül bele');
   ok(/<products>[\s\S]*<product><identifier>/.test(ak) && /<delivery_cost>\d+<\/delivery_cost>/.test(ak) && /<termeklista>[\s\S]*<termek><cikkszam>/.test(ag), 'feed: Árukereső és Árgép formátum');
   ok((await (await fetch(`${BASE}/?mandala_feed=meta`)).text()).includes('<g:id>'), 'feed: Meta katalógus');
+  const oc = await feed('olcsobbat');
+  ok(/<catalog>[\s\S]*<product><id>[\s\S]*<grossprice>\d+<\/grossprice>[\s\S]*<urlsite>/.test(oc), 'feed: Olcsóbbat formátum');
+  // A régi bolt feed-bővítményeinek címei ugyanazon a címen a téma feedjét adják (Árukereső for WooCommerce, CTX Feed).
+  const legacy = async (u, ua = 'Mozilla/5.0') => { const r = await fetch(`${BASE}${u}`, { headers: { 'User-Agent': ua }, redirect: 'manual' }); return [r.status, (r.headers.get('content-type') || ''), await r.text()]; };
+  const [s1, c1, b1] = await legacy('/feed/arukereso');
+  const [s2, , b2] = await legacy('/wp-content/uploads/arukereso-xml/argep.xml');
+  const [s3, , b3] = await legacy('/wp-content/uploads/woo-feed/facebook/xml/fb1.xml', 'facebookexternalhit/1.1');
+  const [s4, , b4] = await legacy('/wp-content/uploads/arukereso-0123456789abcdef/olcsobbat.xml');
+  ok(s1 === 200 && c1.includes('xml') && b1.includes('<products>') && s2 === 200 && b2.includes('<termeklista>') && s3 === 200 && b3.includes('<g:id>') && s4 === 200 && b4.includes('<catalog>'), 'feed: régi címek (/feed/arukereso, arukereso-xml, woo-feed, véletlen mappa) 200-zal, a helyes formátumban');
+  const [s5] = await legacy('/wp-content/uploads/2026/09/nincs-ilyen.xml');
+  const log = wp('echo wp_json_encode([array_keys((array) get_option("mandala_feeds_legacy", [])), array_keys((array) get_option("mandala_feeds_unknown", []))]);');
+  ok(s5 !== 200 && log.includes('/feed/arukereso') && log.includes('woo-feed/facebook/xml/fb1.xml') && log.includes('nincs-ilyen.xml'), 'feed: ismeretlen .xml nem kap feedet, a régi címek és az ismeretlen kérések naplóba kerülnek', log);
 
   // --- Tanuló ajánló ---
   for (let i = 0; i < 2; i++) created.push(mk(`reco${i}@example.com`, [ids.bowl, ids.inc]));

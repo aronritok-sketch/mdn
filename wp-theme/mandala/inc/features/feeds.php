@@ -4,8 +4,11 @@
  *
  *  - Google Merchant Center (ingyenes megjelenés + Shopping): RSS 2.0, g: névtér, változatokkal.
  *  - Meta (Facebook / Instagram katalógus): ugyanaz a formátum, külön címen.
- *  - Árukereső és Árgép: a saját XML formátumuk (a regisztrációnál a feed-ellenőrzőjükkel érdemes
+ *  - Árukereső, Árgép és Olcsóbbat: a saját XML formátumuk (a regisztrációnál a feed-ellenőrzőjükkel érdemes
  *    egyszer átnézni).
+ *  - Régi címek: amit a régi bolt feed-bővítményei adtak (Árukereső for WooCommerce: /feed/arukereso,
+ *    uploads/arukereso-xml/…, uploads/arukereso-<véletlen>/…; Product Feed PRO, CTX Feed), ugyanazon a címen a
+ *    téma feedjét kapja – az ár-összehasonlítóknál nem kell semmit átírni. A kért régi címek naplója az adminban.
  *
  * A feedek a háttérben (Action Scheduler) készülnek a feltöltések közé (uploads/mandala-feeds), a
  * cím csak kiszolgálja a fájlt – 3000+ termékkel is gyors. Kimarad: utalvány, eseményjegy, rejtett /
@@ -20,6 +23,7 @@ const MANDALA_FEEDS = [
     'meta' => ['label' => 'Meta (Facebook / Instagram katalógus)', 'where' => 'Commerce Manager → Katalógus → Adatforrások → Adatfeed → ütemezett URL', 'type' => 'google'],
     'arukereso' => ['label' => 'Árukereső', 'where' => 'Árukereső partnerfelület → Termékfeed (XML) URL', 'type' => 'arukereso'],
     'argep' => ['label' => 'Árgép', 'where' => 'Árgép boltfelület → Terméklista (XML) URL', 'type' => 'argep'],
+    'olcsobbat' => ['label' => 'Olcsóbbat', 'where' => 'Olcsóbbat partnerfelület → Termékfeed (XML) URL', 'type' => 'olcsobbat'],
     'pinterest' => ['label' => 'Pinterest katalógus', 'where' => 'business.pinterest.com → Katalógusok → Adatforrás hozzáadása → „Adatforrás URL-je” (RSS/XML)', 'type' => 'google'],
 ];
 
@@ -147,6 +151,22 @@ function mandala_feed_xml(string $type, array $items): string
         }
         return $out . '</products>';
     }
+    if ($type === 'olcsobbat') {
+        // A régi bolt bővítményének (Árukereső for WooCommerce) Olcsóbbat-formátuma.
+        $out = '<?xml version="1.0" encoding="UTF-8"?>' . "\n<catalog>\n";
+        foreach ($items as $i) {
+            $price = $i['sale'] ?: $i['price'];
+            $out .= '<product><id>' . $x($i['id']) . '</id><name>' . $x($i['title']) . '</name><manufacturer>' . $x($s['brand']) . '</manufacturer>'
+                . ($i['ean'] ? '<barcodes><barcode type="ean-13">' . $x($i['ean']) . '</barcode></barcodes>' : '')
+                . '<itemid>' . $x($i['id']) . '</itemid><category>' . $x(str_replace(' > ', '/', $i['category'])) . '</category>'
+                . '<grossprice>' . $fmt($price) . '</grossprice><netprice>' . $fmt($price / 1.27) . '</netprice>'
+                . '<urlsite>' . $x($i['link']) . '</urlsite><urlpicture>' . $x($i['images'][0]) . '</urlpicture>'
+                . '<describe>' . $x(mb_substr($i['description'], 0, 1000)) . '</describe>'
+                . '<deliveryprice>' . ($i['shipping'] > 0 ? $fmt($i['shipping']) : 'ingyenes') . '</deliveryprice>'
+                . '<deliverytime>' . $x($i['status'] === 'preorder' ? 'előrendelés' : $s['delivery_time']) . "</deliverytime></product>\n";
+        }
+        return $out . '</catalog>';
+    }
     // Árgép
     $out = '<?xml version="1.0" encoding="UTF-8"?>' . "\n<termeklista>\n";
     foreach ($items as $i) {
@@ -170,7 +190,7 @@ function mandala_feeds_build(): array
     $skip = mandala_feed_settings()['skip_out'] === 'yes';
     $stats = [];
     foreach (MANDALA_FEEDS as $name => $feed) {
-        $list = $feed['type'] !== 'google' && $skip ? array_values(array_filter($items, fn($i) => $i['status'] !== 'out_of_stock')) : $items;
+        $list = $feed['type'] !== 'google' && $skip ? array_values(array_filter($items, fn($i) => $i['status'] !== 'out_of_stock')) : $items; // Árukereső, Árgép, Olcsóbbat
         // Atomi csere: a letöltő (Árukereső, Google…) soha nem kap félig írt fájlt.
         $tmp = $dir . '/' . $name . '.xml.' . wp_generate_password(6, false);
         if (file_put_contents($tmp, mandala_feed_xml($feed['type'], $list)) !== false) {
@@ -198,22 +218,119 @@ add_action('mandala_feeds_build', function () {
     mandala_feeds_build();
 });
 
-/** Kiszolgálás: ?mandala_feed=google (ha még nincs fájl, most készül). */
-add_action('template_redirect', function () {
-    $name = sanitize_key($_GET['mandala_feed'] ?? '');
-    if ($name === '' || !isset(MANDALA_FEEDS[$name])) {
-        return;
-    }
+/** Egy feed kiküldése (ha még nincs fájl, vagy 3 óránál régebbi, most készül). */
+function mandala_feed_send(string $name): void
+{
     $file = mandala_feed_dir() . '/' . $name . '.xml';
     if (!is_readable($file) || filemtime($file) < time() - 3 * HOUR_IN_SECONDS) {
         mandala_feeds_build();
     }
     nocache_headers();
+    status_header(200);
     header('Content-Type: application/xml; charset=UTF-8');
     header('X-Robots-Tag: noindex');
     readfile($file);
     exit;
+}
+
+/** Kiszolgálás: ?mandala_feed=google. */
+add_action('template_redirect', function () {
+    $name = sanitize_key($_GET['mandala_feed'] ?? '');
+    if ($name !== '' && isset(MANDALA_FEEDS[$name])) {
+        mandala_feed_send($name);
+    }
 }, 0);
+
+/* ---------- Régi címek (a régi bolt feed-bővítményei) ---------- */
+
+/**
+ * Melyik feed tartozik egy régi feed-címhez ('' = nem feed-cím). Csak a régi bővítmények útvonalaira illik
+ * (és csak akkor fut, ha a fájl nincs meg – a meglévőt a webszerver adja): a /feed/<név> végpont, a ?feed=<név>,
+ * és a feltöltések alatti .xml, ha a mappa vagy a fájl neve elárulja a szolgáltatót. Ha nem (Product Feed PRO
+ * véletlen fájlnév), a letöltő böngésző-azonosítója dönt. Tesztelhető.
+ */
+function mandala_feed_legacy_name(string $path, string $query, string $ua): string
+{
+    $path = strtolower(rawurldecode($path));
+    if (preg_match('#^/feed/(arukereso|argep|olcsobbat)/?$#', $path, $m)) {
+        return $m[1];
+    }
+    parse_str($query, $q);
+    if (isset($q['feed']) && in_array(strtolower((string) $q['feed']), ['arukereso', 'argep', 'olcsobbat'], true)) {
+        return strtolower((string) $q['feed']);
+    }
+    if (!preg_match('#^/wp-content/uploads/(.+)\.(xml|csv|txt)$#', $path, $m) || str_starts_with($m[1], 'mandala-feeds/')) {
+        return '';
+    }
+    // A fájlnév, aztán a mappák nevéből (CTX Feed: woo-feed/<szolgáltató>/xml/<név>.xml, pl. woo-feed/facebook/xml/fb1.xml).
+    $hints = [
+        '#aruk|heureka#' => 'arukereso',
+        '#argep|arg-ep#' => 'argep',
+        '#olcso#' => 'olcsobbat',
+        '#pinterest|(^|[^a-z])pin([^a-z]|$)#' => 'pinterest',
+        '#facebook|instagram|(^|[^a-z])(fb|meta|ig)([^a-z]|$)#' => 'meta',
+        '#google|merchant|gmc|shopping#' => 'google',
+    ];
+    foreach (array_reverse(explode('/', $m[1])) as $part) {
+        foreach ($hints as $re => $feed) {
+            if (preg_match($re, $part)) {
+                return $feed;
+            }
+        }
+    }
+    if (!preg_match('#^(woo-feed|ctx-feed|webappick[^/]*|woo-product-feed-pro|product-feeds?|wpwoof-feed|wpallexport|feeds?)/#', $m[1])) {
+        return '';
+    }
+    // Beszédes név nélkül (pl. Product Feed PRO véletlen fájlneve): a letöltő azonosítója dönt.
+    $ua = strtolower($ua);
+    foreach (['aruk' => 'arukereso', 'heureka' => 'arukereso', 'argep' => 'argep', 'olcsobbat' => 'olcsobbat', 'facebook' => 'meta', 'pinterest' => 'pinterest'] as $k => $feed) {
+        if (str_contains($ua, $k)) {
+            return $feed;
+        }
+    }
+
+    return 'google';
+}
+
+/** A régi-cím napló egy sora (óránként egyszer írunk címenként, legfeljebb 40 cím). */
+function mandala_feed_legacy_log(string $option, string $key, string $feed): void
+{
+    $log = (array) get_option($option, []);
+    $row = (array) ($log[$key] ?? []);
+    if (($row['last'] ?? 0) >= time() - HOUR_IN_SECONDS) {
+        return;
+    }
+    $log[$key] = ['feed' => $feed, 'hits' => (int) ($row['hits'] ?? 0) + 1, 'last' => time(), 'ua' => mb_substr(sanitize_text_field((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')), 0, 160)];
+    uasort($log, fn($a, $b) => ($b['last'] ?? 0) <=> ($a['last'] ?? 0));
+    update_option($option, array_slice($log, 0, 40, true), false);
+}
+
+add_action('init', function () {
+    if (is_admin() || wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST) || !in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
+        return;
+    }
+    $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+    $path = (string) parse_url($uri, PHP_URL_PATH);
+    $home = rtrim((string) parse_url(home_url('/'), PHP_URL_PATH), '/');
+    if ($home !== '' && str_starts_with($path, $home)) {
+        $path = substr($path, strlen($home)) ?: '/';
+    }
+    if (!preg_match('#^/(feed/|wp-content/uploads/)#', $path) && !str_contains((string) parse_url($uri, PHP_URL_QUERY), 'feed=')) {
+        return;
+    }
+    $query = (string) parse_url($uri, PHP_URL_QUERY);
+    $name = mandala_feed_legacy_name($path, $query, (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    $key = substr($path . (str_starts_with($path, '/feed/') || $query === '' ? '' : '?' . $query), 0, 300);
+    if ($name === '' || !isset(MANDALA_FEEDS[$name])) {
+        // Feltöltések alatti, hiányzó .xml / .csv: nem ismertük fel – naplózzuk, hogy kiderüljön, ki mit kér.
+        if (preg_match('#^/wp-content/uploads/.+\.(xml|csv)$#i', $path)) {
+            mandala_feed_legacy_log('mandala_feeds_unknown', $key, '');
+        }
+        return;
+    }
+    mandala_feed_legacy_log('mandala_feeds_legacy', $key, $name);
+    mandala_feed_send($name);
+}, 1);
 
 /* ---------- Admin: WooCommerce → Mandala feedek ---------- */
 
@@ -246,9 +363,28 @@ function mandala_feeds_admin(): void
     wp_nonce_field('mandala_feeds');
     echo '<table class="form-table"><tr><th scope="row"><label for="mf-brand">Márka</label></th><td><input type="text" id="mf-brand" name="mandala_feeds[brand]" value="' . esc_attr($s['brand']) . '" class="regular-text"><p class="description">Kézműves termékeknél a bolt neve (a Google elfogadja).</p></td></tr>'
         . '<tr><th scope="row"><label for="mf-time">Szállítási idő</label></th><td><input type="text" id="mf-time" name="mandala_feeds[delivery_time]" value="' . esc_attr($s['delivery_time']) . '" class="regular-text"></td></tr>'
-        . '<tr><th scope="row">Elfogyott termékek</th><td><label><input type="checkbox" name="mandala_feeds[skip_out]" value="1"' . checked($s['skip_out'], 'yes', false) . '> az Árukeresőből és az Árgépből kimaradnak</label><p class="description">A Google és a Meta feedben „nincs raktáron” jelzéssel szerepelnek (így nem kell újra jóváhagyatni őket).</p></td></tr></table>';
+        . '<tr><th scope="row">Elfogyott termékek</th><td><label><input type="checkbox" name="mandala_feeds[skip_out]" value="1"' . checked($s['skip_out'], 'yes', false) . '> az Árukeresőből, az Árgépből és az Olcsóbbatból kimaradnak</label><p class="description">A Google és a Meta feedben „nincs raktáron” jelzéssel szerepelnek (így nem kell újra jóváhagyatni őket).</p></td></tr></table>';
     submit_button('Mentés és feedek frissítése');
     echo '</form>';
+    $legacy = (array) get_option('mandala_feeds_legacy', []);
+    echo '<h2>Régi címek</h2><p class="description">A régi bolt feed-bővítményeinek címei (pl. /feed/arukereso, /wp-content/uploads/arukereso-xml/arukereso.xml) ugyanígy működnek: a téma feedjét adják, az ár-összehasonlítóknál nem kell átírni. Itt látszik, melyiket ki kérte (óránként frissül).</p>';
+    if ($legacy) {
+        echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>Régi cím</th><th>Feed</th><th>Utoljára</th><th>Letöltő</th></tr></thead><tbody>';
+        foreach ($legacy as $path => $r) {
+            echo '<tr><td><code>' . esc_html($path) . '</code></td><td>' . esc_html(MANDALA_FEEDS[$r['feed']]['label'] ?? $r['feed']) . '</td><td>' . esc_html(wp_date('Y. m. d. H:i', (int) $r['last'])) . '</td><td class="description">' . esc_html($r['ua']) . '</td></tr>';
+        }
+        echo '</tbody></table>';
+    } else {
+        echo '<p><em>Még senki nem kérte a régi címeket.</em></p>';
+    }
+    $unknown = (array) get_option('mandala_feeds_unknown', []);
+    if ($unknown) {
+        echo '<h3>Nem felismert feed-kérések</h3><p class="description">Hiányzó .xml / .csv a feltöltések alatt, amiről nem derül ki, melyik szolgáltatóé. Ha ez egy ár-összehasonlító régi címe, szólj: felvesszük.</p><table class="widefat striped" style="max-width:1100px"><thead><tr><th>Cím</th><th>Utoljára</th><th>Letöltő</th></tr></thead><tbody>';
+        foreach ($unknown as $path => $r) {
+            echo '<tr><td><code>' . esc_html($path) . '</code></td><td>' . esc_html(wp_date('Y. m. d. H:i', (int) $r['last'])) . '</td><td class="description">' . esc_html($r['ua']) . '</td></tr>';
+        }
+        echo '</tbody></table>';
+    }
     do_action('mandala_feeds_admin_after');
     echo '</div>';
 }
