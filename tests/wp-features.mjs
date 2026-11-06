@@ -1056,7 +1056,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   const [s4, , b4] = await legacy('/wp-content/uploads/arukereso-0123456789abcdef/olcsobbat.xml');
   ok(s1 === 200 && c1.includes('xml') && b1.includes('<products>') && s2 === 200 && b2.includes('<termeklista>') && s3 === 200 && b3.includes('<g:id>') && s4 === 200 && b4.includes('<catalog>'), 'feed: régi címek (/feed/arukereso, arukereso-xml, woo-feed, véletlen mappa) 200-zal, a helyes formátumban');
   const [s5] = await legacy('/wp-content/uploads/2026/09/nincs-ilyen.xml');
-  const log = wp('echo wp_json_encode([array_keys((array) get_option("mandala_feeds_legacy", [])), array_keys((array) get_option("mandala_feeds_unknown", []))]);');
+  const log = wp('echo wp_json_encode([array_keys((array) get_option("mandala_feeds_legacy", [])), array_keys((array) get_option("mandala_feeds_unknown", []))], JSON_UNESCAPED_SLASHES);');
   ok(s5 !== 200 && log.includes('/feed/arukereso') && log.includes('woo-feed/facebook/xml/fb1.xml') && log.includes('nincs-ilyen.xml'), 'feed: ismeretlen .xml nem kap feedet, a régi címek és az ismeretlen kérések naplóba kerülnek', log);
 
   // --- Tanuló ajánló ---
@@ -1242,7 +1242,7 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok((await admin.textContent('.notice-success, .notice-error')).includes('Claude: rendben'), 'varázsló: API-kulcs ellenőrzése');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=growth`);
   await Promise.all([admin.waitForNavigation(), admin.click('button:has-text("Indítás / frissítés most")')]);
-  ok((await admin.textContent('.notice-success')).includes('gyűjtőoldal') && (await admin.$$('.wiz-code')).length === 5, 'varázsló: önjáró részek indítása, feed címek');
+  ok((await admin.textContent('.notice-success')).includes('gyűjtőoldal') && (await admin.$$('.wiz-code')).length === 6, 'varázsló: önjáró részek indítása, feed címek (6, az Olcsóbbattal)');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=legal`);
   ok((await admin.textContent('.wiz-main')).includes('kitöltendő részek maradtak'), 'varázsló: a jogi oldalak kitöltendő részeit jelzi');
   await admin.goto(`${BASE}/wp-admin/admin.php?page=mandala-varazslo&step=plugins`);
