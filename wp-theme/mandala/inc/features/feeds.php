@@ -80,6 +80,11 @@ function mandala_feed_items(): array
         foreach ($variants as $v) {
             $regular = (float) $v->get_regular_price('edit');
             $sale = $v->is_on_sale('edit') && $v->get_sale_price('edit') !== '' ? (float) $v->get_sale_price('edit') : 0.0;
+            // Kampányár (promos.php) – a bolti szabályokkal, hogy a Google / Meta ugyanazt lássa, mint a termékoldal.
+            $promo = function_exists('mandala_promo_price_for') ? mandala_promo_price_for($v, mandala_promo_rules()) : null;
+            if ($promo !== null && $promo > 0 && $promo < ($sale ?: $regular)) {
+                $sale = $promo;
+            }
             $price = $sale ?: $regular;
             if ($price <= 0) {
                 continue;
@@ -211,7 +216,7 @@ function mandala_feeds_build(): array
 /** A feedek forrásának „ujjlenyomata”: a termékindex változata + a feed beállítások. */
 function mandala_feeds_sig(): string
 {
-    return md5(mandala_index_hash() . wp_json_encode(mandala_feed_settings()) . mandala_config('freeShippingFrom', 25000));
+    return md5(mandala_index_hash() . wp_json_encode(mandala_feed_settings()) . mandala_config('freeShippingFrom', 25000) . (function_exists('mandala_promo_sig') ? mandala_promo_sig() : ''));
 }
 
 mandala_recurring('mandala_feeds_build', HOUR_IN_SECONDS, fn() => time() + 10 * MINUTE_IN_SECONDS);

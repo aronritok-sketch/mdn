@@ -17,12 +17,13 @@ defined('ABSPATH') || exit;
 
 function mandala_growth_settings(): array
 {
-    return wp_parse_args((array) get_option('mandala_growth', []), [
+    // A kampány (promos.php) ideiglenesen felülírhatja az ajándék-értékhatárt (mandala_growth_settings szűrő).
+    return apply_filters('mandala_growth_settings', wp_parse_args((array) get_option('mandala_growth', []), [
         'popup' => 'yes', 'popup_percent' => 10, 'popup_days' => 14, 'popup_delay' => 25, 'popup_mode' => 'both',
         'referral' => 'yes', 'ref_percent' => 10, 'ref_reward' => 2000, 'ref_reward_days' => 90,
         'gwp' => 'no', 'gwp_threshold' => 15000, 'gwp_sku' => '', 'gwp_label' => 'ajándék füstölő',
         'birthday' => 'yes', 'birthday_percent' => 15, 'birthday_days' => 14,
-    ]);
+    ]));
 }
 
 /** Egyszer használható, a címhez kötött kupon. */

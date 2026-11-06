@@ -66,6 +66,29 @@ export function logSearch(q, results, src, click = 0) {
   if (!navigator.sendBeacon?.(`${M.rest}search-log`, body)) fetch(`${M.rest}search-log`, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
 }
 
+/**
+ * Kampány-ajánlat (promos.php párja): az index a nyers árat viszi, a böngésző az időből dönti el, melyik kampány él
+ * (M.promo: kezdet, vég, 1+1 kategóriák, százalék + kivételek). Így a statikus index fájl a kampány alatt is helyes.
+ * A szerver ugyanígy számol (kerekítés egész forintra); a százalék csak a „pok” (30 napos szabály szerint jogosult),
+ * nem akciós termékre jár, az 1+1 kategóriák nem kapnak százalékot. Viszonteladónak M.promo üres.
+ */
+export function applyPromo(list, now = Date.now() / 1000) {
+  const live = (M.promo || []).filter((w) => w.s <= now && now < w.e);
+  if (!live.length) return list;
+  const bogo = [...new Set(live.flatMap((w) => w.bogo || []))];
+  const pw = live.find((w) => w.pct > 0 || Object.keys(w.cats || {}).length);
+  return list.map((p) => {
+    if (p.wholesale) return p;
+    const cats = p.pc || [p.cat, p.sub].filter(Boolean);
+    if (bogo.length && cats.some((c) => bogo.includes(c))) return { ...p, bogo: 1 };
+    if (!pw || !p.pok || p.compare > p.price || !(p.price > 0)) return p;
+    const hits = cats.filter((c) => Object.prototype.hasOwnProperty.call(pw.cats || {}, c)).map((c) => Number(pw.cats[c]));
+    const pct = hits.length ? Math.min(...hits) : Number(pw.pct);
+    if (!(pct > 0)) return p;
+    return { ...p, compare: p.price, price: Math.round((p.price * (100 - pct)) / 100), promo: 1 };
+  });
+}
+
 export function loadProducts() {
   // A nonce azonosítja a belépett vásárlót: viszonteladónak a nagyker árakkal jön az index.
   // Alapesetben statikus JSON fájl (M.products, verzióval) – a webszerver szolgálja ki, PHP nélkül.
@@ -73,7 +96,7 @@ export function loadProducts() {
   const url = M.products && !M.products.startsWith(`${M.rest}products`) ? M.products : rest;
   productsPromise ??= fetch(url, url === rest ? { credentials: 'same-origin', headers: M.loggedIn ? { 'X-WP-Nonce': M.nonce } : {} } : {})
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    .then((list) => list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] })))
+    .then((list) => applyPromo(list.map((p) => ({ ...p, attrs: p.attrs || {}, specs: p.specs || {}, intents: p.intents || [] }))))
     .then((list) => { setCorpus(list, searchConfig()); return list; })
     .catch((err) => { console.warn('Mandala: a termékindex nem tölthető be.', err); return []; });
   return productsPromise;
@@ -112,6 +135,7 @@ export function productCard(p) {
   const out = p.stock === 'out';
   const badges = [
     out ? '<span class="badge badge-dark">Elfogyott</span>' : p.wholesale ? '<span class="badge badge-sale">Nagyker ár</span>' : saleOf(p) ? `<span class="badge badge-sale">−${saleOf(p)}%</span>` : '',
+    !out && p.bogo ? '<span class="badge badge-sale">1+1</span>' : '',
     !out && p.isNew ? '<span class="badge">Új</span>' : '',
     !out && p.unique ? '<span class="badge badge-unique">Egyedi darab</span>' : '',
     p.incoming ? `<span class="badge badge-incoming">Érkezik ${esc(p.incomingLabel || '')}</span>` : '',

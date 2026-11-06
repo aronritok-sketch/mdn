@@ -218,6 +218,34 @@ function mandala_sitefix_list(): array
             return ($n || $u) ? "$n rendelés, $u vásárló adószáma bemásolva a Számlázz.hu kulcsába" : 'nem kellett';
         },
 
+        // A karácsonyi kampány 2026 (mdn docs/kampany/2026-karacsony, Áron jóváhagyta 2026-11-06): hat kampány a
+        // Kampányokba, ajánlattal (promos.php). Az átfedő, korábbi kampányok kikapcsolva a lista végére kerülnek.
+        'kampany-karacsony-2026' => function () {
+            $seed = mandala_xmas2026_campaigns();
+            $from = strtotime('2026-11-13 00:00 ' . wp_timezone_string());
+            $to = strtotime('2026-12-24 12:00 ' . wp_timezone_string());
+            $old = [];
+            $off = 0;
+            foreach (mandala_campaigns() as $c) {
+                if (($c['seed'] ?? '') === 'karacsony-2026') {
+                    continue;
+                }
+                $s = strtotime(($c['start'] ?? '') . ' ' . wp_timezone_string());
+                $e = strtotime(($c['end'] ?? '') . ' ' . wp_timezone_string());
+                if (($c['enabled'] ?? 'yes') === 'yes' && $s && $e && $s < $to && $e > $from) {
+                    $c['enabled'] = 'no';
+                    $off++;
+                }
+                $old[] = $c;
+            }
+            update_option('mandala_campaigns', array_merge($seed, $old), false);
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action('mandala_price_log', [], 'mandala'); // az ár-napló első futása (a rendelésekből is pótol)
+                as_schedule_single_action(time() + 5 * MINUTE_IN_SECONDS, 'mandala_index_daily', [], 'mandala'); // index: az új kampány-mezők (pc, pok)
+            }
+            return count($seed) . ' kampány beírva' . ($off ? ", $off átfedő régi kampány kikapcsolva" : '');
+        },
+
         'mintaoldal-2026-10' => function () {
             $n = 0;
             foreach (['ez-egy-minta-oldal', 'sample-page', 'minta-oldal'] as $slug) {
@@ -229,6 +257,44 @@ function mandala_sitefix_list(): array
             }
             return $n ? 'mintaoldal a lomtárban' : 'nem volt';
         },
+    ];
+}
+
+/**
+ * A 2026-os karácsonyi kampány bejegyzései (a sorrend számít: a felső sávot és a bannert a lista első aktív
+ * kampánya adja – ezért a Black Friday áll elöl; az ajánlatok összeadódnak, így nov. 27-én a Black Week 20%-a és
+ * az ingyenes szállítás együtt él).
+ */
+function mandala_xmas2026_campaigns(): array
+{
+    $gwp = ['min' => 15000, 'sku' => '8904234400037', 'label' => 'ajándék füstölő']; // Satya Nag Champa – a csomagba tesszük
+    $none = ['bogo' => [], 'pct' => 0, 'pct_cats' => [], 'freeship' => 'no', 'wrap' => 'no', 'gwp' => ['min' => 0, 'sku' => '', 'label' => '']];
+    $c = fn(array $a, array $rules) => $a + ['coupon' => '', 'auto' => 'no', 'enabled' => 'yes', 'seed' => 'karacsony-2026', 'rules' => array_replace($none, $rules)];
+    return [
+        $c(['name' => 'Black Friday', 'start' => '2026-11-27 00:00', 'end' => '2026-11-28 00:00',
+            'bar' => 'Ma a szállítás ingyenes, bármekkora rendelésnél – éjfélig', 'eyebrow' => 'Black Friday – csak ma',
+            'title' => 'Ma a szállítás ránk jön', 'text' => 'Bármekkora rendelésnél, a Black Week kedvezményei mellé: szinte mindenre 20%, a hangtálakra 10%, a füstölőkre egyet fizetsz, kettőt viszel.',
+            'button' => 'Black Week ajánlatok', 'url' => '/termekek/?allapot=akcios'], ['freeship' => 'yes']),
+        $c(['name' => 'Füstölő-hét', 'start' => '2026-11-13 00:00', 'end' => '2026-11-23 00:00',
+            'bar' => 'Egyet fizetsz, kettőt viszel – minden füstölőre, november 22-ig', 'eyebrow' => 'Füstölő-hét – november 22-ig',
+            'title' => 'Egyet fizetsz, kettőt viszel', 'text' => 'Minden füstölőre: két csomagból az olcsóbbat mi álljuk. Nag Champa, Palo Santo, fehér zsálya, szantálfa – több mint 400 illat.',
+            'button' => 'Füstölők', 'url' => '/kategoria/szakralis-targyak/fustolok/'], ['bogo' => ['fustolok']]),
+        $c(['name' => 'Black Week', 'start' => '2026-11-23 00:00', 'end' => '2026-12-01 00:00',
+            'bar' => 'Black Week: szinte mindenre 20%, a hangtálakra 10% – november 30-ig', 'eyebrow' => 'Black Week – november 30-ig',
+            'title' => 'Szinte mindenre 20%', 'text' => 'A hangtálakra 10%, a füstölőkre marad az egyet fizetsz, kettőt viszel. Kézzel válogatott darabok Nepálból és Indiából.',
+            'button' => 'Black Week ajánlatok', 'url' => '/termekek/?allapot=akcios'], ['bogo' => ['fustolok'], 'pct' => 20, 'pct_cats' => ['hangtalak' => 10]]),
+        $c(['name' => 'Mikulás', 'start' => '2026-12-01 00:00', 'end' => '2026-12-03 12:00',
+            'bar' => 'Mikulásra december 3-án 12 óráig rendelj – a díszcsomagolás ajándék', 'eyebrow' => 'Mikulás – rendelj december 3-án 12 óráig',
+            'title' => 'Ajándék a csizmába', 'text' => 'Díszcsomagolásban, kézzel írt kártyával – ez most nem kerül semmibe. 15 000 Ft felett egy füstölőt is teszünk mellé.',
+            'button' => 'Apró ajándékok', 'url' => '/termekek/?szandek=ajandek'], ['wrap' => 'yes', 'gwp' => $gwp]),
+        $c(['name' => 'Karácsony', 'start' => '2026-12-03 12:00', 'end' => '2026-12-18 12:00',
+            'bar' => 'Karácsonyra december 18-án 12 óráig rendelj – díszcsomagolás és kártya ajándékba', 'eyebrow' => 'Karácsony – rendelj december 18-án 12 óráig',
+            'title' => 'Ajándék, ami jelent is valamit', 'text' => 'Ajándékválasztó és utalvány – díszcsomagolással, kézzel írt kártyával. 15 000 Ft felett egy füstölő is a csomagba kerül.',
+            'button' => 'Ajándékötletek', 'url' => '/termekek/?szandek=ajandek'], ['wrap' => 'yes', 'gwp' => $gwp]),
+        $c(['name' => 'Karácsony – utolsó napok', 'start' => '2026-12-18 12:00', 'end' => '2026-12-24 12:00',
+            'bar' => 'Elfogyott az idő? Ajándékutalvány e-mailben, nyomtatható is', 'eyebrow' => 'Az utolsó napokban – december 24-ig',
+            'title' => 'Utolsó pillanat? Utalvány.', 'text' => 'E-mailben érkezik, nyomtatható is, és ő választ a teljes kínálatból. A bemutatóteremben (Bakáts u. 6.) személyesen is átveheted, amit rendelsz.',
+            'button' => 'Ajándékutalvány', 'url' => '/ajandekcsomag/'], ['wrap' => 'yes', 'gwp' => $gwp]),
     ];
 }
 

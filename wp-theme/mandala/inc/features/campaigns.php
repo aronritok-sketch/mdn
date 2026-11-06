@@ -279,6 +279,21 @@ function mandala_campaigns_admin(): void
             $c['coupon'] = wc_format_coupon_code($c['coupon']);
             $c['auto'] = empty($_POST['auto']) ? 'no' : 'yes';
             $c['enabled'] = empty($_POST['enabled']) ? 'no' : 'yes';
+            // Ajánlat (promos.php): 1+1 kategóriák, százalék + kivételek, ingyenes szállítás, díszcsomagolás, ajándék.
+            $cats = [];
+            foreach (preg_split('/[,;\n]+/', sanitize_textarea_field(wp_unslash($_POST['promo_cats'] ?? ''))) as $pair) {
+                if (preg_match('/^\s*([\p{L}\p{N}_-]+)\s*[=:]\s*(\d+(?:[.,]\d+)?)\s*%?\s*$/u', $pair, $m)) {
+                    $cats[$m[1]] = (float) str_replace(',', '.', $m[2]);
+                }
+            }
+            $c['rules'] = function_exists('mandala_promo_clean_rules') ? mandala_promo_clean_rules([
+                'bogo' => sanitize_text_field(wp_unslash($_POST['promo_bogo'] ?? '')),
+                'pct' => (float) ($_POST['promo_pct'] ?? 0),
+                'pct_cats' => $cats,
+                'freeship' => empty($_POST['promo_freeship']) ? 'no' : 'yes',
+                'wrap' => empty($_POST['promo_wrap']) ? 'no' : 'yes',
+                'gwp' => ['min' => (int) ($_POST['promo_gwp_min'] ?? 0), 'sku' => sanitize_text_field(wp_unslash($_POST['promo_gwp_sku'] ?? '')), 'label' => sanitize_text_field(wp_unslash($_POST['promo_gwp_label'] ?? ''))],
+            ]) : ($all[$i]['rules'] ?? []);
             if ($c['name'] && strtotime($c['start']) && strtotime($c['end']) > strtotime($c['start'])) {
                 if ($i >= 0 && isset($all[$i])) {
                     $all[$i] = $c;
@@ -314,6 +329,8 @@ function mandala_campaigns_admin(): void
     }
     echo '</p>';
     $c = $edit ?: array_fill_keys($fields, '') + ['auto' => 'no', 'enabled' => 'yes'];
+    $r = function_exists('mandala_promo_clean_rules') ? mandala_promo_clean_rules($c['rules'] ?? []) : ['bogo' => [], 'pct' => 0, 'pct_cats' => [], 'freeship' => 'no', 'wrap' => 'no', 'gwp' => ['min' => 0, 'sku' => '', 'label' => '']];
+    $cats_txt = implode(', ', array_map(fn($k, $v) => $k . '=' . (0 + $v), array_keys($r['pct_cats']), $r['pct_cats']));
     $in = fn($f, $label, $type = 'text', $cls = 'regular-text') => '<tr><th>' . $label . '</th><td><input type="' . $type . '" name="' . $f . '" value="' . esc_attr($type === 'datetime-local' ? str_replace(' ', 'T', (string) $c[$f]) : (string) $c[$f]) . '" class="' . $cls . '"></td></tr>';
     echo '<h2>' . (isset($_GET['edit']) ? 'Kampány szerkesztése' : 'Új kampány') . '</h2><form method="post">' . $nonce // phpcs:ignore
         . '<input type="hidden" name="camp_do" value="save"><input type="hidden" name="i" value="' . (isset($_GET['edit']) ? (int) $_GET['edit'] : -1) . '"><table class="form-table">' // phpcs:ignore
@@ -321,7 +338,14 @@ function mandala_campaigns_admin(): void
         . $in('bar', 'Felső sáv szövege', 'text', 'large-text') . $in('eyebrow', 'Banner felirat') . $in('title', 'Banner cím', 'text', 'large-text') . $in('text', 'Banner szöveg', 'text', 'large-text')
         . $in('button', 'Gomb felirata') . $in('url', 'Cél (link)', 'text', 'large-text')
         . '<tr><th>Kupon</th><td><input type="text" name="coupon" value="' . esc_attr((string) $c['coupon']) . '" style="width:180px"> <label><input type="checkbox" name="auto" value="1"' . checked($c['auto'] ?? 'no', 'yes', false) . '> minden kosárra automatikusan a kampány alatt</label><p class="description">Üresen nincs kupon. Ha nem automatikus, a sáv és a banner linkje viszi be (?kupon=KOD). A kupont a Marketing → Kuponok alatt hozd létre (érvényességgel).</p></td></tr>'
-        . '<tr><th>Állapot</th><td><label><input type="checkbox" name="enabled" value="1"' . checked($c['enabled'] ?? 'yes', 'yes', false) . '> bekapcsolva</label></td></tr></table>';
+        . '<tr><th>Állapot</th><td><label><input type="checkbox" name="enabled" value="1"' . checked($c['enabled'] ?? 'yes', 'yes', false) . '> bekapcsolva</label></td></tr>'
+        . '<tr><th colspan="2"><h3 style="margin:8px 0 0">Ajánlat (a kampány idejére magától)</h3><p class="description" style="font-weight:400">Viszonteladónak nem jár, kuponnal nem adódik össze. Egyszerre futó kampányok ajánlatai összeadódnak (pl. Black Friday ingyenes szállítás a Black Week alatt).</p></th></tr>'
+        . '<tr><th>1+1 (egyet fizetsz, kettőt viszel)</th><td><input type="text" name="promo_bogo" value="' . esc_attr(implode(', ', $r['bogo'])) . '" class="regular-text" placeholder="fustolok"><p class="description">Kategória-slugok vesszővel (az alkategóriák is). A kosárban minden pár olcsóbbik darabja 0 Ft.</p></td></tr>'
+        . '<tr><th>Százalékos kedvezmény</th><td><input type="number" name="promo_pct" min="0" max="90" step="1" value="' . esc_attr((string) (0 + $r['pct'])) . '" style="width:80px"> % – kivételek: <input type="text" name="promo_cats" value="' . esc_attr($cats_txt) . '" class="regular-text" placeholder="hangtalak=10"><p class="description">Az árban látszik (áthúzva). Nem jár: már akciós termék, utalvány, csomagolás, jegy, és ami az elmúlt 30 napban olcsóbb volt (árcsökkentési szabály). Az 1+1 kategóriák nem kapnak százalékot.</p></td></tr>'
+        . '<tr><th>Szállítás, csomagolás</th><td><label><input type="checkbox" name="promo_freeship" value="1"' . checked($r['freeship'], 'yes', false) . '> ingyenes szállítás bármekkora rendelésnél</label><br><label><input type="checkbox" name="promo_wrap" value="1"' . checked($r['wrap'], 'yes', false) . '> díszcsomagolás és kézzel írt kártya ajándékba (a pénztárban kérhető)</label></td></tr>'
+        . '<tr><th>Ajándék értékhatár felett</th><td><input type="number" name="promo_gwp_min" min="0" step="500" value="' . esc_attr((string) $r['gwp']['min']) . '" style="width:110px"> Ft felett, cikkszám: <input type="text" name="promo_gwp_sku" value="' . esc_attr($r['gwp']['sku']) . '" style="width:160px"> felirat: <input type="text" name="promo_gwp_label" value="' . esc_attr($r['gwp']['label']) . '" style="width:180px" placeholder="ajándék füstölő"></td></tr></table>';
     submit_button('Kampány mentése');
-    echo '</form><p class="description">Tipp: a ?kupon=KOD link bármely oldalhoz hozzáfűzhető (hírlevél, Facebook-hirdetés) – a kupon magától a kosárba kerül.</p></div>';
+    echo '</form><p class="description">Tipp: a ?kupon=KOD link bármely oldalhoz hozzáfűzhető (hírlevél, Facebook-hirdetés) – a kupon magától a kosárba kerül.</p>';
+    do_action('mandala_campaigns_admin_after', $all);
+    echo '</div>';
 }

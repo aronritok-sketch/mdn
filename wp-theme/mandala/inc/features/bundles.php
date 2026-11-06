@@ -117,7 +117,8 @@ add_action('woocommerce_before_calculate_totals', function ($cart) {
     }
     foreach ($cart->get_cart() as $key => $item) {
         $id = (int) $item['product_id'];
-        if (!empty($item['mandala_gwp']) || empty($discounted[$id][0])) {
+        // Kampány-kedvezményes tételre (1+1, százalék – promos.php) a csomagkedvezmény nem adódik rá.
+        if (!empty($item['mandala_gwp']) || empty($discounted[$id][0]) || (function_exists('mandala_promo_in_bogo') && (mandala_promo_in_bogo($item['data']) || mandala_promo_pct($item['data']) > 0))) {
             continue;
         }
         [$units, $pct, $name] = $discounted[$id];
