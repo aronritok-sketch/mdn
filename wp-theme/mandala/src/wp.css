@@ -399,6 +399,13 @@ a.intent-card:hover .art.medal { transform: rotate(30deg) scale(1.04); }
 .gwp-meter { background: var(--c-success-soft); }
 .gwp-meter .meter span { background: var(--c-success); }
 .gwp-meter p { display: flex; align-items: center; gap: var(--space-2); }
+/* Kampány-ajánlat (promos.php): 1+1 jelzés, díszcsomagolás a pénztárban, termékoldali megjegyzés */
+.promo-meter p { margin: 0; }
+.promo-note { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-m); background: var(--c-accent-soft); font-size: var(--fs-small); }
+.mandala-wrap { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--c-line, #ddd3c3); border-radius: var(--radius-m); }
+.mandala-wrap label.checkbox { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.mandala-wrap textarea { width: 100%; min-height: 3.2em; }
+.mandala-wrap-note { margin: var(--space-3) 0; }
 
 /* Születésnap választó (fiók, pénztár) */
 .birthday-field { border: 0; padding: 0; margin: var(--space-5) 0 0; }
