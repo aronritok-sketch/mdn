@@ -1050,6 +1050,10 @@ async function checkout(page, { email = 'vevo@example.com', before } = {}) {
   ok(/<catalog>[\s\S]*<product><id>[\s\S]*<grossprice>\d+<\/grossprice>[\s\S]*<urlsite>/.test(oc), 'feed: Olcsóbbat formátum');
   // A régi bolt feed-bővítményeinek címei ugyanazon a címen a téma feedjét adják (Árukereső for WooCommerce, CTX Feed).
   const legacy = async (u, ua = 'Mozilla/5.0') => { const r = await fetch(`${BASE}${u}`, { headers: { 'User-Agent': ua }, redirect: 'manual' }); return [r.status, (r.headers.get('content-type') || ''), await r.text()]; };
+  // Hidegindítás: nincs még feedfájl (2026-11-06: a túl korán futó kiszolgáló üres feedet írt minden jó helyére).
+  wp('foreach (glob(mandala_feed_dir() . "/*.xml") as $f) { unlink($f); } delete_option("mandala_feeds_built");');
+  const [s0, , b0] = await legacy('/feed/olcsobbat');
+  ok(s0 === 200 && (b0.match(/<product>/g) || []).length > 20, 'feed: hidegindításkor a régi címről is teljes feed készül (nem üres)');
   const [s1, c1, b1] = await legacy('/feed/arukereso');
   const [s2, , b2] = await legacy('/wp-content/uploads/arukereso-xml/argep.xml');
   const [s3, , b3] = await legacy('/wp-content/uploads/woo-feed/facebook/xml/fb1.xml', 'facebookexternalhit/1.1');

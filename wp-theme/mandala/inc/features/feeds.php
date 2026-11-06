@@ -187,6 +187,12 @@ function mandala_feeds_build(): array
         file_put_contents($dir . '/index.html', '');
     }
     $items = mandala_feed_items();
+    $prev = (array) get_option('mandala_feeds_built', []);
+    if (!$items && array_sum((array) ($prev['counts'] ?? [])) > 0) {
+        // 2026-11-06: egy túl korán futó kérés (a WooCommerce még nem töltődött be) üres feedet írt minden jó helyére.
+        // Üres termékjegyzékkel a meglévő, jó feedeket nem írjuk felül.
+        return (array) $prev['counts'];
+    }
     $skip = mandala_feed_settings()['skip_out'] === 'yes';
     $stats = [];
     foreach (MANDALA_FEEDS as $name => $feed) {
@@ -212,7 +218,8 @@ mandala_recurring('mandala_feeds_build', HOUR_IN_SECONDS, fn() => time() + 10 * 
 // Óránként – de csak ha változott valami (ár, készlet, új termék), különben naponta egyszer.
 add_action('mandala_feeds_build', function () {
     $built = (array) get_option('mandala_feeds_built', []);
-    if (($built['sig'] ?? '') === mandala_feeds_sig() && ($built['time'] ?? 0) > time() - DAY_IN_SECONDS) {
+    $empty = array_diff_key(MANDALA_FEEDS, array_filter((array) ($built['counts'] ?? [])));
+    if (!$empty && ($built['sig'] ?? '') === mandala_feeds_sig() && ($built['time'] ?? 0) > time() - DAY_IN_SECONDS) {
         return;
     }
     mandala_feeds_build();
@@ -222,7 +229,8 @@ add_action('mandala_feeds_build', function () {
 function mandala_feed_send(string $name): void
 {
     $file = mandala_feed_dir() . '/' . $name . '.xml';
-    if (!is_readable($file) || filemtime($file) < time() - 3 * HOUR_IN_SECONDS) {
+    $count = (int) (((array) get_option('mandala_feeds_built', []))['counts'][$name] ?? 0);
+    if (!is_readable($file) || filemtime($file) < time() - 3 * HOUR_IN_SECONDS || $count === 0) {
         mandala_feeds_build();
     }
     nocache_headers();
@@ -305,7 +313,8 @@ function mandala_feed_legacy_log(string $option, string $key, string $feed): voi
     update_option($option, array_slice($log, 0, 40, true), false);
 }
 
-add_action('init', function () {
+// wp_loaded: az init végén (a WooCommerce termék-taxonómiái az init-en jönnek létre – korábban a termékek nem látszanak).
+add_action('wp_loaded', function () {
     if (is_admin() || wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST) || !in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
         return;
     }
@@ -330,7 +339,7 @@ add_action('init', function () {
     }
     mandala_feed_legacy_log('mandala_feeds_legacy', $key, $name);
     mandala_feed_send($name);
-}, 1);
+}, 5);
 
 /* ---------- Admin: WooCommerce → Mandala feedek ---------- */
 
