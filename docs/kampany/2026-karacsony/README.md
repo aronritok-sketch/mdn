@@ -33,7 +33,7 @@ Decemberben nincs százalékos akció. Ennek oka az árszabály: a Black Friday-
 
 **Hírlevelek:** `hirlevelek/` – 9 levél MailerLite-ba (HTML + szöveges változat), az időpontok és tárgyak a `hirlevelek/README.md`-ben. A fejlécképek a témából töltődnek (élesben fent vannak). Generálás: `forras/xmas_mail.py` (a termékek az élő feedből; a hangtálak egyedi darabok, küldés előtt nézd meg, raktáron vannak-e).
 
-**Közösségi posztok:** `kozossegi/naptar.md` (15 poszt időponttal, szöveggel, képpel, linkkel; Google Cégprofil-ajánlatok), a lapozós posztok képei: `kozossegi/kepek/`.
+**Közösségi posztok:** `kozossegi/naptar.md` (15 poszt időponttal, szöveggel, képpel, linkkel; Google Cégprofil-ajánlatok), a lapozós posztok képei: `kozossegi/kepek/`. A Facebook- és Instagram-posztok **automatikusan mennek ki** a SEO OS Növekedési gépén (`forras/social_schedule.py`); kézzel csak a story, a 12. poszt és a Cégprofil.
 
 **Hirdetések:** `forras/ads_phase.py`. A szakaszhatárokon (nov. 13., 23., 27., 28., dec. 1., dec. 3. 12:00, dec. 18. 12:00, dec. 24. 12:00) a Meta v4 kampány A1 és A3 hirdetése új kreatívot kap, és a napi keretek a terv szerint változnak. Ha a remarketing nem tud költeni, a keretét a v4 kapja.
 

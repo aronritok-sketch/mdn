@@ -1,6 +1,12 @@
 # Közösségi posztok – karácsonyi kampány 2026 (Facebook, Instagram, Google Cégprofil)
 
-Időzítés: Meta Business Suite → Tervező → Bejegyzés létrehozása → Facebook + Instagram egyszerre → „Ütemezés”.
+**Automatikusan megy (Áron, 2026-11-06):** a Facebook- és Instagram-posztokat a SEO OS Növekedési gépe teszi ki időre
+(SEO OS → Mandala projekt → Növekedés fül: ott látszik, mi megy ki mikor, és ott állítható meg). A feltöltés:
+`forras/social_schedule.py` – ha egy szöveg itt változik, futtasd újra. A lapozós posztokból (3., 10.) a borítókártya
+megy ki egy képként.
+
+**Kézzel marad** (Meta Business Suite → Tervező → „Ütemezés”): a storyk, a 12. poszt (csapatfotó, nevekkel) és a Google
+Cégprofil.
 
 **Képek:**
 - A hírfolyamhoz 4:5: `../kepek/*-hirfolyam-1080x1350.jpg`.
