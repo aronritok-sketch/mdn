@@ -466,3 +466,10 @@ a.intent-card:hover .art.medal { transform: rotate(30deg) scale(1.04); }
 .campaign-count-big { margin-top: var(--space-3) !important; font-weight: 600; color: #E8B04B !important; }
 .campaign-banner .iu-button { flex: none; background: var(--c-white); color: var(--c-ink); border-color: var(--c-white); }
 @media (max-width: 767px) { .campaign-banner { flex-direction: column; align-items: flex-start; padding: var(--space-6) var(--space-5); } }
+
+/* iOS Safari: a 16 px-nél kisebb betűs mezőre koppintva ránagyít, és vissza sem kicsinyít – az oldal utána jobbra-balra
+   húzható marad (Áron, 2026-11-07: „Jobbra balra lehet mozgatni. Nem jó”; a terméklista szűrőjében a kereső 15 px, az
+   ár, az anyag-kereső és a rendezés 14 px volt). Érintőképernyőn minden mező legalább 16 px. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea { font-size: max(16px, 1em) !important; }
+}
