@@ -80,6 +80,67 @@ add_action('woocommerce_after_checkout_validation', function ($data, $errors) {
     }
 }, 10, 2);
 
+/* ---------- Saját kupon: a félbemaradt rendelés ne égesse el ---------- */
+
+/*
+ * A saját, egyszer használható kuponokat (UDV, SZULINAP, KOSZI – mandala_growth_coupon: egy használat, e-mail-címhez
+ * kötve) a WooCommerce már a „Függőben” / „Sikertelen” rendelésnél felhasználtnak számolja (wc_update_coupon_usage_counts),
+ * és amíg azt a rendelést senki nem törli, a kód halott – a vásárló „használati limit elérve, próbáld újra később”
+ * üzenetet kap (Áron, 2026-11-07: „Nem működnek a kuponkódok”; az első eset egy UDV-kód volt egy félbehagyott kártyás
+ * fizetés után). Ha a használatot csak a kupon gazdájának ki nem fizetett rendelése viszi el, a korlátot ennyivel
+ * megemeljük: így a WooCommerce ellenőrzése és a rendeléskori foglalása (check_and_hold_coupon) is átengedi. A korlát
+ * csak a megjelenítési környezetben (view) változik, a mentett kupon nem.
+ */
+function mandala_coupon_unpaid_uses(WC_Coupon $coupon): int
+{
+    $memo = &$GLOBALS['mandala_coupon_unpaid_memo']; // kérésenként egyszer kérdezzük le (a teszt üríti)
+    $memo = is_array($memo) ? $memo : [];
+    $id = (int) $coupon->get_id();
+    if (isset($memo[$id])) {
+        return $memo[$id];
+    }
+    $memo[$id] = 0;
+    $emails = array_values(array_filter(array_map('strtolower', (array) $coupon->get_email_restrictions('edit')), 'is_email'));
+    if (!$id || !$emails || !function_exists('wc_get_orders')) {
+        return 0;
+    }
+    $code = wc_format_coupon_code($coupon->get_code('edit'));
+    $n = 0;
+    foreach (array_slice($emails, 0, 3) as $email) {
+        $orders = wc_get_orders(['billing_email' => $email, 'status' => ['pending', 'failed'], 'type' => 'shop_order', 'limit' => 10,
+            'date_created' => '>' . (time() - 90 * DAY_IN_SECONDS)]);
+        foreach ($orders as $o) {
+            if ($o instanceof WC_Order && !$o->get_date_paid() && in_array($code, array_map('wc_format_coupon_code', $o->get_coupon_codes()), true)) {
+                $n++;
+            }
+        }
+    }
+    return $memo[$id] = $n;
+}
+add_filter('woocommerce_coupon_get_usage_limit', function ($limit, $coupon) {
+    $limit = (int) $limit;
+    if ($limit <= 0 || !$coupon instanceof WC_Coupon || (is_admin() && !wp_doing_ajax()) || (int) $coupon->get_usage_count('edit') < $limit) {
+        return $limit;
+    }
+    return $limit + mandala_coupon_unpaid_uses($coupon);
+}, 10, 2);
+
+/*
+ * Ha a kód tényleg elfogyott, a WooCommerce vendégnek is „próbáld újra később” üzenetet ad (a get_tentative_usage_count
+ * szöveget ad vissza, a 0 === "0" összevetés hamis) – ez félrevezető. Valódi foglalás nélkül: érthető mondat, és hova írjon.
+ */
+add_filter('woocommerce_coupon_error', function ($err, $code, $coupon) {
+    if (!in_array((int) $code, [WC_Coupon::E_WC_COUPON_USAGE_LIMIT_REACHED, 116], true) || !$coupon instanceof WC_Coupon || !$coupon->get_id()) {
+        return $err;
+    }
+    $store = $coupon->get_data_store();
+    if ((int) $code === 116 && is_callable([$store, 'get_tentative_usage_count']) && (int) $store->get_tentative_usage_count($coupon->get_id()) > 0) {
+        return $err; // most is foglalja egy épp folyamatban lévő rendelés – pár perc múlva felszabadul
+    }
+    return sprintf(__('A(z) %1$s kódot már felhasználták egy rendelésnél. Ha a te rendelésed akadt el, írj nekünk (%2$s), és segítünk.', 'mandala'),
+        strtoupper($coupon->get_code()), sanitize_email((string) get_option('woocommerce_email_from_address', get_option('admin_email'))));
+}, 20, 3);
+
 /* ---------- Vásárlás utáni ajánló ---------- */
 
 add_action('woocommerce_order_status_completed', function ($order_id) {

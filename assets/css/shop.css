@@ -256,7 +256,7 @@ ul#shipping_method, ul.wc_payment_methods { list-style: none; margin: 0; padding
 .review-coupon summary::-webkit-details-marker { display: none; }
 .review-coupon[open] summary .ico { transform: rotate(180deg); }
 .review-coupon .coupon { margin-top: var(--space-3); }
-.review-coupon .coupon .input-text { flex: 1; width: auto; min-width: 0; }
+.review-coupon .coupon .input-text { flex: 1 1 9rem; width: auto; min-width: 9rem; } /* beváltott kód mellett se zsugorodjon pöttyé – új sorba tör */
 .trust-mini { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); font-size: var(--fs-small); color: var(--c-muted); }
 .trust-mini li { display: flex; gap: var(--space-3); align-items: center; }
 .trust-mini .ico { color: var(--c-accent); }
