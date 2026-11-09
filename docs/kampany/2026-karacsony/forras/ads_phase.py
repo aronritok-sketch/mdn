@@ -42,7 +42,7 @@ def link(path, content):
 # mandala-2611-terv.md, 11-09). Amíg ez fennáll, a Meta legfeljebb napi 3 000 Ft (v4 2 000 + RT 1 000); a különbözet fele
 # a Google-é (70% PMax, 30% Keresés), a másik fele megmarad (a PMax ne ugorjon túl nagyot). Ha a Meta feloldja
 # (felülvizsgálat): META_LIMIT = None, és a szakaszok eredeti kerete él.
-META_LIMIT = {'v4': 2000, 'rt': 1000}
+META_LIMIT = {'v4': 3000, 'rt': 1000}  # 11-09: az RT szünetel (7 nap alatt 36 Ft) – a v4 kapta a keretét, a Meta összesen 3 000 Ft/nap
 META_SHIFT = 0.5
 PMAX_MIN = 10000
 
