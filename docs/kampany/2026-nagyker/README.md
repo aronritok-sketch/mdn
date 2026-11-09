@@ -52,7 +52,19 @@ A tervet Áron küldi ki; a csapat jóváhagyására vár.
 
 A mappaszerkezet: `build/` = `forras/`, mellette `ai/`, `out/`, és `pv/`. A `pv/` a partnerlap oldalképeihez kell, `pdftoppm`-mel készül.
 
-## Döntés kell (nov. 9-ig)
+## A tulajdonosok döntései (nov. 9.) – a kampány ma indult
+
+Áron: „Nyitott raktár, az mehet ma.” A tulajdonosok (Beszerzési csoport):
+- **1, 2, 4, 5:** rendben (dátumok, pöttyözés a Készlet alapján, nem adódik össze – a kedvezőbb jár, nincs minimum).
+- **3. Hangtálak:** nagy készlet nincs, az árak jók – legfeljebb zöld pötty (−10%), a bolt a lányokkal egyezteti
+  (Judit a szeptemberi beszerzések árrése alapján: „akár mehet a 10%”).
+- **6. Félretétel:** 3 munkanap, ha a bolt rábólint.
+- **7. Vidéki partner:** egyedi bejelentkezéssel szombaton vagy vasárnap is jöhet vásárolni.
+- **8. Új partner:** ő is megkapja a kedvezményt.
+- **Plusz:** a személyes vásárlásra buzdításnál ki kell emelni, hogy a webshopban nincs fent minden.
+- Indulás: **nov. 9.** (nem 11.); a partnerlevél: `levelek/partnerlevel-nov09-crm.json` (Partner CRM), `partnerlevel-nov09.*`.
+
+## Döntés kellett (nov. 9-ig) – az eredeti javaslat
 
 A dátum, a félretétel (3 munkanap), a kedvezményszint és a minimum javaslat. Ha változik, a `forras/texts.py`-ban kell átírni, és minden újragyártható. A döntendő kérdések:
 1. **Dátumok:** nov. 11. – dec. 18. A mostani −10%-os személyes akció nov. 10-ig fut.
