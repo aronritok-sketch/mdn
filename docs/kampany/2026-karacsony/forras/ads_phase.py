@@ -37,6 +37,32 @@ def link(path, content):
 
 
 # szakasz → kreatívok (hirdetés → kép, szöveg, cím, leírás, cél) és keretek (Ft/nap)
+# Áron, 2026-11-09 („nagyon gyengén teljesítenek a hirdetések … rengeteget költünk”): a Meta okt. eleje óta korlátozott
+# (védett adat) módban kezeli a Mandala adatait – a vásárlást és a kosarat nem méri, nem optimalizál rá (docs/ads/
+# mandala-2611-terv.md, 11-09). Amíg ez fennáll, a Meta legfeljebb napi 3 000 Ft (v4 2 000 + RT 1 000); a különbözet fele
+# a Google-é (70% PMax, 30% Keresés), a másik fele megmarad (a PMax ne ugorjon túl nagyot). Ha a Meta feloldja
+# (felülvizsgálat): META_LIMIT = None, és a szakaszok eredeti kerete él.
+META_LIMIT = {'v4': 2000, 'rt': 1000}
+META_SHIFT = 0.5
+PMAX_MIN = 10000
+
+
+def cap_meta(b, limit=META_LIMIT, share=META_SHIFT):
+    if not limit:
+        return b
+    b = dict(b)
+    extra = 0
+    for k, cap in limit.items():
+        if b[k] > cap:
+            extra += b[k] - cap
+            b[k] = cap
+    moved = int(round(extra * share / 100.0)) * 100
+    to_pmax = int(round(moved * 0.7 / 100.0)) * 100
+    b['pmax'] += to_pmax
+    b['search'] += moved - to_pmax
+    return b
+
+
 PH = {
     'fust': dict(ads={
         A3: ('1-fustolo-het-hirfolyam-1080x1350.jpg', 'Egyet fizetsz, kettőt viszel – minden füstölőre. Két csomagból az olcsóbbat mi álljuk, november 22-ig.', '1+1 füstölő – november 22-ig', 'Mandala · Budapest', FUST, 'xmas-fust-a3'),
@@ -111,6 +137,9 @@ def main(phase, dry=False):
     if rt < 300 and phase != 'vege':  # a remarketing nem tud költeni → a v4 kapja a keretét (a remarketing marad minimumon)
         b['v4'] += b['rt'] - 1000
         b['rt'] = 1000
+    b = cap_meta(b)
+    if META_LIMIT and phase != 'utalvany':  # a működő Google ne csökkenjen a mostani szint alá (PMax ROAS ~3)
+        b['pmax'] = max(b['pmax'], PMAX_MIN)
     for key, obj, typ, fld in [('v4', V4, 'meta_budget', 'object'), ('rt', RT, 'meta_budget', 'object'), ('pmax', PMAX, 'google_budget', 'campaign'), ('search', SEARCH, 'google_budget', 'campaign')]:
         act = {'type': typ, fld: obj, 'amount': b[key]}
         log['budget'][key] = {'amount': b[key], 'dry': True} if dry else {'amount': b[key], 'result': call('POST', f'/profiles/{P}/action', {'action': act})}
