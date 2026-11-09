@@ -1,0 +1,48 @@
+{
+  "kind": "newsletter",
+  "name": "Partnerlevél 2026-11-09 – Nyitott raktár",
+  "subject": "Nyitott raktár: a készlet 80%-a 10, 30 vagy 50%-kal olcsóbb",
+  "intro": "kinyitottuk a raktárt. mától, november 9-től december 18-ig a készletünk 80%-a 10, 30 vagy 50%-kal olcsóbb a nagyker árból. Hogy melyik tétel mennyivel, azt a polcon egy színes pötty mutatja. A kedvezmény csak személyes vásárlásnál jár, a budapesti bemutatótermünkben. Ha nem tudod, mi érdekelne, hívj: elmondjuk, mi van pöttyön, és félretesszük, amíg beérsz.",
+  "data": {
+    "skus": [],
+    "preheader": "November 9. – december 18., a nagyker árból, csak személyesen a Bakáts utcában. Hívj: +36 30 892 8385.",
+    "signoff": "Szeretettel:",
+    "sections": [
+      {
+        "title": "A pötty színe a kedvezmény",
+        "text": "– Zöld pötty: −10% a nagyker árból\n– Sárga pötty: −30% a nagyker árból\n– Piros pötty: −50% a nagyker árból\n– Pötty nélkül: a megszokott nagyker ár (újdonságok, a legkeresettebb tételek).\n\n– Kinek: Viszonteladóknak: jóváhagyott viszonteladói fiókkal, vagy adószámmal, a helyszínen jelentkezve.\n– Mennyi: Tételenként 10, 30 vagy 50% a nagyker árból – a polcon a pötty színe mutatja.\n– Hol: Csak személyes vásárlásnál, a bemutatótermünkben: 1093 Budapest, Bakáts u. 6. Webshopos rendelésre – személyes átvétellel sem – nem érvényes.\n– Telefonon: Érdeklődhetsz, és félretesszük, amit kiválasztottál: 3 munkanapig vár rád.\n– Meddig: 2026. november 9. – december 18., amíg a készlet tart. A pöttyös tételekből sokszor csak pár darab van.\n– Összevonás: A kedvezményszinteddel nem adódik össze: mindig a kedvezőbb jár.",
+        "image": "",
+        "button": "",
+        "url": ""
+      },
+      {
+        "title": "Karácsony előtt",
+        "text": "Amit most a polcodra teszel, azt még a karácsonyi szezonban eladhatod. A pöttyös tételekből sokszor csak pár darab van – aki előbb jön, többől választ.\n\nBelépve előre megnézheted, mit keresel, a nagyker árakkal – a pötty szerinti kedvezményt a bemutatóteremben adjuk.",
+        "image": "",
+        "button": "Belépek, és előre körülnézek",
+        "url": "https://mandala.hu/fiokom/nagyker/"
+      },
+      {
+        "title": "Hívj, és félretesszük",
+        "text": "Telefon: +36 30 892 8385\nE-mail: info@mandala.hu\n\nElmondjuk, mi van pöttyön abból, amit keresel, és félretesszük, amit kiválasztottál: 3 munkanapig vár rád.\n\nBemutatóterem: 1093 Budapest, Bakáts u. 6.\nNyitvatartás: Hétfőn 9–17, keddtől péntekig 9–15 óráig, hétvégén zárva.",
+        "image": "",
+        "button": "Térkép a Kapcsolat oldalon",
+        "url": "https://mandala.hu/kapcsolat/"
+      }
+    ]
+  },
+  "segment": {
+    "stages": [
+      "aktiv",
+      "elmarado",
+      "elveszett",
+      "erdeklodik"
+    ],
+    "types": [],
+    "cities": [],
+    "categories": [],
+    "owner": 0,
+    "min_rev": 0,
+    "max_rev": 0
+  }
+}
