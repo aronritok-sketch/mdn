@@ -104,7 +104,11 @@ def job(st, r):
         return st, r
     for _ in range(60):
         time.sleep(5)
-        s2, j = call('GET', f'/jobs/{jid}')
+        try:
+            s2, j = call('GET', f'/jobs/{jid}')
+        except (urllib.error.URLError, ConnectionError, TimeoutError):  # 11-13: a futó feladat alatt a CRM néha bontja a kapcsolatot
+            time.sleep(10)
+            continue
         if isinstance(j, dict) and j.get('status') in ('done', 'error', 'failed'):
             return s2, j
     return 0, {'error': 'időtúllépés', 'job': jid}
@@ -123,7 +127,11 @@ def rt_spends():
 def main(phase, dry=False):
     ph = PH[phase]
     log = {'phase': phase, 'at': datetime.datetime.now().isoformat(timespec='seconds'), 'ads': {}, 'budget': {}, 'pause': {}}
+    skip = set(os.environ.get('XMAS_SKIP_ADS', '').split(','))  # pl. ha egy kreatív már kicserélődött (újrafuttatás)
     for ad, (img, primary, headline, desc, path, content) in ph['ads'].items():
+        if ad in skip:
+            log['ads'][ad] = 'kihagyva (már kész)'
+            continue
         b64 = base64.b64encode(open(K + img, 'rb').read()).decode()
         body = {'ad': ad, 'creative': {'name': f'MAN | Karácsony 2026 | {phase} | {content}', 'link': link(path, content), 'cta': 'SHOP_NOW',
                                        'primary_text': primary, 'headline': headline, 'description': desc, 'image': 'img'},
