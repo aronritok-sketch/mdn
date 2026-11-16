@@ -42,6 +42,8 @@ def link(path, content):
 # mandala-2611-terv.md, 11-09). Amíg ez fennáll, a Meta legfeljebb napi 3 000 Ft (v4 2 000 + RT 1 000); a különbözet fele
 # a Google-é (70% PMax, 30% Keresés), a másik fele megmarad (a PMax ne ugorjon túl nagyot). Ha a Meta feloldja
 # (felülvizsgálat): META_LIMIT = None, és a szakaszok eredeti kerete él.
+# Áron, 2026-11-16 („legyen 10”, CRM 186228486): az „rt” (a katalógus-kampány) a Füstölő-hét és a Black Week alatt
+# (fust, bw, bf, bw2: nov. 13–30.) napi 10 000 Ft, és nem adja át a keretét a v4-nek (rt_fixed).
 # 11-09 este, Áron: „csinálj egy napi 10.000 forintos katalógus kampányt … ebben jön a bevétel, hiába nincs mérve … tendálj
 # át a Google-ről” → a Meta-plafon ki: a szakaszok eredeti (Áron által jóváhagyott) keretei élnek. Az „rt” mostantól a
 # széles katalógus-kampány (a volt remarketing, 11-09-től széles közönség); nov. 13-ig napi 10 000 Ft.
@@ -70,17 +72,17 @@ PH = {
     'fust': dict(ads={
         A3: ('1-fustolo-het-hirfolyam-1080x1350.jpg', 'Egyet fizetsz, kettőt viszel – minden füstölőre. Két csomagból az olcsóbbat mi álljuk, november 22-ig.', '1+1 füstölő – november 22-ig', 'Mandala · Budapest', FUST, 'xmas-fust-a3'),
         A1: ('1-fustolo-het-negyzet-1080x1080.jpg', 'Nag Champa, Palo Santo, fehér zsálya, szantálfa… Több mint 400 illat közül választhatsz, és minden második csomag a miénk.', 'Egyet fizetsz, kettőt viszel', 'November 22-ig', FUST, 'xmas-fust-a1'),
-    }, budget={'v4': 5000, 'rt': 2000, 'pmax': 7000, 'search': 2000}),
+    }, budget={'v4': 5000, 'rt': 10000, 'pmax': 7000, 'search': 2000}, rt_fixed=True),
     'bw': dict(ads={
         A3: ('2-black-week-hirfolyam-1080x1350.jpg', 'Black Week a Mandalában: szinte mindenre 20%, a hangtálakra 10%. Kézzel válogatott darabok Nepálból és Indiából.', 'Black Week: −20% szinte mindenre', 'November 30-ig', AKC, 'xmas-bw-a3'),
         A1: ('2-black-week-negyzet-1080x1080.jpg', 'Hangtál, mala, szobor, füstölőtartó – a Black Week alatt 20%-kal olcsóbban. A füstölőkre marad az egyet fizetsz, kettőt viszel.', 'Hangtálak most −10%', 'November 30-ig', AKC, 'xmas-bw-a1'),
-    }, budget={'v4': 8000, 'rt': 5000, 'pmax': 14000, 'search': 3000}),
+    }, budget={'v4': 8000, 'rt': 10000, 'pmax': 14000, 'search': 3000}, rt_fixed=True),
     'bf': dict(ads={
         A1: ('3-black-friday-hirfolyam-1080x1350.jpg', 'Csak ma: bármekkora rendelésnél ingyenes a szállítás – a Black Week kedvezményei mellé. Éjfélig.', 'Ma ingyenes a szállítás', 'Black Friday · éjfélig', AKC, 'xmas-bf-a1'),
-    }, budget={'v4': 8000, 'rt': 5000, 'pmax': 14000, 'search': 3000}),
+    }, budget={'v4': 8000, 'rt': 10000, 'pmax': 14000, 'search': 3000}, rt_fixed=True),
     'bw2': dict(ads={
         A1: ('2-black-week-negyzet-1080x1080.jpg', 'Ha karácsonyra keresel valami különlegeset, most érdemes: november 30-ig szinte mindenre 20% kedvezmény.', 'Black Week: −20% szinte mindenre', 'November 30-ig', AKC, 'xmas-bw2-a1'),
-    }, budget={'v4': 8000, 'rt': 5000, 'pmax': 14000, 'search': 3000}),
+    }, budget={'v4': 8000, 'rt': 10000, 'pmax': 14000, 'search': 3000}, rt_fixed=True),
     'mikulas': dict(ads={
         A3: ('4-mikulas-hirfolyam-1080x1350.jpg', 'Mikulásra december 3-án 12 óráig rendelj: díszcsomagolásban, kézzel írt kártyával küldjük – ez most nem kerül semmibe.', 'Ajándék a csizmába', 'Rendelj dec. 3., 12 óráig', AJ, 'xmas-mikulas-a3'),
         A1: ('4-mikulas-negyzet-1080x1080.jpg', 'Apró ajándék, ami jelent is valamit: mala karkötő, füstölő, kis szobor. 15 000 Ft felett egy füstölőt mi teszünk mellé.', 'Díszcsomagolás ajándékba', 'Rendelj dec. 3., 12 óráig', AJ, 'xmas-mikulas-a1'),
@@ -145,7 +147,7 @@ def main(phase, dry=False):
     b = dict(ph['budget'])
     rt = rt_spends()
     log['rt_spend_3d'] = rt
-    if rt < 300 and phase != 'vege':  # a remarketing nem tud költeni → a v4 kapja a keretét (a remarketing marad minimumon)
+    if rt < 300 and phase != 'vege' and not ph.get('rt_fixed'):  # a remarketing nem tud költeni → a v4 kapja a keretét (a remarketing marad minimumon)
         b['v4'] += b['rt'] - 1000
         b['rt'] = 1000
     b = cap_meta(b)
