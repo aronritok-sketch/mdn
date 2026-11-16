@@ -257,6 +257,9 @@ function mandala_sitefix_list(): array
             }
             return $n ? 'mintaoldal a lomtárban' : 'nem volt';
         },
+
+        // Termékszövegek: gyógyhatás-ígéret → szabálykövető szöveg (health-copy.php). Előbb 5 próbatermék.
+        'termekszoveg-egeszseg-proba-2611' => fn() => mandala_hr_run(mandala_hr_data()['test'] ?? [0]),
     ];
 }
 
