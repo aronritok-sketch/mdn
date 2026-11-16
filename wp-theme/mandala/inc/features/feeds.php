@@ -106,7 +106,11 @@ function mandala_feed_items(): array
             $items[] = [
                 'id' => $v->get_sku() ?: 'MND-' . $v->get_id(),
                 'group' => $product->is_type('variable') ? ($product->get_sku() ?: 'MND-' . $id) : '',
-                'title' => mb_substr($v->get_name(), 0, 150),
+                // Hirdetési cím (_mandala_feed_title): ha a bolti név a Google / Meta szabályába ütközik (pl. „Night Queen”,
+                // „Kamasutra”), a feedbe szabálykövető cím megy; a boltban és a JUTA-ban a név marad.
+                'title' => mb_substr(($ft = trim((string) $product->get_meta('_mandala_feed_title'))) !== ''
+                    ? $ft . ($product->is_type('variable') ? ' – ' . wc_get_formatted_variation($v, true, false, false) : '')
+                    : $v->get_name(), 0, 150),
                 'description' => mb_substr($desc ?: $v->get_name(), 0, 4900),
                 'link' => $v->get_permalink(),
                 'images' => $images ?: [mandala_art_url($product)],
