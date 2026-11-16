@@ -71,6 +71,11 @@ function mandala_feed_items(): array
         if (!$product || $product->is_virtual() || $product->get_meta('_mandala_ticket_for') || (function_exists('mandala_is_voucher') && mandala_is_voucher($product))) {
             continue;
         }
+        // Hirdetésből kizárt termék (pl. a csomagoláson kannabiszlevél – a Google / Meta szabálya miatt nem hirdethető,
+        // a boltban marad): _mandala_feed_exclude = yes.
+        if ($product->get_meta('_mandala_feed_exclude') === 'yes') {
+            continue;
+        }
         $variants = $product->is_type('variable') ? array_filter(array_map('wc_get_product', $product->get_children())) : [$product];
         [$cat, $sub] = mandala_product_cats($id);
         $cat_path = trim(mandala_term_name($cat) . ($sub ? ' > ' . mandala_term_name($sub) : ''), ' >');
@@ -80,6 +85,13 @@ function mandala_feed_items(): array
         foreach ($variants as $v) {
             $regular = (float) $v->get_regular_price('edit');
             $sale = $v->is_on_sale('edit') && $v->get_sale_price('edit') !== '' ? (float) $v->get_sale_price('edit') : 0.0;
+            // A JUTA-szinkron néha a listaárnál magasabb „akciós” árat ír (2026-11: két teáskészlet, 6 860 / 8 540 Ft):
+            // ilyenkor a bolt a tárolt árat kéri – a feed is azt küldje, akció nélkül (különben a Merchant Center
+            // „Érvénytelen értékesítési ár” / árelérés miatt elutasítja).
+            $current = (float) $v->get_price('edit');
+            if (!$sale && $current > 0 && $current !== $regular) {
+                $regular = $current;
+            }
             // Kampányár (promos.php) – a bolti szabályokkal, hogy a Google / Meta ugyanazt lássa, mint a termékoldal.
             $promo = function_exists('mandala_promo_price_for') ? mandala_promo_price_for($v, mandala_promo_rules()) : null;
             if ($promo !== null && $promo > 0 && $promo < ($sale ?: $regular)) {
