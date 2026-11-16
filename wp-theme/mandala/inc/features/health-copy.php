@@ -43,6 +43,13 @@ function mandala_hr_pattern(string $old): string
         '…' => '(?:…|&#8230;|&hellip;|\.\.\.)',
         '&' => '(?:&|&amp;|&#038;)',
     ];
+    // Ékezetek: a tárolt szövegben előfordul a felbontott alak is (betű + kombináló jel, pl. „a\u{301}”).
+    foreach (['á' => "a\u{301}", 'é' => "e\u{301}", 'í' => "i\u{301}", 'ó' => "o\u{301}", 'ú' => "u\u{301}", 'ö' => "o\u{308}",
+              'ü' => "u\u{308}", 'ő' => "o\u{30B}", 'ű' => "u\u{30B}"] as $c => $d) {
+        $map[$c] = '(?:' . $c . '|' . $d . ')';
+        $C = mb_strtoupper($c);
+        $map[$C] = '(?:' . $C . '|' . mb_strtoupper(mb_substr($d, 0, 1)) . mb_substr($d, 1) . ')';
+    }
     $tag = '(?:<[^>]*>)*';
     $out = '';
     foreach (preg_split('//u', $old, -1, PREG_SPLIT_NO_EMPTY) as $ch) {

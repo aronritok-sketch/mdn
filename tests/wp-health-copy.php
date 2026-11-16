@@ -37,6 +37,9 @@ $ok(substr_count($out, '<strong>') === substr_count($out, '</strong>'), 'a címk
 $ok(strpos($out, 'kapcsolódik a tűz-elem (<em>Agni</em>) fenntartásához') !== false, 'részleges sor: a folytatás marad');
 $n2 = 0;
 $ok(mandala_hr_apply($out, $pairs, $n2) === $out && $n2 === 0, 'másodszor futtatva nem változtat');
+$n3 = 0;
+$nfd = "<p>Medita\u{301}cio\u{301}hoz, aromatera\u{301}pia\u{301}hoz vagy egyszeru\u{30B} hangulatteremte\u{301}shez is jo\u{301} kiege\u{301}szi\u{301}to\u{30B}.</p>";
+$ok(strpos(mandala_hr_apply($nfd, $pairs, $n3), 'illatrituáléhoz') !== false && $n3 === 1, 'felbontott ékezetes (NFD) szöveg is egyezik');
 
 echo "Futtatás termékre, mentés, visszaállítás\n";
 $p = new WC_Product_Simple();

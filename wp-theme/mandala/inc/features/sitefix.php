@@ -266,6 +266,12 @@ function mandala_sitefix_list(): array
             $ids = array_unique(array_merge(...array_map(fn($p) => array_map('intval', (array) $p[2]), $d['pairs'] ?: [[0, 0, []]])));
             return mandala_hr_queue(array_diff($ids, array_map('intval', $d['test'] ?? [])));
         },
+        // Két terméknél a szöveg felbontott ékezetekkel tárolt (a + kombináló jel) – a minta most mindkettőt felismeri;
+        // újra az összesre (ami már kész, ott nincs találat, a mentés marad az eredeti).
+        'termekszoveg-egeszseg-nfd-2611' => function () {
+            $ids = array_merge(...array_map(fn($p) => array_map('intval', (array) $p[2]), mandala_hr_data()['pairs'] ?: [[0, 0, []]]));
+            return mandala_hr_queue($ids);
+        },
     ];
 }
 
