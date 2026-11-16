@@ -266,6 +266,36 @@ function mandala_sitefix_list(): array
             $ids = array_unique(array_merge(...array_map(fn($p) => array_map('intval', (array) $p[2]), $d['pairs'] ?: [[0, 0, []]])));
             return mandala_hr_queue(array_diff($ids, array_map('intval', $d['test'] ?? [])));
         },
+        // Merchant Center (2026-11-16, Áron: „Mehet mind”): a két kannabiszleveles dobozú füstölő ki a hirdetési
+        // feedekből (a boltban marad), öt terméknek szabálykövető hirdetési cím (a bolti név marad).
+        'merchant-feed-2611' => function () {
+            $n = 0;
+            foreach ([917, 850] as $id) {
+                if (get_post_type($id) === 'product') {
+                    update_post_meta($id, '_mandala_feed_exclude', 'yes');
+                    $n++;
+                }
+            }
+            $titles = [4287 => 'Nag Champa hétvirág parfümolaj – 5 ml', 4467 => 'Éjjel nyíló jázmin parfümolaj – 5 ml',
+                       911 => 'Ayurvedic: fűszeres-virágos hexa füstölő', 438 => 'Garden Fresh: fűszeres-virágos füstölő',
+                       1049 => 'Goloka: fűszeres keleti aromaolaj'];
+            foreach ($titles as $id => $t) {
+                if (get_post_type($id) === 'product') {
+                    update_post_meta($id, '_mandala_feed_title', $t);
+                    $n++;
+                }
+            }
+            $built = get_option('mandala_feeds_built');
+            if (is_array($built)) {
+                $built['sig'] = '';
+                update_option('mandala_feeds_built', $built, false);
+            }
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action('mandala_feeds_build', [], 'mandala');
+            }
+            return $n . ' termék beállítva (7 várható), feed újraépítés sorban';
+        },
+
         // Két terméknél a szöveg felbontott ékezetekkel tárolt (a + kombináló jel) – a minta most mindkettőt felismeri;
         // újra az összesre (ami már kész, ott nincs találat, a mentés marad az eredeti).
         'termekszoveg-egeszseg-nfd-2611' => function () {
