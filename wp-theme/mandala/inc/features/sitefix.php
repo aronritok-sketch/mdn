@@ -260,6 +260,12 @@ function mandala_sitefix_list(): array
 
         // Termékszövegek: gyógyhatás-ígéret → szabálykövető szöveg (health-copy.php). Előbb 5 próbatermék.
         'termekszoveg-egeszseg-proba-2611' => fn() => mandala_hr_run(mandala_hr_data()['test'] ?? [0]),
+        // Az 5 próbatermék élesben rendben (11-16) → a többi (Áron: „Mehet mindkettő”).
+        'termekszoveg-egeszseg-2611' => function () {
+            $d = mandala_hr_data();
+            $ids = array_unique(array_merge(...array_map(fn($p) => array_map('intval', (array) $p[2]), $d['pairs'] ?: [[0, 0, []]])));
+            return mandala_hr_queue(array_diff($ids, array_map('intval', $d['test'] ?? [])));
+        },
     ];
 }
 

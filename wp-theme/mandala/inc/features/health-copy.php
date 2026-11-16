@@ -138,9 +138,30 @@ function mandala_hr_run(array $only = [], ?array $pairs_override = null): string
     if (function_exists('as_enqueue_async_action')) {
         as_enqueue_async_action('mandala_feeds_build', [], 'mandala');
     }
-    update_option('mandala_hr_log_2611', ['time' => time(), 'only' => $only, 'changed' => $changed, 'hits' => $hits, 'miss' => $miss], false);
+    $log = (array) get_option('mandala_hr_log_2611', []);
+    $log = isset($log['time']) ? [$log] : $log;
+    $log[] = ['time' => time(), 'only' => count($only), 'changed' => $changed, 'hits' => $hits, 'miss' => $miss];
+    update_option('mandala_hr_log_2611', array_slice($log, -20), false);
     return sprintf('%d termék, %d mondat átírva%s', $changed, $hits, $miss ? '; nem talált: ' . implode(', ', array_slice($miss, 0, 20)) : '');
 }
+
+/** Tömeges futtatás adagokban (Action Scheduler), hogy egy kérés se fusson ki az időből. */
+function mandala_hr_queue(array $ids, int $size = 30): string
+{
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+    if (!$ids) {
+        return 'nincs termék';
+    }
+    if (!function_exists('as_enqueue_async_action')) {
+        return mandala_hr_run($ids);
+    }
+    $chunks = array_chunk($ids, max(1, $size));
+    foreach ($chunks as $chunk) {
+        as_enqueue_async_action('mandala_hr_batch', [$chunk], 'mandala');
+    }
+    return sprintf('%d termék sorba állítva, %d adagban', count($ids), count($chunks));
+}
+add_action('mandala_hr_batch', fn($ids) => mandala_hr_run((array) $ids));
 
 /** Visszaállítás a mentésből (vészhelyzetre; a sitefix-listába kell felvenni, ha kell). */
 function mandala_hr_restore(): string
